@@ -4,7 +4,8 @@ import {FlightsComponent} from './pages/flights/flights.component';
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
-  { path: '**', redirectTo: '' },
   { path: 'flights', component: FlightsComponent },
+  { path: '**', redirectTo: '' },
+
 
 ];
