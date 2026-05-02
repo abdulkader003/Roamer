@@ -1,0 +1,9 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #0b0b0d;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
