@@ -1,0 +1,13 @@
+<button class="event-card" type="button" (click)="openDetails($event)">
+  <span class="event-title">{{ event.title }}</span>
+
+  <span class="event-meta" *ngIf="event.startTime || event.location">
+    <span *ngIf="event.startTime">{{ event.startTime }}</span>
+    <span *ngIf="event.startTime && event.location"> &middot; </span>
+    <span *ngIf="event.location">{{ event.location }}</span>
+  </span>
+
+  <span class="event-category" *ngIf="event.category">
+    {{ event.category }}
+  </span>
+</button>
