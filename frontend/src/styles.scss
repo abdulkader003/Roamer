@@ -1,0 +1,218 @@
+/* ═══════════════════════════════════════════════════════════════
+   ROAMER — Global Theme Variables
+   Place this in your project's src/styles.scss
+   (merge with any existing content — don't replace the whole file)
+   ═══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+/* ── LIGHT THEME (default) ── */
+:root,
+[data-theme='light'] {
+  /* Core surfaces */
+  --page-bg:           #F4F6FB;
+  --surface-primary:   #FFFFFF;
+  --surface-secondary: #F4F6FB;
+  --surface-hover:     #F3F4F6;
+
+  /* Text */
+  --text-primary:  #1A1D2E;
+  --text-muted:    #6B7280;
+  --text-dim:      #9CA3AF;
+
+  /* Borders */
+  --border:        #E5E7EB;
+
+  /* Accent (blue) */
+  --accent:        #1A56DB;
+  --accent-border: #1A56DB;
+  --accent-bg:     #EFF6FF;
+  --gold:          #1A56DB;
+  --gold-light:    #1A56DB;
+  --gold-border:   #1A56DB;
+  --gold-bg:       #EFF6FF;
+
+  /* Active nav */
+  --active-bg:     #EFF6FF;
+  --active-color:  #1A56DB;
+  --active-border: transparent;
+
+  /* Sidebar button */
+  --btn-bg:        #1A56DB;
+  --btn-text:      #FFFFFF;
+  --btn-border:    #1A56DB;
+  --btn-hover:     #1447C4;
+
+  /* Section title */
+  --section-title-color: #1A56DB;
+
+  /* Hero */
+  --hero-bg-fallback:  linear-gradient(135deg, #0f2557 0%, #1a56db 40%, #38bdf8 100%);
+  --hero-img-opacity:  0.40;
+  --hero-gradient:     linear-gradient(to right, rgba(13,30,80,0.55) 0%, transparent 100%);
+  --hero-sup-color:    #93C5FD;
+  --hero-title-size:   36px;
+  --hero-title-font:   inherit;
+  --hero-btn-bg:       #1A56DB;
+  --hero-btn-border:   #1A56DB;
+  --hero-btn-text:     #FFFFFF;
+  --hero-btn-hover:    #1447C4;
+
+  /* Stat / icon */
+  --icon-bg:     #EBF5FF;
+  --icon-border: transparent;
+
+  /* Badges */
+  --badge-confirmed-bg:     #DCFCE7;
+  --badge-confirmed-text:   #166534;
+  --badge-confirmed-border: transparent;
+  --badge-pending-bg:       #FEF3C7;
+  --badge-pending-text:     #92400E;
+  --badge-pending-border:   transparent;
+
+  /* Calendar today */
+  --today-text: #FFFFFF;
+
+  /* Donut */
+  --donut-track: #E5E7EB;
+
+  /* Cards */
+  --card-shadow: rgba(0,0,0,0.09);
+  --heart-bg:    #FFFFFF;
+  --price-color: #1A56DB;
+
+  /* Explore icon bg/stroke */
+  --explore-flights-bg:       #EBF5FF;
+  --explore-flights-stroke:   #1A56DB;
+  --explore-events-bg:        #E6F4EA;
+  --explore-events-stroke:    #0F9D58;
+  --explore-activities-bg:    #FEF3C7;
+  --explore-activities-stroke:#B45309;
+  --explore-attractions-bg:   #EDE9FE;
+  --explore-attractions-stroke:#7C3AED;
+  --explore-beaches-bg:       #E0F2FE;
+  --explore-beaches-stroke:   #0EA5E9;
+  --explore-parties-bg:       #FEE2E2;
+  --explore-parties-stroke:   #DC2626;
+
+  /* Quick Actions */
+  --qa-flight-bg:    #1A56DB; --qa-flight-text:  #fff;    --qa-flight-border:  #1A56DB;
+  --qa-hotel-bg:     #EDE9FE; --qa-hotel-text:   #7C3AED; --qa-hotel-border:   transparent;
+  --qa-event-bg:     #E6F4EA; --qa-event-text:   #0F9D58; --qa-event-border:   transparent;
+  --qa-budget-bg:    #FEF3C7; --qa-budget-text:  #B45309; --qa-budget-border:  transparent;
+}
+
+/* ── DARK THEME ── */
+[data-theme='dark'] {
+  /* Core surfaces */
+  --page-bg:           #0D0D0D;
+  --surface-primary:   #141414;
+  --surface-secondary: #1A1A1A;
+  --surface-hover:     #1A1A1A;
+
+  /* Text */
+  --text-primary:  #F0E8D6;
+  --text-muted:    #7A7060;
+  --text-dim:      #4A4438;
+
+  /* Borders */
+  --border:        rgba(255,255,255,0.07);
+
+  /* Accent (gold) */
+  --accent:        #C9962A;
+  --accent-border: rgba(201,150,42,0.5);
+  --accent-bg:     rgba(201,150,42,0.10);
+  --gold:          #C9962A;
+  --gold-light:    #E8B84B;
+  --gold-border:   rgba(201,150,42,0.35);
+  --gold-bg:       rgba(201,150,42,0.10);
+
+  /* Active nav */
+  --active-bg:     rgba(201,150,42,0.10);
+  --active-color:  #E8B84B;
+  --active-border: rgba(201,150,42,0.30);
+
+  /* Sidebar button */
+  --btn-bg:      rgba(201,150,42,0.10);
+  --btn-text:    #E8B84B;
+  --btn-border:  rgba(201,150,42,0.35);
+  --btn-hover:   rgba(201,150,42,0.18);
+
+  /* Section title */
+  --section-title-color: #E8B84B;
+
+  /* Hero */
+  --hero-bg-fallback:  #1A1200;
+  --hero-img-opacity:  0.55;
+  --hero-gradient:     linear-gradient(to right, rgba(13,10,0,0.92) 30%, rgba(13,10,0,0.25) 100%);
+  --hero-sup-color:    #C9962A;
+  --hero-title-size:   42px;
+  --hero-title-font:   'Cormorant Garamond', serif;
+  --hero-btn-bg:       rgba(201,150,42,0.12);
+  --hero-btn-border:   #C9962A;
+  --hero-btn-text:     #E8B84B;
+  --hero-btn-hover:    rgba(201,150,42,0.22);
+
+  /* Stat / icon */
+  --icon-bg:     rgba(201,150,42,0.10);
+  --icon-border: rgba(201,150,42,0.25);
+
+  /* Badges */
+  --badge-confirmed-bg:     rgba(16,185,129,0.12);
+  --badge-confirmed-text:   #34D399;
+  --badge-confirmed-border: rgba(16,185,129,0.25);
+  --badge-pending-bg:       rgba(201,150,42,0.12);
+  --badge-pending-text:     #C9962A;
+  --badge-pending-border:   rgba(201,150,42,0.30);
+
+  /* Calendar today */
+  --today-text: #0D0D0D;
+
+  /* Donut */
+  --donut-track: #222222;
+
+  /* Cards */
+  --card-shadow: rgba(0,0,0,0.40);
+  --heart-bg:    rgba(13,13,13,0.75);
+  --price-color: #E8B84B;
+
+  /* Explore icon bg/stroke — unified gold tint in dark */
+  --explore-flights-bg:        rgba(201,150,42,0.10);
+  --explore-flights-stroke:    #C9962A;
+  --explore-events-bg:         rgba(201,150,42,0.10);
+  --explore-events-stroke:     #C9962A;
+  --explore-activities-bg:     rgba(201,150,42,0.10);
+  --explore-activities-stroke: #C9962A;
+  --explore-attractions-bg:    rgba(201,150,42,0.10);
+  --explore-attractions-stroke:#C9962A;
+  --explore-beaches-bg:        rgba(201,150,42,0.10);
+  --explore-beaches-stroke:    #C9962A;
+  --explore-parties-bg:        rgba(201,150,42,0.10);
+  --explore-parties-stroke:    #C9962A;
+
+  /* Quick Actions */
+  --qa-flight-bg:   rgba(201,150,42,0.12); --qa-flight-text:  #E8B84B; --qa-flight-border:  rgba(201,150,42,0.35);
+  --qa-hotel-bg:    rgba(201,150,42,0.08); --qa-hotel-text:   #C9962A; --qa-hotel-border:   rgba(201,150,42,0.20);
+  --qa-event-bg:    rgba(201,150,42,0.08); --qa-event-text:   #C9962A; --qa-event-border:   rgba(201,150,42,0.20);
+  --qa-budget-bg:   rgba(201,150,42,0.08); --qa-budget-text:  #C9962A; --qa-budget-border:  rgba(201,150,42,0.20);
+}
+
+/* ── Base reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { transition: background 0.3s; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--page-bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* Dark mode scrollbar */
+[data-theme='dark'] {
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #141414; }
+  ::-webkit-scrollbar-thumb { background: #8A6520; border-radius: 2px; }
+}

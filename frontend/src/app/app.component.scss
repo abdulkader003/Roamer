@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--page-bg);
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--page-bg);
+}
+
+.app-content {
+  min-height: 100vh;
+  padding-top: 64px;
+}
+
+.app-main {
+  position: relative;
+  min-height: calc(100vh - 64px);
+  overflow: hidden;
+  touch-action: pan-y;
+  transition: margin-left 0.24s ease;
+}
+
+.app-main--with-sidebar {
+  margin-left: 220px;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border: 0;
+  background: rgba(26, 29, 46, 0.24);
+  backdrop-filter: blur(3px);
+  z-index: 120;
+}
