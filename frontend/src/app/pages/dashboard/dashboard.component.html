@@ -1,0 +1,254 @@
+<main class="main-content">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-overlay-gradient"></div>
+      <div class="hero-content">
+        <p class="hero-sup">Good Evening</p>
+        <h1 class="hero-title">Where to next?</h1>
+        <p class="hero-desc">Flights, events, activities, attractions, beaches and parties – all in one luxurious place.</p>
+        <button class="hero-btn">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+          </svg>
+          Plan Your Next Adventure
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+        </div>
+        <div>
+          <p class="stat-label">Total Budget</p>
+          <p class="stat-value">€5,000</p>
+          <p class="stat-sub">All trips</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </div>
+        <div>
+          <p class="stat-label">Total Spent</p>
+          <p class="stat-value">€2,350</p>
+          <p class="stat-sub">47% of budget</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div>
+          <p class="stat-label">Remaining</p>
+          <p class="stat-value">€2,650</p>
+          <p class="stat-sub">53% left</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="stat-label">Upcoming Trips</p>
+          <p class="stat-value">2</p>
+          <p class="stat-sub">Next 30 days</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3-col grid -->
+    <div class="three-col-grid">
+
+      <!-- Upcoming Trips -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Upcoming Trips</span>
+          <a href="#" class="view-all">View All</a>
+        </div>
+        @for (trip of trips(); track trip.name) {
+          <div class="trip-row">
+            <img [src]="trip.image" [alt]="trip.name" class="trip-img" />
+            <div class="trip-info">
+              <p class="trip-name">{{ trip.name }}</p>
+              <p class="trip-date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {{ trip.dates }}
+              </p>
+              <span [class]="trip.status === 'confirmed' ? 'badge badge-confirmed' : 'badge badge-pending'">
+                {{ trip.status }}
+              </span>
+            </div>
+            <div class="trip-budget-wrap">
+              <p class="trip-budget">{{ trip.budget }}</p>
+              <p class="trip-budget-sub">Budget</p>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Explore -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Explore</span>
+          <a href="#" class="view-all">View All</a>
+        </div>
+        <div class="explore-grid">
+          @for (item of exploreItems(); track item.label) {
+            <div class="explore-item">
+              <div class="explore-icon" [style.background]="item.bgColor">
+                <span class="explore-svg" [style.color]="item.strokeColor" [innerHTML]="item.icon"></span>
+              </div>
+              <span class="explore-label">{{ item.label }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Travel Calendar</span>
+          <a href="/calendar" class="view-all">View Full Calendar</a>
+        </div>
+        <div class="cal-nav">
+          <button class="cal-nav-btn">&#8249;</button>
+          <span class="cal-month">May 2026</span>
+          <button class="cal-nav-btn">&#8250;</button>
+        </div>
+        <div class="cal-grid">
+          @for (h of ['MON','TUE','WED','THU','FRI','SAT','SUN']; track h) {
+            <div class="cal-header">{{ h }}</div>
+          }
+          @for (d of calDays(); track d.day + d.type) {
+            <div [class]="d.type === 'today' ? 'cal-day today' : d.type === 'prev' ? 'cal-day prev' : 'cal-day'">
+              {{ d.day }}
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommended Experiences -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-title">Recommended Experiences</span>
+        <div class="rec-arrows">
+          <button class="cal-nav-btn">&#8249;</button>
+          <button class="cal-nav-btn">&#8250;</button>
+        </div>
+      </div>
+      <div class="rec-grid">
+        @for (exp of experiences(); track exp.name) {
+          <div class="rec-card">
+            <div class="rec-img-wrap">
+              <img [src]="exp.image" [alt]="exp.name" class="rec-img" />
+              <button class="rec-heart">&#9825;</button>
+            </div>
+            <div class="rec-body">
+              <p class="rec-name">{{ exp.name }}</p>
+              <p class="rec-location">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                </svg>
+                {{ exp.location }}
+              </p>
+              <p class="rec-price">{{ exp.price }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Bottom grid -->
+    <div class="bottom-grid">
+
+      <!-- Budget Overview -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Budget Overview</span>
+          <a href="#" class="view-all">View Report</a>
+        </div>
+        <div class="budget-wrap">
+          <div class="donut-wrap">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r="52" fill="none" class="donut-track" stroke-width="20"/>
+              @for (b of budgetItems(); track b.label) {
+                <circle
+                  cx="70" cy="70" r="52" fill="none"
+                  [attr.stroke]="b.color"
+                  stroke-width="20"
+                  [attr.stroke-dasharray]="b.dashArray"
+                  [attr.stroke-dashoffset]="b.dashOffset"
+                  transform="rotate(-90 70 70)"
+                />
+              }
+            </svg>
+            <div class="donut-center">
+              <span class="donut-amount">€2,350</span>
+              <span class="donut-label">Spent</span>
+            </div>
+          </div>
+          <div class="legend">
+            @for (b of budgetItems(); track b.label) {
+              <div class="legend-row">
+                <span class="legend-dot" [style.background]="b.color"></span>
+                <span class="legend-name">{{ b.label }}</span>
+                <span class="legend-val">{{ b.amount }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Quick Actions</span>
+        </div>
+        <div class="actions-grid">
+          <button class="action-btn" style="background:var(--qa-flight-bg);color:var(--qa-flight-text);border-color:var(--qa-flight-border)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            Book Flight
+          </button>
+          <button class="action-btn" style="background:var(--qa-hotel-bg);color:var(--qa-hotel-text);border-color:var(--qa-hotel-border)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            Find Hotel
+          </button>
+          <button class="action-btn" style="background:var(--qa-event-bg);color:var(--qa-event-text);border-color:var(--qa-event-border)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Book Event
+          </button>
+          <button class="action-btn" style="background:var(--qa-budget-bg);color:var(--qa-budget-text);border-color:var(--qa-budget-border)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+            Set Budget
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
