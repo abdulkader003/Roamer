@@ -1,0 +1,60 @@
+<aside
+  class="sidebar"
+  [class.sidebar--mobile]="isMobile"
+  [class.sidebar--open]="isOpen">
+  @if (isMobile) {
+    <div class="sidebar-mobile-header">
+      <span class="sidebar-mobile-title">Navigation</span>
+      <button
+        type="button"
+        class="sidebar-close"
+        aria-label="Close navigation menu"
+        (click)="requestClose()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  }
+
+  <nav class="nav-list">
+    @for (item of navItems(); track item.label) {
+      @if (item.dividerBefore) {
+        <div class="nav-divider"></div>
+      }
+      @if (item.route) {
+        <a
+          class="nav-item"
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          (click)="setActive(item.label)"
+        >
+          <span class="nav-icon" [innerHTML]="item.icon"></span>
+          <span class="nav-label">{{ item.label }}</span>
+        </a>
+      } @else {
+        <a
+          class="nav-item"
+          [class.active]="item.active"
+          href="#"
+          (click)="$event.preventDefault(); setActive(item.label)"
+        >
+          <span class="nav-icon" [innerHTML]="item.icon"></span>
+          <span class="nav-label">{{ item.label }}</span>
+        </a>
+      }
+    }
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="new-booking-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      New Booking
+    </button>
+  </div>
+</aside>
