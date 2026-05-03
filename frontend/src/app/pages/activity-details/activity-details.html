@@ -1,0 +1,113 @@
+<div class="details-page" *ngIf="activity as activity; else notFound">
+  <section class="details-hero">
+    <div class="hero-image-wrapper">
+      <img [src]="activity.image" [alt]="activity.title" class="hero-image" />
+      <div class="hero-overlay"></div>
+
+      <div class="hero-topbar">
+        <a routerLink="/activities" class="back-btn">← Back to activities</a>
+        <span class="rating-badge">★ {{ activity.rating }}</span>
+      </div>
+
+      <div class="hero-content">
+        <div class="hero-badges">
+          <span class="category-badge" [ngClass]="getCategoryClass(activity.category)">
+            {{ activity.category }}
+          </span>
+          <span class="time-badge">{{ activity.timeOfDay }}</span>
+          <span class="featured-badge" *ngIf="activity.featured">Featured</span>
+        </div>
+
+        <h1>{{ activity.title }}</h1>
+        <p class="hero-location">{{ activity.city }}, {{ activity.country }} • {{ activity.venue }}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="details-content">
+    <div class="main-content">
+      <div class="info-card">
+        <h2>About this activity</h2>
+        <p>{{ activity.description }}</p>
+        <p>
+          This experience is ideal for travelers looking to explore
+          <strong>{{ activity.city }}</strong>
+          through a realistic and well-matched activity option.
+        </p>
+      </div>
+
+      <div class="info-card">
+        <h2>What to expect</h2>
+        <ul>
+          <li>Well-located experience in {{ activity.city }}</li>
+          <li>Suitable for {{ activity.timeOfDay.toLowerCase() }} plans</li>
+          <li>Clear pricing and duration for easier trip planning</li>
+          <li>Fits well into city exploration and travel itineraries</li>
+        </ul>
+      </div>
+
+      <div class="info-card" *ngIf="relatedActivities.length > 0">
+        <h2>Related activities</h2>
+
+        <div class="related-grid">
+          <a
+            class="related-card"
+            *ngFor="let related of relatedActivities"
+            [routerLink]="['/activities', related.id]"
+          >
+            <img [src]="related.image" [alt]="related.title" />
+            <div class="related-card-content">
+              <span>{{ related.city }}</span>
+              <h3>{{ related.title }}</h3>
+              <p>{{ related.category }} • €{{ related.price }}</p>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <aside class="sidebar-card">
+      <div class="booking-card">
+        <div class="price-row">
+          <span class="from-label">From</span>
+          <span class="price" *ngIf="activity.price > 0">€{{ activity.price }}</span>
+          <span class="price" *ngIf="activity.price === 0">Free</span>
+        </div>
+
+        <div class="meta-list">
+          <div class="meta-item">
+            <span class="label">Duration</span>
+            <span class="value">{{ activity.duration }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Time</span>
+            <span class="value">{{ activity.timeOfDay }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Price Level</span>
+            <span class="value">{{ activity.priceLevel }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Venue</span>
+            <span class="value">{{ activity.venue }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">City</span>
+            <span class="value">{{ activity.city }}</span>
+          </div>
+        </div>
+
+        <button class="primary-btn" type="button">Add to trip</button>
+        <button class="secondary-btn" type="button">Save for later</button>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<ng-template #notFound>
+  <section class="not-found">
+    <h2>Activity not found</h2>
+    <p>The activity you are looking for does not exist.</p>
+    <a routerLink="/activities" class="back-link">Back to activities</a>
+  </section>
+</ng-template>
