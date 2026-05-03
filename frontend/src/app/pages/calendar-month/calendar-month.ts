@@ -150,3 +150,116 @@ export class CalendarMonth {
     this.viewMode = mode;
     this.generateCalendar();
   }
+
+  selectDay(day: number) {
+    this.selectedDay = this.selectedDay === day ? null : day;
+  }
+
+  goToPreviousMonth() {
+    if (this.viewMode === 'week') {
+      this.currentDate.setDate(this.currentDate.getDate() - 7);
+    } else {
+      this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+    }
+
+    this.generateCalendar();
+  }
+
+  goToNextMonth() {
+    if (this.viewMode === 'week') {
+      this.currentDate.setDate(this.currentDate.getDate() + 7);
+    } else {
+      this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+    }
+
+    this.generateCalendar();
+  }
+
+  goToToday() {
+    this.currentDate = new Date();
+    this.selectedDay = this.today.getDate();
+    this.generateCalendar();
+  }
+
+  addEvent() {
+    this.isEventDrawerOpen = true;
+  }
+
+  closeEventDrawer() {
+    this.isEventDrawerOpen = false;
+  }
+
+  cancelEventForm() {
+    this.eventDraft = this.createEmptyEventDraft();
+    this.closeEventDrawer();
+  }
+
+  saveEvent() {
+    const eventPayload: CalendarEvent = {
+      title: this.eventDraft.title,
+      description: this.eventDraft.description,
+      location: this.eventDraft.location,
+      date: this.eventDraft.date,
+      startTime: this.eventDraft.startTime,
+      endTime: this.eventDraft.endTime,
+      category: this.eventDraft.category,
+      cost: this.eventDraft.budget ? Number(this.eventDraft.budget) : undefined,
+      notes: this.eventDraft.notes
+    };
+
+    this.events = [...this.events, eventPayload];
+    this.eventDraft = this.createEmptyEventDraft();
+    this.closeEventDrawer();
+  }
+
+  getEventsForDate(date: string): CalendarEvent[] {
+    return this.events.filter((event) => event.date === date);
+  }
+
+  isToday(day: number): boolean {
+    return (
+      day === this.today.getDate() &&
+      this.currentDate.getMonth() === this.today.getMonth() &&
+      this.currentDate.getFullYear() === this.today.getFullYear()
+    );
+  }
+
+  isTodayDate(date: Date): boolean {
+    return (
+      date.getDate() === this.today.getDate() &&
+      date.getMonth() === this.today.getMonth() &&
+      date.getFullYear() === this.today.getFullYear()
+    );
+  }
+
+  private createEmptyEventDraft(): EventDraft {
+    return {
+      title: '',
+      description: '',
+      location: '',
+      date: this.formatDateForInput(this.currentDate),
+      startTime: '',
+      endTime: '',
+      category: 'Event',
+      budget: '',
+      notes: ''
+    };
+  }
+
+  private formatDateForInput(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  getDateForDay(day: number): string {
+    return this.formatDateForInput(
+      new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), day)
+    );
+  }
+
+  getDateForDate(date: Date): string {
+    return this.formatDateForInput(date);
+  }
+}
