@@ -163,3 +163,159 @@
   font-size: 14px;
   color: var(--calendar-text-muted);
 }
+/* Month grid */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--calendar-text-muted);
+  padding-bottom: 10px;
+}
+
+.day {
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  background: var(--calendar-panel-bg);
+  border-radius: 6px;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--calendar-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.day:hover {
+  transform: translateY(-3px);
+  background: var(--calendar-panel-bg-hover);
+  box-shadow: 0 10px 24px var(--calendar-shadow);
+  cursor: pointer;
+}
+
+.day:active {
+  transform: scale(0.97);
+}
+
+.day-number {
+  align-self: flex-end;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--calendar-text);
+}
+
+.other-month {
+  background: transparent;
+  opacity: 0.55;
+}
+
+.selected-day {
+  border: 2px solid var(--calendar-accent);
+  background: var(--calendar-accent-soft);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+}
+
+.today-day .day-number {
+  background: var(--calendar-accent);
+  color: var(--today-text);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+/* Events */
+.events-container {
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--calendar-border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.event-item {
+  flex: 0 0 auto;
+  display: block;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--calendar-event-bg);
+  color: var(--calendar-event-text);
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-item--muted {
+  background: var(--calendar-panel-bg);
+  color: var(--calendar-text-muted);
+}
+
+/* WEEK VIEW */
+.week-view {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.week-day-name {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--calendar-text-muted);
+  padding-bottom: 10px;
+}
+
+.week-day-box {
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  background: var(--calendar-panel-bg);
+  border-radius: 6px;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--calendar-border);
+}
+
+.week-date-number {
+  align-self: flex-end;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--calendar-text);
+}
+
+
+/* Today in week view: only the number circle */
+.today-week-day .week-date-number {
+  background: var(--calendar-accent);
+  color: var(--today-text);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+/* Selected day in week view: same look as month selected day */
+.selected-week-day {
+  border: 2px solid var(--calendar-accent);
+  background: var(--calendar-accent-soft);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--calendar-accent) 18%, transparent);
+}
