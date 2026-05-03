@@ -1,0 +1,107 @@
+<div class="calendar-page">
+  <div class="calendar-card">
+
+    <div class="calendar-toolbar">
+      <div class="month-navigation">
+        <h2>{{ currentMonth }}</h2>
+        <div class="month-buttons">
+          <button class="nav-button" (click)="goToPreviousMonth()">‹</button>
+          <button class="today-button" (click)="goToToday()">Today</button>
+          <button class="nav-button" (click)="goToNextMonth()">›</button>
+        </div>
+      </div>
+
+      <div class="toolbar-center">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search events..." />
+        </div>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="add-event-button" (click)="addEvent()">+ Add Event</button>
+
+        <div class="view-toggle">
+          <button
+            class="view-btn"
+            [class.active]="viewMode === 'week'"
+            (click)="setViewMode('week')">
+            Week
+          </button>
+
+          <button
+            class="view-btn"
+            [class.active]="viewMode === 'month'"
+            (click)="setViewMode('month')">
+            Month
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= MONTH VIEW ================= -->
+    <div class="calendar-grid" *ngIf="viewMode === 'month'">
+      <div class="weekday" *ngFor="let day of weekdays">
+        {{ day }}
+      </div>
+
+      <div class="day other-month" *ngFor="let day of prevMonthDays">
+        <div class="day-number">{{ day }}</div>
+        <div class="events-container" aria-hidden="true"></div>
+      </div>
+
+      <div
+        class="day"
+        *ngFor="let day of days"
+        [class.selected-day]="day === selectedDay"
+        [class.today-day]="isToday(day)"
+        (click)="selectDay(day)">
+
+        <div class="day-number">{{ day }}</div>
+
+        <div class="events-container">
+          <app-event-card
+            *ngFor="let event of getEventsForDate(getDateForDay(day))"
+            [event]="event"
+            (viewDetails)="selectedEvent = $event">
+          </app-event-card>
+        </div>
+      </div>
+
+      <div class="day other-month" *ngFor="let day of nextMonthDays">
+        <div class="day-number">{{ day }}</div>
+        <div class="events-container" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <!-- ================= WEEK VIEW ================= -->
+    <div class="week-view" *ngIf="viewMode === 'week'">
+      <div class="week-day" *ngFor="let date of weekDays; let i = index">
+
+        <div class="week-day-name">
+          {{ weekdays[i] }}
+        </div>
+
+
+        <div
+          class="week-day-box"
+          [class.today-week-day]="isTodayDate(date)"
+          [class.selected-week-day]="date.getDate() === selectedDay"
+          (click)="selectDay(date.getDate())">
+
+          <div class="week-date-number">
+            {{ date.getDate() }}
+          </div>
+
+          <div class="events-container">
+            <app-event-card
+              *ngFor="let event of getEventsForDate(getDateForDate(date))"
+              [event]="event"
+              (viewDetails)="selectedEvent = $event">
+            </app-event-card>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
