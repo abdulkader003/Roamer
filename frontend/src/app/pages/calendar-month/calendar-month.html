@@ -105,3 +105,109 @@
     </div>
 
   </div>
+  <div
+    class="event-drawer-overlay"
+    *ngIf="isEventDrawerOpen"
+    (click)="closeEventDrawer()">
+    <aside class="event-drawer" (click)="$event.stopPropagation()">
+      <div class="event-drawer-header">
+        <div>
+          <p class="event-drawer-eyebrow">Plan Details</p>
+          <h3>Add Event</h3>
+        </div>
+
+        <button
+          type="button"
+          class="drawer-close-button"
+          aria-label="Close add event panel"
+          (click)="closeEventDrawer()">
+          ×
+        </button>
+      </div>
+
+      <form class="event-form" (ngSubmit)="saveEvent()">
+        <label class="form-field">
+          <span>Event title</span>
+          <input
+            type="text"
+            name="title"
+            [(ngModel)]="eventDraft.title"
+            placeholder="Sunset Catamaran Cruise"
+            required />
+        </label>
+
+        <label class="form-field">
+          <span>Event description</span>
+          <textarea
+            name="description"
+            [(ngModel)]="eventDraft.description"
+            rows="3"
+            placeholder="Add a short summary of the plan"></textarea>
+        </label>
+
+        <label class="form-field">
+          <span>Location</span>
+          <input
+            type="text"
+            name="location"
+            [(ngModel)]="eventDraft.location"
+            placeholder="Mykonos Old Port" />
+        </label>
+
+        <div class="form-row form-row--double">
+          <label class="form-field">
+            <span>Date</span>
+            <input type="date" name="date" [(ngModel)]="eventDraft.date" required />
+          </label>
+
+          <label class="form-field">
+            <span>Category</span>
+            <select name="category" [(ngModel)]="eventDraft.category">
+              <option *ngFor="let category of eventCategories" [value]="category">
+                {{ category }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-row form-row--double">
+          <label class="form-field">
+            <span>Start time</span>
+            <input type="time" name="startTime" [(ngModel)]="eventDraft.startTime" />
+          </label>
+
+          <label class="form-field">
+            <span>End time</span>
+            <input type="time" name="endTime" [(ngModel)]="eventDraft.endTime" />
+          </label>
+        </div>
+
+        <label class="form-field">
+          <span>Budget / cost</span>
+          <input
+            type="number"
+            name="budget"
+            [(ngModel)]="eventDraft.budget"
+            min="0"
+            step="0.01"
+            placeholder="120.00" />
+        </label>
+
+        <label class="form-field">
+          <span>Notes</span>
+          <textarea
+            name="notes"
+            [(ngModel)]="eventDraft.notes"
+            rows="5"
+            placeholder="Reservation details, contacts, dress code, reminders..."></textarea>
+        </label>
+
+        <div class="event-form-actions">
+          <button type="button" class="secondary-button" (click)="cancelEventForm()">
+            Cancel
+          </button>
+          <button type="submit" class="primary-button">Save Event</button>
+        </div>
+      </form>
+    </aside>
+  </div>
