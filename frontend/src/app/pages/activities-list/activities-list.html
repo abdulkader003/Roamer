@@ -53,142 +53,156 @@
           type="text"
           [(ngModel)]="searchTerm"
           placeholder="Search by title, city, category, venue or description..."
-        />
-      </div>
-
-      <div class="filter-grid">
-        <select [(ngModel)]="selectedCity">
-          <option value="All Cities">All Cities</option>
-          <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
-        </select>
-
-        <select [(ngModel)]="selectedCategory">
-          <option value="All Categories">All Categories</option>
-          <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
-        </select>
-
-        <select [(ngModel)]="selectedPriceLevel">
-          <option value="All Prices">All Prices</option>
-          <option value="Free">Free</option>
-          <option value="Budget">Budget</option>
-          <option value="Mid-Range">Mid-Range</option>
-          <option value="Premium">Premium</option>
-        </select>
-
-        <select [(ngModel)]="selectedTimeOfDay">
-          <option value="Any Time">Any Time</option>
-          <option value="Morning">Morning</option>
-          <option value="Afternoon">Afternoon</option>
-          <option value="Evening">Evening</option>
-          <option value="Night">Night</option>
-        </select>
-
-        <select [(ngModel)]="selectedSort">
-          <option value="recommended">Recommended</option>
-          <option value="rating">Highest Rating</option>
-          <option value="price-low">Price: Low to High</option>
-          <option value="price-high">Price: High to Low</option>
-          <option value="city">City A-Z</option>
-          <option value="title">Title A-Z</option>
-        </select>
-
-        <button class="reset-btn" (click)="resetFilters()">Reset</button>
-      </div>
-    </div>
-
-    <div class="active-summary">
-      <div class="summary-left">
-        <strong>{{ filteredCount }}</strong> activities found
-      </div>
-
-      <div class="selected-filters">
-        <span *ngIf="selectedCity !== 'All Cities'">{{ selectedCity }}</span>
-        <span *ngIf="selectedCategory !== 'All Categories'">{{ selectedCategory }}</span>
-        <span *ngIf="selectedPriceLevel !== 'All Prices'">{{ selectedPriceLevel }}</span>
-        <span *ngIf="selectedTimeOfDay !== 'Any Time'">{{ selectedTimeOfDay }}</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="city-chips">
-    <button
-      class="chip"
-      [class.active]="selectedCity === 'All Cities'"
-      (click)="selectedCity = 'All Cities'"
-    >
-      All Cities
-    </button>
-
-    <button
-      class="chip"
-      *ngFor="let city of cities"
-      [class.active]="selectedCity === city"
-      (click)="selectedCity = city"
-    >
-      {{ city }}
-    </button>
-  </section>
-
-  <section class="activities-grid" *ngIf="filteredActivities.length > 0; else noResults">
-    <article
-      class="activity-card"
-      *ngFor="let activity of filteredActivities; trackBy: trackByActivityId"
-    >
-      <div class="activity-image-wrapper">
-        <img [src]="activity.image" [alt]="activity.title" class="activity-image" />
-        <div class="image-overlay"></div>
-
-        <span class="featured-badge" *ngIf="activity.featured">Featured</span>
-        <span class="rating-badge">★ {{ activity.rating }}</span>
-      </div>
-
-      <div class="activity-content">
-        <div class="activity-top-row">
-          <span class="category-badge" [ngClass]="getCategoryClass(activity.category)">
-            {{ activity.category }}
-          </span>
-          <span class="time-badge">{{ activity.timeOfDay }}</span>
+          />
         </div>
 
-        <h3>{{ activity.title }}</h3>
+        <div class="filter-grid">
+          <select [(ngModel)]="selectedCity">
+            <option value="All Cities">All Cities</option>
+            @for (city of cities; track city) {
+              <option [value]="city">{{ city }}</option>
+            }
+          </select>
 
-        <div class="location-line">
-          <span>{{ activity.city }}, {{ activity.country }}</span>
-          <span class="dot">•</span>
-          <span>{{ activity.venue }}</span>
-        </div>
+          <select [(ngModel)]="selectedCategory">
+            <option value="All Categories">All Categories</option>
+            @for (category of categories; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+          </select>
 
-        <p>{{ activity.description }}</p>
+          <select [(ngModel)]="selectedPriceLevel">
+            <option value="All Prices">All Prices</option>
+            <option value="Free">Free</option>
+            <option value="Budget">Budget</option>
+            <option value="Mid-Range">Mid-Range</option>
+            <option value="Premium">Premium</option>
+          </select>
 
-        <div class="activity-meta">
-          <div class="meta-item">
-            <span class="meta-label">Duration</span>
-            <span class="meta-value">{{ activity.duration }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Price level</span>
-            <span class="meta-value">{{ activity.priceLevel }}</span>
-          </div>
-          <div class="meta-item price-box">
-            <span class="meta-label">From</span>
-            <span class="meta-price" *ngIf="activity.price > 0">€{{ activity.price }}</span>
-            <span class="meta-price" *ngIf="activity.price === 0">Free</span>
-          </div>
-        </div>
+          <select [(ngModel)]="selectedTimeOfDay">
+            <option value="Any Time">Any Time</option>
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening">Evening</option>
+            <option value="Night">Night</option>
+          </select>
 
-        <div class="card-actions">
-          <a class="primary-btn details-link" [routerLink]="['/activities', activity.id]">View details</a>
-          <button class="secondary-btn" type="button">Add to trip</button>
+          <select [(ngModel)]="selectedSort">
+            <option value="recommended">Recommended</option>
+            <option value="rating">Highest Rating</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="city">City A-Z</option>
+            <option value="title">Title A-Z</option>
+          </select>
+
+          <button class="reset-btn" (click)="resetFilters()">Reset</button>
         </div>
       </div>
-    </article>
-  </section>
 
-  <ng-template #noResults>
-    <section class="empty-state">
-      <h3>No matching activities found</h3>
-      <p>Try changing the city, category or search term.</p>
-      <button class="reset-btn large" (click)="resetFilters()">Reset Filters</button>
+      <div class="active-summary">
+        <div class="summary-left">
+          <strong>{{ filteredCount }}</strong> activities found
+        </div>
+
+        <div class="selected-filters">
+          @if (selectedCity !== 'All Cities') {
+            <span>{{ selectedCity }}</span>
+          }
+          @if (selectedCategory !== 'All Categories') {
+            <span>{{ selectedCategory }}</span>
+          }
+          @if (selectedPriceLevel !== 'All Prices') {
+            <span>{{ selectedPriceLevel }}</span>
+          }
+          @if (selectedTimeOfDay !== 'Any Time') {
+            <span>{{ selectedTimeOfDay }}</span>
+          }
+        </div>
+      </div>
     </section>
-  </ng-template>
-</div>
+
+    <section class="city-chips">
+      <button
+        class="chip"
+        [class.active]="selectedCity === 'All Cities'"
+        (click)="selectedCity = 'All Cities'"
+        >
+        All Cities
+      </button>
+
+      @for (city of cities; track city) {
+        <button
+          class="chip"
+          [class.active]="selectedCity === city"
+          (click)="selectedCity = city"
+          >
+          {{ city }}
+        </button>
+      }
+    </section>
+
+    @if (filteredActivities.length > 0) {
+      <section class="activities-grid">
+        @for (activity of filteredActivities; track trackByActivityId($index, activity)) {
+          <article
+            class="activity-card"
+            >
+            <div class="activity-image-wrapper">
+              <img [src]="activity.image" [alt]="activity.title" class="activity-image" />
+              <div class="image-overlay"></div>
+              @if (activity.featured) {
+                <span class="featured-badge">Featured</span>
+              }
+              <span class="rating-badge">★ {{ activity.rating }}</span>
+            </div>
+            <div class="activity-content">
+              <div class="activity-top-row">
+                <span class="category-badge" [ngClass]="getCategoryClass(activity.category)">
+                  {{ activity.category }}
+                </span>
+                <span class="time-badge">{{ activity.timeOfDay }}</span>
+              </div>
+              <h3>{{ activity.title }}</h3>
+              <div class="location-line">
+                <span>{{ activity.city }}, {{ activity.country }}</span>
+                <span class="dot">•</span>
+                <span>{{ activity.venue }}</span>
+              </div>
+              <p>{{ activity.description }}</p>
+              <div class="activity-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Duration</span>
+                  <span class="meta-value">{{ activity.duration }}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Price level</span>
+                  <span class="meta-value">{{ activity.priceLevel }}</span>
+                </div>
+                <div class="meta-item price-box">
+                  <span class="meta-label">From</span>
+                  @if (activity.price > 0) {
+                    <span class="meta-price">€{{ activity.price }}</span>
+                  }
+                  @if (activity.price === 0) {
+                    <span class="meta-price">Free</span>
+                  }
+                </div>
+              </div>
+              <div class="card-actions">
+                <a class="primary-btn details-link" [routerLink]="['/activities', activity.id]">View details</a>
+                <button class="secondary-btn" type="button">Add to trip</button>
+              </div>
+            </div>
+          </article>
+        }
+      </section>
+    } @else {
+      <section class="empty-state">
+        <h3>No matching activities found</h3>
+        <p>Try changing the city, category or search term.</p>
+        <button class="reset-btn large" (click)="resetFilters()">Reset Filters</button>
+      </section>
+    }
+
+  </div>
