@@ -10,15 +10,16 @@
       [isOpen]="isSidebarVisible()"
       (closed)="closeSidebar()" />
 
-    <button
-      *ngIf="isMobile() && isSidebarOpen()"
-      type="button"
-      class="sidebar-backdrop"
-      aria-label="Close navigation menu"
-      (click)="closeSidebar()"></button>
+      @if (isMobile() && isSidebarOpen()) {
+        <button
+          type="button"
+          class="sidebar-backdrop"
+          aria-label="Close navigation menu"
+        (click)="closeSidebar()"></button>
+      }
 
-    <main class="app-main" [class.app-main--with-sidebar]="!isMobile()">
-      <router-outlet />
-    </main>
+      <main class="app-main" [class.app-main--with-sidebar]="!isMobile()">
+        <router-outlet />
+      </main>
+    </div>
   </div>
-</div>

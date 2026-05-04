@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, Input } from '@angular/core';
 import { CalendarEvent, Hotel, HotelSort } from '../models/hotel.model';
 import { CalendarService } from '../services/calendar.service';
@@ -6,7 +6,7 @@ import { CalendarService } from '../services/calendar.service';
 @Component({
   selector: 'app-hotel-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './hotel-list.component.html',
   styleUrls: ['./hotel-list.component.css']
 })
