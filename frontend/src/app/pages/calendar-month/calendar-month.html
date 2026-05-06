@@ -5,41 +5,55 @@
       <div class="month-navigation">
         <h2>{{ currentMonth }}</h2>
         <div class="month-buttons">
-          <button class="nav-button" (click)="goToPreviousMonth()">‹</button>
-          <button class="today-button" (click)="goToToday()">Today</button>
-          <button class="nav-button" (click)="goToNextMonth()">›</button>
+          <button type="button" class="nav-button" (click)="goToPreviousMonth()">‹</button>
+          <button type="button" class="today-button" (click)="goToToday()">Today</button>
+          <button type="button" class="nav-button" (click)="goToNextMonth()">›</button>
         </div>
       </div>
 
       <div class="toolbar-center">
         <div class="search-box">
           <span class="search-icon">🔍</span>
-          <input type="text" placeholder="Search events..." />
+
+          <input
+            type="text"
+            placeholder="Search events..."
+            (input)="onSearch($event)"
+          />
+
+          <div class="search-results" *ngIf="searchResults.length > 0">
+            <div
+              class="search-result-item"
+              *ngFor="let event of searchResults"
+              (click)="openEventDetails(event); $event.stopPropagation()"
+            >
+              {{ event.title }}
+            </div>
+          </div>
+
+          <div class="search-results" *ngIf="searchTerm && searchResults.length === 0">
+            <div class="search-result-item">
+              No events found
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="toolbar-actions">
-        <button class="add-event-button" (click)="addEvent()">+ Add Event</button>
+        <button type="button" class="add-event-button" (click)="addEvent()">+ Add Event</button>
 
         <div class="view-toggle">
-          <button
-            class="view-btn"
-            [class.active]="viewMode === 'week'"
-            (click)="setViewMode('week')">
+          <button type="button" class="view-btn" [class.active]="viewMode === 'week'" (click)="setViewMode('week')">
             Week
           </button>
 
-          <button
-            class="view-btn"
-            [class.active]="viewMode === 'month'"
-            (click)="setViewMode('month')">
+          <button type="button" class="view-btn" [class.active]="viewMode === 'month'" (click)="setViewMode('month')">
             Month
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ================= MONTH VIEW ================= -->
     <div class="calendar-grid" *ngIf="viewMode === 'month'">
       <div class="weekday" *ngFor="let day of weekdays">
         {{ day }}
@@ -74,14 +88,12 @@
       </div>
     </div>
 
-    <!-- ================= WEEK VIEW ================= -->
     <div class="week-view" *ngIf="viewMode === 'week'">
       <div class="week-day" *ngFor="let date of weekDays; let i = index">
 
         <div class="week-day-name">
           {{ weekdays[i] }}
         </div>
-
 
         <div
           class="week-day-box"
@@ -105,10 +117,12 @@
     </div>
 
   </div>
+
   <div
     class="event-drawer-overlay"
     *ngIf="isEventDrawerOpen"
     (click)="closeEventDrawer()">
+
     <aside class="event-drawer" (click)="$event.stopPropagation()">
       <div class="event-drawer-header">
         <div>
@@ -125,7 +139,7 @@
         </button>
       </div>
 
-      <form class="event-form" (ngSubmit)="saveEvent()">
+      <form class="event-form">
         <label class="form-field">
           <span>Event title</span>
           <input
@@ -142,7 +156,8 @@
             name="description"
             [(ngModel)]="eventDraft.description"
             rows="3"
-            placeholder="Add a short summary of the plan"></textarea>
+            placeholder="Add a short summary of the plan">
+          </textarea>
         </label>
 
         <label class="form-field">
@@ -157,7 +172,11 @@
         <div class="form-row form-row--double">
           <label class="form-field">
             <span>Date</span>
-            <input type="date" name="date" [(ngModel)]="eventDraft.date" required />
+            <input
+              type="date"
+              name="date"
+              [(ngModel)]="eventDraft.date"
+              required />
           </label>
 
           <label class="form-field">
@@ -173,12 +192,20 @@
         <div class="form-row form-row--double">
           <label class="form-field">
             <span>Start time</span>
-            <input type="time" name="startTime" [(ngModel)]="eventDraft.startTime" />
+            <input
+              type="time"
+              name="startTime"
+              [(ngModel)]="eventDraft.startTime"
+              required />
           </label>
 
           <label class="form-field">
             <span>End time</span>
-            <input type="time" name="endTime" [(ngModel)]="eventDraft.endTime" />
+            <input
+              type="time"
+              name="endTime"
+              [(ngModel)]="eventDraft.endTime"
+              required />
           </label>
         </div>
 
@@ -199,15 +226,20 @@
             name="notes"
             [(ngModel)]="eventDraft.notes"
             rows="5"
-            placeholder="Reservation details, contacts, dress code, reminders..."></textarea>
+            placeholder="Reservation details, contacts, dress code, reminders...">
+          </textarea>
         </label>
 
-        <div class="event-form-actions">
-          <button type="button" class="secondary-button" (click)="cancelEventForm()">
-            Cancel
-          </button>
-          <button type="submit" class="primary-button">Save Event</button>
-        </div>
+
+          <div class="event-form-actions">
+            <button type="button" class="secondary-button" (click)="cancelEventForm()">
+              Cancel
+            </button>
+
+            <button type="button" class="primary-button" (click)="saveEvent()">
+              Save Event
+            </button>
+          </div>
       </form>
     </aside>
   </div>
@@ -216,8 +248,8 @@
     <div class="event-modal" (click)="$event.stopPropagation()">
       <div class="event-modal-header">
         <div>
-          <p class="event-modal-eyebrow">{{ selectedEvent.category || 'Travel plan' }}</p>
-          <h3>{{ selectedEvent.title }}</h3>
+          <p class="event-modal-eyebrow">{{ selectedEvent!.category || 'Travel plan' }}</p>
+          <h3>{{ selectedEvent!.title }}</h3>
         </div>
 
         <button
@@ -230,44 +262,46 @@
       </div>
 
       <div class="event-detail-list">
-        <div class="event-detail-row" *ngIf="selectedEvent.description">
+        <div class="event-detail-row" *ngIf="selectedEvent!.description">
           <span>Description</span>
-          <p>{{ selectedEvent.description }}</p>
+          <p>{{ selectedEvent!.description }}</p>
         </div>
 
-        <div class="event-detail-row" *ngIf="selectedEvent.location">
+        <div class="event-detail-row" *ngIf="selectedEvent!.location">
           <span>Location</span>
-          <p>{{ selectedEvent.location }}</p>
+          <p>{{ selectedEvent!.location }}</p>
         </div>
 
         <div class="event-detail-grid">
           <div class="event-detail-row">
             <span>Date</span>
-            <p>{{ selectedEvent.date | date: 'mediumDate' }}</p>
+            <p>{{ selectedEvent!.date | date: 'mediumDate' }}</p>
           </div>
 
-          <div class="event-detail-row" *ngIf="selectedEvent.startTime || selectedEvent.endTime">
+          <div class="event-detail-row" *ngIf="selectedEvent!.startTime || selectedEvent!.endTime">
             <span>Time</span>
             <p>
-              {{ selectedEvent.startTime || 'TBD' }}
-              <ng-container *ngIf="selectedEvent.endTime"> - {{ selectedEvent.endTime }}</ng-container>
+              {{ selectedEvent!.startTime || 'TBD' }}
+              <ng-container *ngIf="selectedEvent!.endTime">
+                - {{ selectedEvent!.endTime }}
+              </ng-container>
             </p>
           </div>
 
-          <div class="event-detail-row" *ngIf="selectedEvent.category">
+          <div class="event-detail-row" *ngIf="selectedEvent!.category">
             <span>Category</span>
-            <p>{{ selectedEvent.category }}</p>
+            <p>{{ selectedEvent!.category }}</p>
           </div>
 
-          <div class="event-detail-row" *ngIf="selectedEvent.cost !== undefined">
+          <div class="event-detail-row" *ngIf="selectedEvent!.cost !== undefined">
             <span>Cost</span>
-            <p>{{ selectedEvent.cost | currency }}</p>
+            <p>{{ selectedEvent!.cost | currency }}</p>
           </div>
         </div>
 
-        <div class="event-detail-row" *ngIf="selectedEvent.notes">
+        <div class="event-detail-row" *ngIf="selectedEvent!.notes">
           <span>Notes</span>
-          <p>{{ selectedEvent.notes }}</p>
+          <p>{{ selectedEvent!.notes }}</p>
         </div>
       </div>
     </div>
