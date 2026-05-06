@@ -12,7 +12,7 @@
         class="tab"
         [class.active]="selectedSort === 'recommended'"
         (click)="sortHotels('recommended')"
-      >
+        >
         Recommended
       </button>
 
@@ -22,7 +22,7 @@
         class="tab"
         [class.active]="selectedSort === 'rating'"
         (click)="sortHotels('rating')"
-      >
+        >
         Top rated
       </button>
 
@@ -32,7 +32,7 @@
         class="tab"
         [class.active]="selectedSort === 'price'"
         (click)="sortHotels('price')"
-      >
+        >
         Lowest price
       </button>
 
@@ -42,126 +42,118 @@
         class="tab"
         [class.active]="selectedSort === 'stars'"
         (click)="sortHotels('stars')"
-      >
+        >
         Most stars
       </button>
     </div>
   </div>
 
-  <article
-    class="hotel-card"
-    *ngFor="let hotel of displayedHotels; trackBy: trackByHotelId"
-  >
-    <button class="image-button" type="button" (click)="selectHotel(hotel)" [attr.aria-label]="'View ' + hotel.name">
-      <img [src]="hotel.image" [alt]="hotel.name" />
-      <span class="image-badge">{{ hotel.tag }}</span>
-    </button>
-
-    <div class="hotel-content">
-      <div>
-        <p class="city">{{ hotel.city }}</p>
-        <h3>{{ hotel.name }}</h3>
-      </div>
-
-      <div class="meta-row">
-        <span>{{ getDistanceLabel(hotel) }}</span>
-      </div>
-
-      <p class="description">
-        {{ hotel.description }}
-      </p>
-
-      <div class="booking-rating">
-        <span class="rating">{{ getRatingScore(hotel) }}</span>
-        <strong>{{ getRatingLabel(hotel) }}</strong>
-        <span>{{ getReviewCount(hotel) }} reviews</span>
-      </div>
-
-      <div class="amenity-strip" *ngIf="getKeyAmenities(hotel).length">
-        <span *ngFor="let amenity of getKeyAmenities(hotel)">{{ amenity }}</span>
-      </div>
-    </div>
-
-    <div class="hotel-price">
-      <p>{{ formatStayDetails(hotel) }}</p>
-      <strong>{{ formatTotalPrice(hotel) }}</strong>
-      <span>Includes taxes and fees</span>
-      <button type="button" (click)="selectHotel(hotel)">Choose stay</button>
-    </div>
-  </article>
-
-  <div class="modal-overlay" *ngIf="selectedHotel" (click)="closeModal()">
-    <section class="modal-content" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-      <button class="close-btn" type="button" (click)="closeModal()" aria-label="Close details">×</button>
-
-      <div class="modal-gallery">
-        <img class="modal-image" [src]="modalImages[currentImageIndex]" [alt]="selectedHotel.name" />
-
-        <button
-          class="modal-gallery-arrow previous"
-          type="button"
-          *ngIf="modalImages.length > 1"
-          (click)="previousModalImage($event)"
-          aria-label="Previous image"
-        >
-          ‹
-        </button>
-
-        <button
-          class="modal-gallery-arrow next"
-          type="button"
-          *ngIf="modalImages.length > 1"
-          (click)="nextModalImage($event)"
-          aria-label="Next image"
-        >
-          ›
-        </button>
-
-        <span class="modal-image-counter">{{ modalImageCounter }}</span>
-      </div>
-
-
-
-      <div class="modal-body">
-        <div class="modal-heading">
-          <div>
-            <p class="city">{{ selectedHotel.city }}</p>
-            <h2>{{ selectedHotel.name }}</h2>
-          </div>
-          <span class="rating large">{{ selectedHotel.rating }}</span>
+  @for (hotel of displayedHotels; track trackByHotelId($index, hotel)) {
+    <article
+      class="hotel-card"
+      >
+      <button class="image-button" type="button" (click)="selectHotel(hotel)" [attr.aria-label]="'View ' + hotel.name">
+        <img [src]="hotel.image" [alt]="hotel.name" />
+        <span class="image-badge">{{ hotel.tag }}</span>
+      </button>
+      <div class="hotel-content">
+        <div>
+          <p class="city">{{ hotel.city }}</p>
+          <h3>{{ hotel.name }}</h3>
         </div>
-
-        <p class="modal-copy">
-          {{ selectedHotel.description }}
+        <div class="meta-row">
+          <span>{{ getDistanceLabel(hotel) }}</span>
+        </div>
+        <p class="description">
+          {{ hotel.description }}
         </p>
-
-        <div class="details">
-          <div>
-            <span>Check-in</span>
-            <strong>{{ selectedHotel.checkIn || 'Select date' }}</strong>
-          </div>
-          <div>
-            <span>Check-out</span>
-            <strong>{{ selectedHotel.checkOut || 'Select date' }}</strong>
-          </div>
-          <div>
-            <span>Stay</span>
-            <strong>{{ totalNightsLabel }}</strong>
-          </div>
+        <div class="booking-rating">
+          <span class="rating">{{ getRatingScore(hotel) }}</span>
+          <strong>{{ getRatingLabel(hotel) }}</strong>
+          <span>{{ getReviewCount(hotel) }} reviews</span>
         </div>
-
-        <div class="modal-footer">
-          <div>
-            <span>From</span>
-            <strong>{{ formatTotalPrice(selectedHotel) }}</strong>
-            <span>Includes taxes and fees</span>
+        @if (getKeyAmenities(hotel).length) {
+          <div class="amenity-strip">
+            @for (amenity of getKeyAmenities(hotel); track amenity) {
+              <span>{{ amenity }}</span>
+            }
           </div>
-
-          <button class="add-btn" type="button" (click)="addToCalendar()">
-            {{ calendarMessage || 'Add to calendar' }}
-          </button>
-        </div>
+        }
       </div>
-    </section>
-  </div>
+      <div class="hotel-price">
+        <p>{{ formatStayDetails(hotel) }}</p>
+        <strong>{{ formatTotalPrice(hotel) }}</strong>
+        <span>Includes taxes and fees</span>
+        <button type="button" (click)="selectHotel(hotel)">Choose stay</button>
+      </div>
+    </article>
+  }
+
+  @if (selectedHotel) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <section class="modal-content" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+        <button class="close-btn" type="button" (click)="closeModal()" aria-label="Close details">×</button>
+        <div class="modal-gallery">
+          <img class="modal-image" [src]="modalImages[currentImageIndex]" [alt]="selectedHotel.name" />
+          @if (modalImages.length > 1) {
+            <button
+              class="modal-gallery-arrow previous"
+              type="button"
+              (click)="previousModalImage($event)"
+              aria-label="Previous image"
+              >
+              ‹
+            </button>
+          }
+          @if (modalImages.length > 1) {
+            <button
+              class="modal-gallery-arrow next"
+              type="button"
+              (click)="nextModalImage($event)"
+              aria-label="Next image"
+              >
+              ›
+            </button>
+          }
+          <span class="modal-image-counter">{{ modalImageCounter }}</span>
+        </div>
+        <div class="modal-body">
+          <div class="modal-heading">
+            <div>
+              <p class="city">{{ selectedHotel.city }}</p>
+              <h2>{{ selectedHotel.name }}</h2>
+            </div>
+            <span class="rating large">{{ selectedHotel.rating }}</span>
+          </div>
+          <p class="modal-copy">
+            {{ selectedHotel.description }}
+          </p>
+          <div class="details">
+            <div>
+              <span>Check-in</span>
+              <strong>{{ selectedHotel.checkIn || 'Select date' }}</strong>
+            </div>
+            <div>
+              <span>Check-out</span>
+              <strong>{{ selectedHotel.checkOut || 'Select date' }}</strong>
+            </div>
+            <div>
+              <span>Stay</span>
+              <strong>{{ totalNightsLabel }}</strong>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div>
+              <span>From</span>
+              <strong>{{ formatTotalPrice(selectedHotel) }}</strong>
+              <span>Includes taxes and fees</span>
+            </div>
+            <button class="add-btn" type="button" (click)="addToCalendar()">
+              {{ calendarMessage || 'Add to calendar' }}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  }
 </div>

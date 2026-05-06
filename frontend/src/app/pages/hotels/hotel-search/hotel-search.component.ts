@@ -1,5 +1,5 @@
 import { Component, ElementRef, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { HotelListComponent } from '../hotel-list/hotel-list.component';
 import { Hotel } from '../models/hotel.model';
@@ -7,7 +7,7 @@ import { Hotel } from '../models/hotel.model';
 @Component({
   selector: 'app-hotel-search',
   standalone: true,
-  imports: [CommonModule, HotelListComponent, FormsModule],
+  imports: [HotelListComponent, FormsModule],
   templateUrl: './hotel-search.component.html',
   styleUrls: ['./hotel-search.component.css']
 })
