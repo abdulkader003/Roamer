@@ -5,40 +5,60 @@
       <div class="month-navigation">
         <h2>{{ currentMonth }}</h2>
         <div class="month-buttons">
-          <button class="nav-button" (click)="goToPreviousMonth()">‹</button>
-          <button class="today-button" (click)="goToToday()">Today</button>
-          <button class="nav-button" (click)="goToNextMonth()">›</button>
+          <button type="button" class="nav-button" (click)="goToPreviousMonth()">‹</button>
+          <button type="button" class="today-button" (click)="goToToday()">Today</button>
+          <button type="button" class="nav-button" (click)="goToNextMonth()">›</button>
         </div>
       </div>
 
       <div class="toolbar-center">
         <div class="search-box">
           <span class="search-icon">🔍</span>
-          <input type="text" placeholder="Search events..." />
+
+          <input
+            type="text"
+            placeholder="Search events..."
+            (input)="onSearch($event)"
+          />
+
+          <div class="search-results" *ngIf="searchResults.length > 0">
+            <div
+              class="search-result-item"
+              *ngFor="let event of searchResults"
+              (click)="openEventDetails(event); $event.stopPropagation()"
+            >
+              {{ event.title }}
+            </div>
+          </div>
+
+          <div class="search-results" *ngIf="searchTerm && searchResults.length === 0">
+            <div class="search-result-item">
+              No events found
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="toolbar-actions">
-        <button class="add-event-button" (click)="addEvent()">+ Add Event</button>
+        <button type="button" class="add-event-button" (click)="addEvent()">+ Add Event</button>
 
         <div class="view-toggle">
-          <button
-            class="view-btn"
-            [class.active]="viewMode === 'week'"
-            (click)="setViewMode('week')">
+          <button type="button" class="view-btn" [class.active]="viewMode === 'week'" (click)="setViewMode('week')">
             Week
           </button>
 
-          <button
-            class="view-btn"
-            [class.active]="viewMode === 'month'"
-            (click)="setViewMode('month')">
+          <button type="button" class="view-btn" [class.active]="viewMode === 'month'" (click)="setViewMode('month')">
             Month
           </button>
         </div>
       </div>
     </div>
 
+<<<<<<< HEAD
+    <div class="calendar-grid" *ngIf="viewMode === 'month'">
+      <div class="weekday" *ngFor="let day of weekdays">
+        {{ day }}
+=======
     <!-- ================= MONTH VIEW ================= -->
     @if (viewMode === 'month') {
       <div class="calendar-grid">
@@ -76,9 +96,27 @@
             <div class="events-container" aria-hidden="true"></div>
           </div>
         }
+>>>>>>> origin/main
       </div>
     }
 
+<<<<<<< HEAD
+    <div class="week-view" *ngIf="viewMode === 'week'">
+      <div class="week-day" *ngFor="let date of weekDays; let i = index">
+
+        <div class="week-day-name">
+          {{ weekdays[i] }}
+        </div>
+
+        <div
+          class="week-day-box"
+          [class.today-week-day]="isTodayDate(date)"
+          [class.selected-week-day]="date.getDate() === selectedDay"
+          (click)="selectDay(date.getDate())">
+
+          <div class="week-date-number">
+            {{ date.getDate() }}
+=======
     <!-- ================= WEEK VIEW ================= -->
     @if (viewMode === 'week') {
       <div class="week-view">
@@ -104,12 +142,205 @@
                 }
               </div>
             </div>
+>>>>>>> origin/main
           </div>
         }
       </div>
     }
 
   </div>
+<<<<<<< HEAD
+
+  <div
+    class="event-drawer-overlay"
+    *ngIf="isEventDrawerOpen"
+    (click)="closeEventDrawer()">
+
+    <aside class="event-drawer" (click)="$event.stopPropagation()">
+      <div class="event-drawer-header">
+        <div>
+          <p class="event-drawer-eyebrow">Plan Details</p>
+          <h3>Add Event</h3>
+        </div>
+
+        <button
+          type="button"
+          class="drawer-close-button"
+          aria-label="Close add event panel"
+          (click)="closeEventDrawer()">
+          ×
+        </button>
+      </div>
+
+      <form class="event-form">
+        <label class="form-field">
+          <span>Event title</span>
+          <input
+            type="text"
+            name="title"
+            [(ngModel)]="eventDraft.title"
+            placeholder="Sunset Catamaran Cruise"
+            required />
+        </label>
+
+        <label class="form-field">
+          <span>Event description</span>
+          <textarea
+            name="description"
+            [(ngModel)]="eventDraft.description"
+            rows="3"
+            placeholder="Add a short summary of the plan">
+          </textarea>
+        </label>
+
+        <label class="form-field">
+          <span>Location</span>
+          <input
+            type="text"
+            name="location"
+            [(ngModel)]="eventDraft.location"
+            placeholder="Mykonos Old Port" />
+        </label>
+
+        <div class="form-row form-row--double">
+          <label class="form-field">
+            <span>Date</span>
+            <input
+              type="date"
+              name="date"
+              [(ngModel)]="eventDraft.date"
+              required />
+          </label>
+
+          <label class="form-field">
+            <span>Category</span>
+            <select name="category" [(ngModel)]="eventDraft.category">
+              <option *ngFor="let category of eventCategories" [value]="category">
+                {{ category }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-row form-row--double">
+          <label class="form-field">
+            <span>Start time</span>
+            <input
+              type="time"
+              name="startTime"
+              [(ngModel)]="eventDraft.startTime"
+              required />
+          </label>
+
+          <label class="form-field">
+            <span>End time</span>
+            <input
+              type="time"
+              name="endTime"
+              [(ngModel)]="eventDraft.endTime"
+              required />
+          </label>
+        </div>
+
+        <label class="form-field">
+          <span>Budget / cost</span>
+          <input
+            type="number"
+            name="budget"
+            [(ngModel)]="eventDraft.budget"
+            min="0"
+            step="0.01"
+            placeholder="120.00" />
+        </label>
+
+        <label class="form-field">
+          <span>Notes</span>
+          <textarea
+            name="notes"
+            [(ngModel)]="eventDraft.notes"
+            rows="5"
+            placeholder="Reservation details, contacts, dress code, reminders...">
+          </textarea>
+        </label>
+
+
+          <div class="event-form-actions">
+            <button type="button" class="secondary-button" (click)="cancelEventForm()">
+              Cancel
+            </button>
+
+            <button type="button" class="primary-button" (click)="saveEvent()">
+              Save Event
+            </button>
+          </div>
+      </form>
+    </aside>
+  </div>
+
+  <div class="event-modal-backdrop" *ngIf="selectedEvent" (click)="selectedEvent = null">
+    <div class="event-modal" (click)="$event.stopPropagation()">
+      <div class="event-modal-header">
+        <div>
+          <p class="event-modal-eyebrow">{{ selectedEvent!.category || 'Travel plan' }}</p>
+          <h3>{{ selectedEvent!.title }}</h3>
+        </div>
+
+        <button
+          type="button"
+          class="modal-close-button"
+          aria-label="Close event details"
+          (click)="selectedEvent = null">
+          &times;
+        </button>
+      </div>
+
+      <div class="event-detail-list">
+        <div class="event-detail-row" *ngIf="selectedEvent!.description">
+          <span>Description</span>
+          <p>{{ selectedEvent!.description }}</p>
+        </div>
+
+        <div class="event-detail-row" *ngIf="selectedEvent!.location">
+          <span>Location</span>
+          <p>{{ selectedEvent!.location }}</p>
+        </div>
+
+        <div class="event-detail-grid">
+          <div class="event-detail-row">
+            <span>Date</span>
+            <p>{{ selectedEvent!.date | date: 'mediumDate' }}</p>
+          </div>
+
+          <div class="event-detail-row" *ngIf="selectedEvent!.startTime || selectedEvent!.endTime">
+            <span>Time</span>
+            <p>
+              {{ selectedEvent!.startTime || 'TBD' }}
+              <ng-container *ngIf="selectedEvent!.endTime">
+                - {{ selectedEvent!.endTime }}
+              </ng-container>
+            </p>
+          </div>
+
+          <div class="event-detail-row" *ngIf="selectedEvent!.category">
+            <span>Category</span>
+            <p>{{ selectedEvent!.category }}</p>
+          </div>
+
+          <div class="event-detail-row" *ngIf="selectedEvent!.cost !== undefined">
+            <span>Cost</span>
+            <p>{{ selectedEvent!.cost | currency }}</p>
+          </div>
+        </div>
+
+        <div class="event-detail-row" *ngIf="selectedEvent!.notes">
+          <span>Notes</span>
+          <p>{{ selectedEvent!.notes }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+=======
   @if (isEventDrawerOpen) {
     <div
       class="event-drawer-overlay"
@@ -278,3 +509,4 @@
           </div>
         }
       </div>
+>>>>>>> origin/main
