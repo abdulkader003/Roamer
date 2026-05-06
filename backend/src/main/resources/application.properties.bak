@@ -1,6 +1,6 @@
 spring.application.name=sep-backend
 
-spring.datasource.url=jdbc:postgresql://db:5432/sep
+spring.datasource.url=jdbc:postgresql://localhost:5433/sep
 spring.datasource.username=sep
 spring.datasource.password=sepsep123
 spring.jpa.hibernate.ddl-auto=update
