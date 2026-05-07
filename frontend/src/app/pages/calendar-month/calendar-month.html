@@ -1,28 +1,49 @@
 <div class="calendar-page">
   <div class="calendar-card">
-
     <div class="calendar-toolbar">
       <div class="month-navigation">
         <h2>{{ currentMonth }}</h2>
         <div class="month-buttons">
-          <button class="nav-button" (click)="goToPreviousMonth()">‹</button>
-          <button class="today-button" (click)="goToToday()">Today</button>
-          <button class="nav-button" (click)="goToNextMonth()">›</button>
+          <button type="button" class="nav-button" (click)="goToPreviousMonth()">‹</button>
+          <button type="button" class="today-button" (click)="goToToday()">Today</button>
+          <button type="button" class="nav-button" (click)="goToNextMonth()">›</button>
         </div>
       </div>
 
       <div class="toolbar-center">
         <div class="search-box">
           <span class="search-icon">🔍</span>
-          <input type="text" placeholder="Search events..." />
+          <input
+            type="text"
+            placeholder="Search events..."
+            (input)="onSearch($event)" />
+
+          @if (searchResults.length > 0) {
+            <div class="search-results">
+              @for (event of searchResults; track event) {
+                <div
+                  class="search-result-item"
+                  (click)="openEventDetails(event); $event.stopPropagation()">
+                  {{ event.title }}
+                </div>
+              }
+            </div>
+          }
+
+          @if (searchTerm && searchResults.length === 0) {
+            <div class="search-results">
+              <div class="search-result-item">No events found</div>
+            </div>
+          }
         </div>
       </div>
 
       <div class="toolbar-actions">
-        <button class="add-event-button" (click)="addEvent()">+ Add Event</button>
+        <button type="button" class="add-event-button" (click)="addEvent()">+ Add Event</button>
 
         <div class="view-toggle">
           <button
+            type="button"
             class="view-btn"
             [class.active]="viewMode === 'week'"
             (click)="setViewMode('week')">
@@ -30,6 +51,7 @@
           </button>
 
           <button
+            type="button"
             class="view-btn"
             [class.active]="viewMode === 'month'"
             (click)="setViewMode('month')">
@@ -39,20 +61,19 @@
       </div>
     </div>
 
-    <!-- ================= MONTH VIEW ================= -->
     @if (viewMode === 'month') {
       <div class="calendar-grid">
         @for (day of weekdays; track day) {
-          <div class="weekday">
-            {{ day }}
-          </div>
+          <div class="weekday">{{ day }}</div>
         }
+
         @for (day of prevMonthDays; track day) {
           <div class="day other-month">
             <div class="day-number">{{ day }}</div>
             <div class="events-container" aria-hidden="true"></div>
           </div>
         }
+
         @for (day of days; track day) {
           <div
             class="day"
@@ -70,6 +91,7 @@
             </div>
           </div>
         }
+
         @for (day of nextMonthDays; track day) {
           <div class="day other-month">
             <div class="day-number">{{ day }}</div>
@@ -79,22 +101,17 @@
       </div>
     }
 
-    <!-- ================= WEEK VIEW ================= -->
     @if (viewMode === 'week') {
       <div class="week-view">
         @for (date of weekDays; track date; let i = $index) {
           <div class="week-day">
-            <div class="week-day-name">
-              {{ weekdays[i] }}
-            </div>
+            <div class="week-day-name">{{ weekdays[i] }}</div>
             <div
               class="week-day-box"
               [class.today-week-day]="isTodayDate(date)"
               [class.selected-week-day]="date.getDate() === selectedDay"
               (click)="selectDay(date.getDate())">
-              <div class="week-date-number">
-                {{ date.getDate() }}
-              </div>
+              <div class="week-date-number">{{ date.getDate() }}</div>
               <div class="events-container">
                 @for (event of getEventsForDate(getDateForDate(date)); track event) {
                   <app-event-card
@@ -108,8 +125,8 @@
         }
       </div>
     }
-
   </div>
+
   @if (isEventDrawerOpen) {
     <div
       class="event-drawer-overlay"
@@ -128,6 +145,7 @@
             ×
           </button>
         </div>
+
         <form class="event-form" (ngSubmit)="saveEvent()">
           <label class="form-field">
             <span>Event title</span>
@@ -137,144 +155,168 @@
               [(ngModel)]="eventDraft.title"
               placeholder="Sunset Catamaran Cruise"
               required />
-            </label>
-            <label class="form-field">
-              <span>Event description</span>
-              <textarea
-                name="description"
-                [(ngModel)]="eventDraft.description"
-                rows="3"
-              placeholder="Add a short summary of the plan"></textarea>
-            </label>
-            <label class="form-field">
-              <span>Location</span>
-              <input
-                type="text"
-                name="location"
-                [(ngModel)]="eventDraft.location"
-                placeholder="Mykonos Old Port" />
-              </label>
-              <div class="form-row form-row--double">
-                <label class="form-field">
-                  <span>Date</span>
-                  <input type="date" name="date" [(ngModel)]="eventDraft.date" required />
-                </label>
-                <label class="form-field">
-                  <span>Category</span>
-                  <select name="category" [(ngModel)]="eventDraft.category">
-                    @for (category of eventCategories; track category) {
-                      <option [value]="category">
-                        {{ category }}
-                      </option>
-                    }
-                  </select>
-                </label>
-              </div>
-              <div class="form-row form-row--double">
-                <label class="form-field">
-                  <span>Start time</span>
-                  <input type="time" name="startTime" [(ngModel)]="eventDraft.startTime" />
-                </label>
-                <label class="form-field">
-                  <span>End time</span>
-                  <input type="time" name="endTime" [(ngModel)]="eventDraft.endTime" />
-                </label>
-              </div>
-              <label class="form-field">
-                <span>Budget / cost</span>
-                <input
-                  type="number"
-                  name="budget"
-                  [(ngModel)]="eventDraft.budget"
-                  min="0"
-                  step="0.01"
-                  placeholder="120.00" />
-                </label>
-                <label class="form-field">
-                  <span>Notes</span>
-                  <textarea
-                    name="notes"
-                    [(ngModel)]="eventDraft.notes"
-                    rows="5"
-                  placeholder="Reservation details, contacts, dress code, reminders..."></textarea>
-                </label>
-                <div class="event-form-actions">
-                  <button type="button" class="secondary-button" (click)="cancelEventForm()">
-                    Cancel
-                  </button>
-                  <button type="submit" class="primary-button">Save Event</button>
-                </div>
-              </form>
-            </aside>
-          </div>
-        }
+          </label>
 
-        @if (selectedEvent) {
-          <div class="event-modal-backdrop" (click)="selectedEvent = null">
-            <div class="event-modal" (click)="$event.stopPropagation()">
-              <div class="event-modal-header">
-                <div>
-                  <p class="event-modal-eyebrow">{{ selectedEvent.category || 'Travel plan' }}</p>
-                  <h3>{{ selectedEvent.title }}</h3>
-                </div>
-                <button
-                  type="button"
-                  class="modal-close-button"
-                  aria-label="Close event details"
-                  (click)="selectedEvent = null">
-                  &times;
-                </button>
-              </div>
-              <div class="event-detail-list">
-                @if (selectedEvent.description) {
-                  <div class="event-detail-row">
-                    <span>Description</span>
-                    <p>{{ selectedEvent.description }}</p>
-                  </div>
+          <label class="form-field">
+            <span>Event description</span>
+            <textarea
+              name="description"
+              [(ngModel)]="eventDraft.description"
+              rows="3"
+              placeholder="Add a short summary of the plan"></textarea>
+          </label>
+
+          <label class="form-field">
+            <span>Location</span>
+            <input
+              type="text"
+              name="location"
+              [(ngModel)]="eventDraft.location"
+              placeholder="Mykonos Old Port" />
+          </label>
+
+          <div class="form-row form-row--double">
+            <label class="form-field">
+              <span>Date</span>
+              <input
+                type="date"
+                name="date"
+                [(ngModel)]="eventDraft.date"
+                required />
+            </label>
+
+            <label class="form-field">
+              <span>Category</span>
+              <select name="category" [(ngModel)]="eventDraft.category">
+                @for (category of eventCategories; track category) {
+                  <option [value]="category">{{ category }}</option>
                 }
-                @if (selectedEvent.location) {
-                  <div class="event-detail-row">
-                    <span>Location</span>
-                    <p>{{ selectedEvent.location }}</p>
-                  </div>
-                }
-                <div class="event-detail-grid">
-                  <div class="event-detail-row">
-                    <span>Date</span>
-                    <p>{{ selectedEvent.date | date: 'mediumDate' }}</p>
-                  </div>
-                  @if (selectedEvent.startTime || selectedEvent.endTime) {
-                    <div class="event-detail-row">
-                      <span>Time</span>
-                      <p>
-                        {{ selectedEvent.startTime || 'TBD' }}
-                        @if (selectedEvent.endTime) {
-                          - {{ selectedEvent.endTime }}
-                        }
-                      </p>
-                    </div>
-                  }
-                  @if (selectedEvent.category) {
-                    <div class="event-detail-row">
-                      <span>Category</span>
-                      <p>{{ selectedEvent.category }}</p>
-                    </div>
-                  }
-                  @if (selectedEvent.cost !== undefined) {
-                    <div class="event-detail-row">
-                      <span>Cost</span>
-                      <p>{{ selectedEvent.cost | currency }}</p>
-                    </div>
-                  }
-                </div>
-                @if (selectedEvent.notes) {
-                  <div class="event-detail-row">
-                    <span>Notes</span>
-                    <p>{{ selectedEvent.notes }}</p>
-                  </div>
-                }
-              </div>
-            </div>
+              </select>
+            </label>
           </div>
-        }
+
+          <div class="form-row form-row--double">
+            <label class="form-field">
+              <span>Start time</span>
+              <input
+                type="time"
+                name="startTime"
+                [(ngModel)]="eventDraft.startTime" />
+            </label>
+
+            <label class="form-field">
+              <span>End time</span>
+              <input
+                type="time"
+                name="endTime"
+                [(ngModel)]="eventDraft.endTime" />
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span>Budget / cost</span>
+            <input
+              type="number"
+              name="budget"
+              [(ngModel)]="eventDraft.budget"
+              min="0"
+              step="0.01"
+              placeholder="120.00" />
+          </label>
+
+          <label class="form-field">
+            <span>Notes</span>
+            <textarea
+              name="notes"
+              [(ngModel)]="eventDraft.notes"
+              rows="5"
+              placeholder="Reservation details, contacts, dress code, reminders..."></textarea>
+          </label>
+
+          <div class="event-form-actions">
+            <button type="button" class="secondary-button" (click)="cancelEventForm()">
+              Cancel
+            </button>
+            <button type="submit" class="primary-button">Save Event</button>
+          </div>
+        </form>
+      </aside>
+    </div>
+  }
+
+  @if (selectedEvent) {
+    <div class="event-modal-backdrop" (click)="selectedEvent = null">
+      <div class="event-modal" (click)="$event.stopPropagation()">
+        <div class="event-modal-header">
+          <div>
+            <p class="event-modal-eyebrow">{{ selectedEvent.category || 'Travel plan' }}</p>
+            <h3>{{ selectedEvent.title }}</h3>
+          </div>
+          <button
+            type="button"
+            class="modal-close-button"
+            aria-label="Close event details"
+            (click)="selectedEvent = null">
+            &times;
+          </button>
+        </div>
+
+        <div class="event-detail-list">
+          @if (selectedEvent.description) {
+            <div class="event-detail-row">
+              <span>Description</span>
+              <p>{{ selectedEvent.description }}</p>
+            </div>
+          }
+
+          @if (selectedEvent.location) {
+            <div class="event-detail-row">
+              <span>Location</span>
+              <p>{{ selectedEvent.location }}</p>
+            </div>
+          }
+
+          <div class="event-detail-grid">
+            <div class="event-detail-row">
+              <span>Date</span>
+              <p>{{ selectedEvent.date | date: 'mediumDate' }}</p>
+            </div>
+
+            @if (selectedEvent.startTime || selectedEvent.endTime) {
+              <div class="event-detail-row">
+                <span>Time</span>
+                <p>
+                  {{ selectedEvent.startTime || 'TBD' }}
+                  @if (selectedEvent.endTime) {
+                    - {{ selectedEvent.endTime }}
+                  }
+                </p>
+              </div>
+            }
+
+            @if (selectedEvent.category) {
+              <div class="event-detail-row">
+                <span>Category</span>
+                <p>{{ selectedEvent.category }}</p>
+              </div>
+            }
+
+            @if (selectedEvent.cost !== undefined) {
+              <div class="event-detail-row">
+                <span>Cost</span>
+                <p>{{ selectedEvent.cost | currency }}</p>
+              </div>
+            }
+          </div>
+
+          @if (selectedEvent.notes) {
+            <div class="event-detail-row">
+              <span>Notes</span>
+              <p>{{ selectedEvent.notes }}</p>
+            </div>
+          }
+        </div>
       </div>
+    </div>
+  }
+</div>

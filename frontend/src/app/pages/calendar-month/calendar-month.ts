@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ChangeDetectorRef } from '@angular/core';
 import {
   CalendarEvent,
   EventCardComponent
@@ -37,53 +38,45 @@ export class CalendarMonth {
   weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   viewMode: 'month' | 'week' = 'month';
-
   selectedDay: number | null = null;
 
   today = new Date();
-  currentDate: Date = new Date(2026, 3, 1); // April 2026
+  currentDate: Date = new Date();
 
   currentMonth = '';
   days: number[] = [];
   prevMonthDays: number[] = [];
   nextMonthDays: number[] = [];
   weekDays: Date[] = [];
+
   isEventDrawerOpen = false;
   selectedEvent: CalendarEvent | null = null;
-  events: CalendarEvent[] = [
-    {
-      title: 'Sunset Catamaran Cruise',
-      description: 'Evening sail around the caldera with dinner on board.',
-      location: 'Ammoudi Bay',
-      date: '2026-04-01',
-      startTime: '17:30',
-      endTime: '21:00',
-      category: 'Activity',
-      cost: 120,
-      notes: 'Bring a light jacket and arrive 20 minutes early.'
-    },
-    {
-      title: 'Boutique Hotel Check-in',
-      description: 'Check in and confirm airport transfer for departure day.',
-      location: 'Oia',
-      date: '2026-04-01',
-      startTime: '14:00',
-      category: 'Hotel',
-      cost: 340,
-      notes: 'Reservation under Morgan.'
-    },
-    {
-      title: 'Museum and Old Town Walk',
-      description: 'Self-guided walk through the old town and archaeology museum.',
-      location: 'Fira',
-      date: '2026-04-12',
-      startTime: '10:00',
-      endTime: '13:00',
-      category: 'Attraction',
-      cost: 18,
-      notes: 'Buy museum tickets online if the morning queue is long.'
+
+  events: CalendarEvent[] = [];
+
+  searchTerm: string = '';
+  searchResults: CalendarEvent[] = [];
+
+  onSearch(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.searchTerm = input.value.trim().toLowerCase();
+
+    if (!this.searchTerm) {
+      this.searchResults = [];
+      return;
     }
-  ];
+
+    this.searchResults = this.events.filter((event) =>
+      event.title?.toLowerCase().includes(this.searchTerm)
+    );
+  }
+
+  openEventDetails(event: CalendarEvent) {
+    this.selectedEvent = event;
+    this.searchResults = [];
+    this.searchTerm = '';
+  }
+
   eventCategories: EventCategory[] = [
     'Flight',
     'Hotel',
@@ -93,10 +86,12 @@ export class CalendarMonth {
     'Beach',
     'Party'
   ];
+
   eventDraft: EventDraft = this.createEmptyEventDraft();
 
   ngOnInit() {
     this.generateCalendar();
+    this.loadCalendarEvents();
   }
 
   generateCalendar() {
@@ -144,6 +139,33 @@ export class CalendarMonth {
       date.setDate(monday.getDate() + i);
       return date;
     });
+  }
+
+  async loadCalendarEvents() {
+    try {
+      const response = await fetch('http://localhost:8080/api/calendar-events');
+
+      if (!response.ok) {
+        throw new Error(`Failed to load events: ${response.status}`);
+      }
+
+      const backendEvents = await response.json();
+
+      this.events = backendEvents.map((event: any) => ({
+        title: event.title,
+        description: event.description ?? '',
+        location: event.location ?? '',
+        date: event.startDateTime?.split('T')[0] ?? '',
+        startTime: event.startDateTime?.split('T')[1]?.slice(0, 5) ?? '',
+        endTime: event.endDateTime?.split('T')[1]?.slice(0, 5) ?? '',
+        category: this.mapBackendCategory(event.category),
+        cost: event.budgetCost ?? undefined,
+        notes: event.notes ?? ''
+      }));
+    this.cdr.detectChanges();
+    } catch (error) {
+      console.error('Error loading calendar events:', error);
+    }
   }
 
   setViewMode(mode: 'month' | 'week') {
@@ -194,23 +216,43 @@ export class CalendarMonth {
     this.closeEventDrawer();
   }
 
-  saveEvent() {
-    const eventPayload: CalendarEvent = {
-      title: this.eventDraft.title,
-      description: this.eventDraft.description,
-      location: this.eventDraft.location,
-      date: this.eventDraft.date,
-      startTime: this.eventDraft.startTime,
-      endTime: this.eventDraft.endTime,
-      category: this.eventDraft.category,
-      cost: this.eventDraft.budget ? Number(this.eventDraft.budget) : undefined,
-      notes: this.eventDraft.notes
-    };
+ async saveEvent() {
+   alert('saveEvent started');
 
-    this.events = [...this.events, eventPayload];
-    this.eventDraft = this.createEmptyEventDraft();
-    this.closeEventDrawer();
-  }
+   const backendPayload = {
+     title: this.eventDraft.title,
+     description: this.eventDraft.description,
+     location: this.eventDraft.location,
+     startDateTime: `${this.eventDraft.date}T${this.eventDraft.startTime || '00:00'}:00`,
+     endDateTime: `${this.eventDraft.date}T${this.eventDraft.endTime || '23:59'}:00`,
+     category: this.eventDraft.category,
+     budgetCost: this.eventDraft.budget ? Number(this.eventDraft.budget) : null,
+     notes: this.eventDraft.notes
+   };
+
+   try {
+     const response = await fetch('http://localhost:8080/api/calendar-events', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(backendPayload)
+     });
+
+     if (!response.ok) {
+       alert('Backend error: ' + response.status);
+       return;
+     }
+
+     alert('Event saved successfully');
+
+     await this.loadCalendarEvents();
+
+     this.eventDraft = this.createEmptyEventDraft();
+     this.closeEventDrawer();
+   } catch (error) {
+     alert('Network error. Backend may not be running.');
+     console.error(error);
+   }
+ }
 
   getEventsForDate(date: string): CalendarEvent[] {
     return this.events.filter((event) => event.date === date);
@@ -262,4 +304,20 @@ export class CalendarMonth {
   getDateForDate(date: Date): string {
     return this.formatDateForInput(date);
   }
+
+  private mapBackendCategory(category: string | null): EventCategory {
+    if (!category) {
+      return 'Event';
+    }
+
+    const normalized =
+      category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+
+    return this.eventCategories.includes(normalized as EventCategory)
+      ? (normalized as EventCategory)
+      : 'Event';
+  }
+
+constructor(private cdr: ChangeDetectorRef) {}
+
 }
