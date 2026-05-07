@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
 
 interface Trip {
@@ -34,7 +35,7 @@ interface ExploreItem {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

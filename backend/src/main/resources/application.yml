@@ -1,0 +1,22 @@
+spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:backend/.env[.properties]
+  application:
+    name: sep-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sep}
+    username: ${SPRING_DATASOURCE_USERNAME:sep}
+    password: ${SPRING_DATASOURCE_PASSWORD:sepsep123}
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+external:
+  aviationstack:
+    access-key: ${AVIATIONSTACK_ACCESS_KEY}
+    base-url: ${AVIATIONSTACK_BASE_URL:http://api.aviationstack.com/v1}

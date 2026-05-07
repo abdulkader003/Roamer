@@ -33,238 +33,726 @@
   <!-- Search Card -->
   <section class="search-card" aria-labelledby="search-heading">
     <h2 id="search-heading" class="visually-hidden">Search flights</h2>
+    <datalist id="airport-options">
+      <option *ngFor="let airport of airports" [value]="airport.city + ' (' + airport.code + ')'">
+        {{ airport.fullName }}
+      </option>
+    </datalist>
 
     <div class="trip-tabs" role="tablist">
-      @for (tab of tripTypes; track tab) {
-        <button
-          type="button"
-          role="tab"
-          class="trip-tab"
-          [class.active]="tripType() === tab.id"
-          [attr.aria-selected]="tripType() === tab.id"
-          (click)="setTripType(tab.id)">
-          {{ tab.label }}
-        </button>
-      }
+      <button
+        *ngFor="let tab of tripTypes"
+        type="button"
+        role="tab"
+        class="trip-tab"
+        [class.active]="tripType() === tab.id"
+        [attr.aria-selected]="tripType() === tab.id"
+        (click)="setTripType(tab.id)">
+        {{ tab.label }}
+      </button>
     </div>
 
-    <div class="search-grid">
-      <label class="field">
+    <div *ngIf="tripType() !== 'multi-city'" class="search-grid">
+      <label class="field airport-field">
         <span class="field-label">From</span>
         <input
           type="text"
           [value]="fromText()"
           (input)="updateOriginText($any($event.target).value)"
+          (focus)="showAirportSuggestions('from')"
           placeholder="Add origin"
           aria-label="Origin"/>
-          <span class="field-meta">{{ from().fullName || 'Type a city or airport code' }}</span>
-        </label>
+        <span class="field-meta">{{ from().fullName || 'Type a city or airport code' }}</span>
 
-        <label class="field">
-          <span class="field-label">To</span>
-          <input
-            type="text"
-            [value]="toText()"
-            (input)="updateDestinationText($any($event.target).value)"
-            placeholder="Add destination"
-            aria-label="Destination"/>
-            <span class="field-meta">{{ to().fullName || 'Type a city or airport code' }}</span>
+        <div class="airport-suggestions" *ngIf="activeAirportPicker() === 'from' && airportSuggestions('from').length">
+          <button
+            type="button"
+            class="airport-option"
+            *ngFor="let airport of airportSuggestions('from')"
+            (mousedown)="$event.preventDefault(); selectAirport('from', airport)">
+            <strong>{{ airport.city }}</strong>
+            <span>{{ airport.fullName }}</span>
+            <em>{{ airport.code }}</em>
+          </button>
+        </div>
+      </label>
+
+      <label class="field airport-field airport-field--to">
+        <span class="field-label">To</span>
+        <input
+          type="text"
+          [value]="toText()"
+          (input)="updateDestinationText($any($event.target).value)"
+          (focus)="showAirportSuggestions('to')"
+          placeholder="Add destination"
+          aria-label="Destination"/>
+        <span class="field-meta">{{ to().fullName || 'Type a city or airport code' }}</span>
+
+        <div class="airport-suggestions" *ngIf="activeAirportPicker() === 'to' && airportSuggestions('to').length">
+          <button
+            type="button"
+            class="airport-option"
+            *ngFor="let airport of airportSuggestions('to')"
+            (mousedown)="$event.preventDefault(); selectAirport('to', airport)">
+            <strong>{{ airport.city }}</strong>
+            <span>{{ airport.fullName }}</span>
+            <em>{{ airport.code }}</em>
+          </button>
+        </div>
+      </label>
+
+      <div class="field date-field" [class.open]="activeDatePicker() === 'departure'">
+        <button
+          type="button"
+          class="date-trigger"
+          aria-label="Choose departure date"
+          [attr.aria-expanded]="activeDatePicker() === 'departure'"
+          (click)="toggleDatePicker('departure')">
+          <span class="field-label">Departure</span>
+          <span class="field-value">{{ formatDate(departureDate()) }}</span>
+          <span class="field-meta">{{ formatYear(departureDate()) }}</span>
+        </button>
+      </div>
+
+      <div
+        class="field date-field"
+        [class.open]="activeDatePicker() === 'return'"
+        [class.disabled]="tripType() !== 'round-trip'">
+        <button
+          type="button"
+          class="date-trigger"
+          aria-label="Choose return date"
+          [disabled]="tripType() !== 'round-trip'"
+          [attr.aria-expanded]="activeDatePicker() === 'return'"
+          (click)="toggleDatePicker('return')">
+          <span class="field-label">Return</span>
+          <span class="field-value" [class.placeholder]="!returnDate()">
+            {{ returnDate() ? formatDate(returnDate()) : '— add return —' }}
+          </span>
+          <span class="field-meta">{{ returnDate() ? formatYear(returnDate()) : 'Optional' }}</span>
+        </button>
+      </div>
+
+      <div class="field travelers-field" [class.open]="travelersPickerOpen()">
+        <button
+          type="button"
+          class="travelers-trigger"
+          aria-label="Change travelers"
+          [attr.aria-expanded]="travelersPickerOpen()"
+          (click)="toggleTravelersPicker()">
+          <span class="field-label">Travelers · Class</span>
+          <span class="field-value">{{ formatTravelers() }}</span>
+          <span class="field-meta">{{ cabinClass() | titlecase }}</span>
+        </button>
+      </div>
+
+      <button type="button" class="search-btn" (click)="onSearch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span>Search</span>
+      </button>
+
+      <button type="button" class="swap-btn" aria-label="Swap origin and destination" (click)="swapAirports()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="17 1 21 5 17 9"/>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+      </button>
+    </div>
+
+    <div *ngIf="tripType() === 'multi-city'" class="multi-city-builder">
+      <div class="multi-city-segments">
+        <div
+          *ngFor="let segment of multiCitySegments(); let i = index"
+          class="multi-city-row">
+          <div class="segment-number">{{ i + 1 }}</div>
+
+          <label class="field">
+            <span class="field-label">From</span>
+            <input
+              type="text"
+              list="airport-options"
+              [value]="segment.fromText"
+              (input)="updateMultiCityText(i, 'fromText', $any($event.target).value)"
+              placeholder="Add origin"
+              [attr.aria-label]="'Segment ' + (i + 1) + ' origin'"/>
           </label>
 
-          <div class="field">
-            <span class="field-label">Departure</span>
-            <span class="field-value">{{ formatDate(departureDate()) }}</span>
-            <span class="field-meta">{{ formatYear(departureDate()) }}</span>
-          </div>
+          <label class="field">
+            <span class="field-label">To</span>
+            <input
+              type="text"
+              list="airport-options"
+              [value]="segment.toText"
+              (input)="updateMultiCityText(i, 'toText', $any($event.target).value)"
+              placeholder="Add destination"
+              [attr.aria-label]="'Segment ' + (i + 1) + ' destination'"/>
+          </label>
 
-          <div class="field">
-            <span class="field-label">Return</span>
-            <span class="field-value" [class.placeholder]="!returnDate()">
-              {{ returnDate() ? formatDate(returnDate()) : '— add return —' }}
-            </span>
-            <span class="field-meta">{{ returnDate() ? formatYear(returnDate()) : 'Optional' }}</span>
-          </div>
+          <label class="field">
+            <span class="field-label">Date</span>
+            <input
+              type="date"
+              [value]="formatMultiCityDate(i)"
+              (input)="updateMultiCityDate(i, $any($event.target).value)"
+              [attr.aria-label]="'Segment ' + (i + 1) + ' date'"/>
+          </label>
 
-          <div class="field">
-            <span class="field-label">Travelers · Class</span>
-            <span class="field-value">{{ travelers() }} {{ travelers() === 1 ? 'Adult' : 'Adults' }}</span>
-            <span class="field-meta">{{ cabinClass() | titlecase }}</span>
-          </div>
-
-          <button type="button" class="search-btn" (click)="onSearch()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <span>Search</span>
-          </button>
-
-          <button type="button" class="swap-btn" aria-label="Swap origin and destination" (click)="swapAirports()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="17 1 21 5 17 9"/>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-              <polyline points="7 23 3 19 7 15"/>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+          <button
+            type="button"
+            class="segment-remove"
+            aria-label="Remove city segment"
+            [disabled]="multiCitySegments().length <= 2"
+            (click)="removeMultiCitySegment(i)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
+      </div>
+
+      <div class="multi-city-actions">
+        <button type="button" class="add-segment-btn" (click)="addMultiCitySegment()">
+          <span>+</span>
+          Add city
+        </button>
+
+        <div class="field travelers-field" [class.open]="travelersPickerOpen()">
+          <button
+            type="button"
+            class="travelers-trigger"
+            aria-label="Change travelers"
+            [attr.aria-expanded]="travelersPickerOpen()"
+            (click)="toggleTravelersPicker()">
+            <span class="field-label">Travelers · Class</span>
+            <span class="field-value">{{ formatTravelers() }}</span>
+            <span class="field-meta">{{ cabinClass() | titlecase }}</span>
+          </button>
+        </div>
+
+        <button type="button" class="search-btn" (click)="onSearch()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Search</span>
+        </button>
+      </div>
+    </div>
+
+    <p *ngIf="searchError()" class="search-error">{{ searchError() }}</p>
+
+    <div
+      *ngIf="travelersPickerOpen()"
+      class="travelers-popover-backdrop"
+      role="presentation"
+      (click)="closeTravelersPicker()">
+      <section
+        class="travelers-popover"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Change travelers"
+        (click)="$event.stopPropagation()">
+        <header class="travelers-popover__head">
+          <div>
+            <span class="travelers-popover__eyebrow">Passengers</span>
+            <h3>Travelers</h3>
+          </div>
+          <button type="button" class="travelers-close" aria-label="Close travelers picker" (click)="closeTravelersPicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </header>
+
+        <div class="traveler-row">
+          <div>
+            <strong>Adults</strong>
+            <span>Age 12+</span>
+          </div>
+          <div class="stepper" aria-label="Adults">
+            <button type="button" aria-label="Remove adult" [disabled]="adults() <= 1" (click)="updateAdults(-1)">−</button>
+            <span>{{ adults() }}</span>
+            <button type="button" aria-label="Add adult" (click)="updateAdults(1)">+</button>
+          </div>
+        </div>
+
+        <div class="traveler-row">
+          <div>
+            <strong>Children</strong>
+            <span>Age 0–11</span>
+          </div>
+          <div class="stepper" aria-label="Children">
+            <button type="button" aria-label="Remove child" [disabled]="children() <= 0" (click)="updateChildren(-1)">−</button>
+            <span>{{ children() }}</span>
+            <button type="button" aria-label="Add child" (click)="updateChildren(1)">+</button>
+          </div>
+        </div>
+
+        <button type="button" class="travelers-done" (click)="closeTravelersPicker()">Done</button>
       </section>
+    </div>
 
-      <!-- Mobile filter trigger -->
-      <button type="button" class="filters-trigger" (click)="toggleFiltersDrawer()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/>
-        </svg>
-        Filters
-      </button>
+    <div
+      *ngIf="activeDatePicker()"
+      class="date-popover-backdrop"
+      role="presentation"
+      (click)="closeDatePicker()">
+      <section
+        class="date-popover"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="activeDatePickerTitle()"
+        (click)="$event.stopPropagation()">
+        <header class="date-popover__head">
+          <div>
+            <span class="date-popover__eyebrow">Flight dates</span>
+            <h3>{{ activeDatePickerTitle() }}</h3>
+          </div>
+          <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </header>
 
-      <div class="content-grid">
+        <div class="date-popover__body">
+          <aside class="date-manual">
+            <label>
+              <span>Manual date</span>
+              <input
+                type="text"
+                [value]="activeDatePickerInputValue()"
+                (input)="updateActiveDatePickerInput($any($event.target).value)"
+                placeholder="YYYY-MM-DD"
+                inputmode="numeric"
+                [class.invalid]="manualDateError()"
+                [attr.aria-invalid]="manualDateError() ? 'true' : 'false'"
+                aria-describedby="manual-date-hint"
+                [attr.aria-label]="activeDatePickerTitle()"/>
+            </label>
+            <p
+              id="manual-date-hint"
+              class="date-hint"
+              [class.error]="manualDateError()">
+              {{ manualDateError() || 'Use the calendar or type the date directly.' }}
+            </p>
+            <button
+              *ngIf="activeDatePicker() === 'return'"
+              type="button"
+              class="date-clear"
+              (click)="clearReturnDate()">
+              Clear return
+            </button>
+          </aside>
 
-        <!-- Filters -->
-        <aside class="filters" [class.open]="filtersDrawerOpen()" aria-label="Filters">
-          <div class="filters-head">
-            <h3>Filters</h3>
-            <div class="filters-head__actions">
-              <button type="button" class="link-btn" (click)="resetFilters()">Reset all</button>
-              <button type="button" class="filters-close" (click)="closeFiltersDrawer()" aria-label="Close filters">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          <div class="date-calendar">
+            <div class="date-calendar__toolbar">
+              <button type="button" aria-label="Previous month" (click)="moveDatePickerMonth(-1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+              <strong>{{ datePickerMonthLabel() }}</strong>
+              <button type="button" aria-label="Next month" (click)="moveDatePickerMonth(1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="date-weekdays">
+              <span *ngFor="let day of weekDays">{{ day }}</span>
+            </div>
+
+            <div class="date-days">
+              <button
+                *ngFor="let day of calendarDays()"
+                type="button"
+                [class.muted]="!day.inCurrentMonth"
+                [class.selected]="day.isSelected"
+                [class.today]="day.isToday"
+                (click)="selectCalendarDate(day.date)">
+                {{ day.dayNumber }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- Mobile filter trigger -->
+  <button type="button" class="filters-trigger" (click)="toggleFiltersDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/>
+    </svg>
+    Filters
+  </button>
+
+  <div class="content-grid">
+
+    <!-- Filters -->
+    <aside class="filters" [class.open]="filtersDrawerOpen()" aria-label="Filters">
+      <div class="filters-head">
+        <h3>Filters</h3>
+        <div class="filters-head__actions">
+          <button type="button" class="link-btn" (click)="resetFilters()">Reset all</button>
+          <button type="button" class="filters-close" (click)="closeFiltersDrawer()" aria-label="Close filters">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Price range</h4>
+        <div class="price-range">
+          <div class="range-track">
+            <div class="range-fill" [ngStyle]="priceFillStyle"></div>
+            <div class="range-thumb" [style.left.%]="priceMinPct"></div>
+            <div class="range-thumb" [style.left.%]="priceMaxPct"></div>
+            <input
+              type="range"
+              min="0"
+              max="500"
+              step="10"
+              [value]="filters().priceMin"
+              (input)="updatePriceMin($any($event.target).value)"
+              aria-label="Minimum price"/>
+            <input
+              type="range"
+              min="0"
+              max="500"
+              step="10"
+              [value]="filters().priceMax"
+              (input)="updatePriceMax($any($event.target).value)"
+              aria-label="Maximum price"/>
+          </div>
+          <div class="range-labels">
+            <span><strong>€{{ filters().priceMin }}</strong></span>
+            <span><strong>€{{ filters().priceMax }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Stops</h4>
+        <div class="check-list">
+          <label class="check-row" [class.checked]="filters().stops.direct" (click)="toggleStop('direct')">
+            <span class="check-left">
+              <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="check-label">Direct</span>
+            </span>
+            <span class="check-count">{{ stopCount('direct') }}</span>
+          </label>
+          <label class="check-row" [class.checked]="filters().stops.oneStop" (click)="toggleStop('oneStop')">
+            <span class="check-left">
+              <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="check-label">1 stop</span>
+            </span>
+            <span class="check-count">{{ stopCount('oneStop') }}</span>
+          </label>
+          <label class="check-row" [class.checked]="filters().stops.twoPlus" (click)="toggleStop('twoPlus')">
+            <span class="check-left">
+              <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="check-label">2+ stops</span>
+            </span>
+            <span class="check-count">{{ stopCount('twoPlus') }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Airlines</h4>
+        <div class="check-list">
+          <label
+            *ngFor="let a of airlineCheckboxes"
+            class="check-row"
+            [class.checked]="filters().airlines[a.code]"
+            (click)="toggleAirline(a.code)">
+            <span class="check-left">
+              <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="check-label">{{ a.name }}</span>
+            </span>
+            <span class="check-count">{{ airlineCount(a.code) }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Departure time</h4>
+        <div class="time-grid">
+          <button
+            *ngFor="let w of departureWindowChips"
+            type="button"
+            class="time-chip"
+            [class.active]="filters().departureWindows[w.id]"
+            (click)="toggleWindow(w.id)">
+            <span class="time-chip-label">{{ w.label }}</span>
+            <span class="time-chip-range">{{ w.range }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Cabin baggage</h4>
+        <div class="check-list">
+          <label class="check-row" [class.checked]="filters().carryOnIncluded" (click)="toggleBaggage('carryOnIncluded')">
+            <span class="check-left">
+              <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="check-label">Carry-on included</span>
+            </span>
+          </label>
+          <label class="check-row" [class.checked]="filters().checkedBagIncluded" (click)="toggleBaggage('checkedBagIncluded')">
+            <span class="check-left">
+              <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <span class="check-label">Checked bag included</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Backdrop for mobile drawer -->
+    <div class="filters-backdrop" [class.open]="filtersDrawerOpen()" (click)="closeFiltersDrawer()"></div>
+
+    <!-- Results -->
+    <section class="results">
+      <div class="results-toolbar" role="tablist">
+        <button
+          *ngFor="let s of sortTabs"
+          type="button"
+          role="tab"
+          class="sort-tab"
+          [class.active]="sortMode() === s.id"
+          [attr.aria-selected]="sortMode() === s.id"
+          (click)="setSortMode(s.id)">
+          <span class="sort-tab-label">{{ s.label }}</span>
+          <span class="sort-tab-meta">{{ s.meta }}</span>
+        </button>
+      </div>
+
+      <div class="results-meta">
+        <div>
+          <strong>{{ resultCount() }} flights</strong> · {{ from().code || from().city || 'From' }} → {{ to().code || to().city || 'To' }} · {{ formatAppliedSearch() }}
+        </div>
+        <select
+          class="sort-select"
+          aria-label="Sort by"
+          [value]="sortMode()"
+          (change)="setSortMode($any($event.target).value)">
+          <option value="best">Sort: Recommended</option>
+          <option value="cheapest">Price · Low to high</option>
+          <option value="fastest">Duration · Shortest</option>
+        </select>
+      </div>
+
+      <div class="flight-list">
+        <div *ngIf="hasSearched() && appliedTripType() !== 'multi-city'" class="leg-heading">
+          <span>{{ appliedTripType() === 'round-trip' ? 'Outbound' : 'Flights' }}</span>
+          <strong>{{ from().code || 'From' }} → {{ to().code || 'To' }}</strong>
+        </div>
+
+        <article
+          *ngFor="let flight of filteredFlights(); let i = index"
+          class="flight-card"
+          [class.expanded]="isFlightExpanded(flight)"
+          (click)="toggleFlightDetails(flight)"
+          [style.animation-delay.ms]="i * 50">
+
+          <div class="flight-card__main">
+            <div class="flight-info">
+              <div class="airline">
+                <div class="airline-logo" [ngClass]="flight.airline.colorClass">
+                  {{ flight.airline.code }}
+                </div>
+                <div class="airline-name">{{ flight.airline.name }}</div>
+              </div>
+
+              <div class="route">
+                <div class="endpoint">
+                  <div class="time">{{ flight.departure.time }}</div>
+                  <div class="code">{{ flight.departure.airport }}</div>
+                  <div class="city">{{ flight.departure.city }}</div>
+                </div>
+
+                <div class="duration">
+                  <div class="duration-text">{{ flight.duration }}</div>
+                  <div class="duration-line" [class.direct]="flight.stops === 0">
+                    <span *ngIf="flight.stops > 0" class="duration-stop" style="left: 42%;"></span>
+                  </div>
+                  <div class="stops-text" [class.direct]="flight.stops === 0">
+                    {{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}
+                  </div>
+                </div>
+
+                <div class="endpoint right">
+                  <div class="time">{{ flight.arrival.time }}</div>
+                  <div class="code">{{ flight.arrival.airport }}</div>
+                  <div class="city">{{ flight.arrival.city }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flight-action">
+              <span *ngIf="flight.badge" class="badge" [ngClass]="flight.badge.type">
+                {{ flight.badge.label }}
+              </span>
+              <div class="price-block">
+                <div class="price-label">From</div>
+                <div class="price">€{{ flight.price }}</div>
+                <div class="price-pp">per traveler</div>
+              </div>
+              <button
+                type="button"
+                class="select-btn"
+                (click)="$event.stopPropagation(); onSelectFlight(flight)">
+                Select
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
                 </svg>
               </button>
             </div>
           </div>
 
-          <div class="filter-group">
-            <h4>Price range</h4>
-            <div class="price-range">
-              <div class="range-track">
-                <div class="range-fill" [ngStyle]="priceFillStyle"></div>
-                <div class="range-thumb" [style.left.%]="priceMinPct"></div>
-                <div class="range-thumb" [style.left.%]="priceMaxPct"></div>
+          <div *ngIf="isFlightExpanded(flight)" class="flight-details">
+            <div class="detail-block">
+              <span class="detail-label">Stops</span>
+              <strong>{{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}</strong>
+              <p *ngIf="flight.stops > 0">
+                This trip includes {{ flight.stops }} stop{{ flight.stops === 1 ? '' : 's' }} before arrival.
+              </p>
+              <p *ngIf="flight.stops === 0">No airport changes or layovers on this flight.</p>
+            </div>
+
+            <div class="detail-block">
+              <span class="detail-label">Baggage</span>
+              <strong>{{ baggageSummary(flight) }}</strong>
+              <p>
+                Carry-on:
+                {{ flight.carryOnIncluded ? 'included, up to ' + flight.carryOnWeightKg + ' kg' : 'not included' }}.
+                Checked bag:
+                {{ flight.checkedBagIncluded ? 'included, up to ' + (flight.checkedBagWeightKg || 23) + ' kg' : 'not included' }}.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <div *ngIf="appliedTripType() === 'round-trip' && hasSearched()" class="leg-separator"></div>
+
+        <div *ngIf="appliedTripType() === 'round-trip' && hasSearched()" class="leg-heading return">
+          <span>Return</span>
+          <strong>{{ to().code || 'From' }} → {{ from().code || 'To' }}</strong>
+        </div>
+
+        <article
+          *ngFor="let flight of filteredReturnFlights(); let i = index"
+          class="flight-card"
+          [class.expanded]="isFlightExpanded(flight)"
+          (click)="toggleFlightDetails(flight)"
+          [style.animation-delay.ms]="i * 50">
+
+          <div class="flight-card__main">
+            <div class="flight-info">
+              <div class="airline">
+                <div class="airline-logo" [ngClass]="flight.airline.colorClass">
+                  {{ flight.airline.code }}
+                </div>
+                <div class="airline-name">{{ flight.airline.name }}</div>
               </div>
-              <div class="range-labels">
-                <span><strong>€{{ filters().priceMin }}</strong></span>
-                <span><strong>€{{ filters().priceMax }}</strong></span>
+
+              <div class="route">
+                <div class="endpoint">
+                  <div class="time">{{ flight.departure.time }}</div>
+                  <div class="code">{{ flight.departure.airport }}</div>
+                  <div class="city">{{ flight.departure.city }}</div>
+                </div>
+
+                <div class="duration">
+                  <div class="duration-text">{{ flight.duration }}</div>
+                  <div class="duration-line" [class.direct]="flight.stops === 0">
+                    <span *ngIf="flight.stops > 0" class="duration-stop" style="left: 42%;"></span>
+                  </div>
+                  <div class="stops-text" [class.direct]="flight.stops === 0">
+                    {{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}
+                  </div>
+                </div>
+
+                <div class="endpoint right">
+                  <div class="time">{{ flight.arrival.time }}</div>
+                  <div class="code">{{ flight.arrival.airport }}</div>
+                  <div class="city">{{ flight.arrival.city }}</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="filter-group">
-            <h4>Stops</h4>
-            <div class="check-list">
-              <label class="check-row" [class.checked]="filters().stops.direct" (click)="toggleStop('direct')">
-                <span class="check-left">
-                  <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                  <span class="check-label">Direct</span>
-                </span>
-                <span class="check-count">3</span>
-              </label>
-              <label class="check-row" [class.checked]="filters().stops.oneStop" (click)="toggleStop('oneStop')">
-                <span class="check-left">
-                  <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                  <span class="check-label">1 stop</span>
-                </span>
-                <span class="check-count">3</span>
-              </label>
-              <label class="check-row" [class.checked]="filters().stops.twoPlus" (click)="toggleStop('twoPlus')">
-                <span class="check-left">
-                  <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                  <span class="check-label">2+ stops</span>
-                </span>
-                <span class="check-count">0</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h4>Airlines</h4>
-            <div class="check-list">
-              @for (a of airlineCheckboxes; track a) {
-                <label
-                  class="check-row"
-                  [class.checked]="filters().airlines[a.code]"
-                  (click)="toggleAirline(a.code)">
-                  <span class="check-left">
-                    <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                    <span class="check-label">{{ a.name }}</span>
-                  </span>
-                  <span class="check-count">€{{ a.minPrice }}+</span>
-                </label>
-              }
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h4>Departure time</h4>
-            <div class="time-grid">
-              @for (w of departureWindowChips; track w) {
-                <button
-                  type="button"
-                  class="time-chip"
-                  [class.active]="filters().departureWindows[w.id]"
-                  (click)="toggleWindow(w.id)">
-                  <span class="time-chip-label">{{ w.label }}</span>
-                  <span class="time-chip-range">{{ w.range }}</span>
-                </button>
-              }
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h4>Cabin baggage</h4>
-            <div class="check-list">
-              <label class="check-row" [class.checked]="filters().carryOnIncluded" (click)="toggleBaggage('carryOnIncluded')">
-                <span class="check-left">
-                  <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                  <span class="check-label">Carry-on included</span>
-                </span>
-              </label>
-              <label class="check-row" [class.checked]="filters().checkedBagIncluded" (click)="toggleBaggage('checkedBagIncluded')">
-                <span class="check-left">
-                  <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                  <span class="check-label">Checked bag included</span>
-                </span>
-              </label>
-            </div>
-          </div>
-        </aside>
-
-        <!-- Backdrop for mobile drawer -->
-        <div class="filters-backdrop" [class.open]="filtersDrawerOpen()" (click)="closeFiltersDrawer()"></div>
-
-        <!-- Results -->
-        <section class="results">
-          <div class="results-toolbar" role="tablist">
-            @for (s of sortTabs; track s) {
+            <div class="flight-action">
+              <span *ngIf="flight.badge" class="badge" [ngClass]="flight.badge.type">
+                {{ flight.badge.label }}
+              </span>
+              <div class="price-block">
+                <div class="price-label">From</div>
+                <div class="price">€{{ flight.price }}</div>
+                <div class="price-pp">per traveler</div>
+              </div>
               <button
                 type="button"
-                role="tab"
-                class="sort-tab"
-                [class.active]="sortMode() === s.id"
-                [attr.aria-selected]="sortMode() === s.id"
-                (click)="setSortMode(s.id)">
-                <span class="sort-tab-label">{{ s.label }}</span>
-                <span class="sort-tab-meta">{{ s.meta }}</span>
+                class="select-btn"
+                (click)="$event.stopPropagation(); onSelectFlight(flight)">
+                Select
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
               </button>
-            }
-          </div>
-
-          <div class="results-meta">
-            <div>
-              <strong>{{ resultCount() }} flights</strong> · {{ from().code || from().city || 'From' }} → {{ to().code || to().city || 'To' }} · {{ formatDate(departureDate()) }}
             </div>
-            <select class="sort-select" aria-label="Sort by">
-              <option>Sort: Recommended</option>
-              <option>Price · Low to high</option>
-              <option>Duration · Shortest</option>
-              <option>Departure · Earliest</option>
-            </select>
           </div>
 
-          <div class="flight-list">
-            @for (flight of flights(); track flight; let i = $index) {
-              <article
-                class="flight-card"
-                [style.animation-delay.ms]="i * 50">
+          <div *ngIf="isFlightExpanded(flight)" class="flight-details">
+            <div class="detail-block">
+              <span class="detail-label">Stops</span>
+              <strong>{{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}</strong>
+              <p *ngIf="flight.stops > 0">
+                This trip includes {{ flight.stops }} stop{{ flight.stops === 1 ? '' : 's' }} before arrival.
+              </p>
+              <p *ngIf="flight.stops === 0">No airport changes or layovers on this flight.</p>
+            </div>
+
+            <div class="detail-block">
+              <span class="detail-label">Baggage</span>
+              <strong>{{ baggageSummary(flight) }}</strong>
+              <p>
+                Carry-on:
+                {{ flight.carryOnIncluded ? 'included, up to ' + flight.carryOnWeightKg + ' kg' : 'not included' }}.
+                Checked bag:
+                {{ flight.checkedBagIncluded ? 'included, up to ' + (flight.checkedBagWeightKg || 23) + ' kg' : 'not included' }}.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <ng-container *ngIf="appliedTripType() === 'multi-city'">
+          <ng-container *ngFor="let segment of segmentFlights()">
+            <div *ngIf="segment.segmentIndex > 1" class="leg-separator"></div>
+
+            <div class="leg-heading">
+              <span>Segment {{ segment.segmentIndex }}</span>
+              <strong>{{ segment.fromText }} → {{ segment.toText }}</strong>
+            </div>
+
+            <article
+              *ngFor="let flight of filteredSegmentFlights(segment); let i = index"
+              class="flight-card"
+              [class.expanded]="isFlightExpanded(flight)"
+              (click)="toggleFlightDetails(flight)"
+              [style.animation-delay.ms]="i * 50">
+
+              <div class="flight-card__main">
                 <div class="flight-info">
                   <div class="airline">
                     <div class="airline-logo" [ngClass]="flight.airline.colorClass">
@@ -272,23 +760,24 @@
                     </div>
                     <div class="airline-name">{{ flight.airline.name }}</div>
                   </div>
+
                   <div class="route">
                     <div class="endpoint">
                       <div class="time">{{ flight.departure.time }}</div>
                       <div class="code">{{ flight.departure.airport }}</div>
                       <div class="city">{{ flight.departure.city }}</div>
                     </div>
+
                     <div class="duration">
                       <div class="duration-text">{{ flight.duration }}</div>
                       <div class="duration-line" [class.direct]="flight.stops === 0">
-                        @if (flight.stops > 0) {
-                          <span class="duration-stop" style="left: 42%;"></span>
-                        }
+                        <span *ngIf="flight.stops > 0" class="duration-stop" style="left: 42%;"></span>
                       </div>
                       <div class="stops-text" [class.direct]="flight.stops === 0">
                         {{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}
                       </div>
                     </div>
+
                     <div class="endpoint right">
                       <div class="time">{{ flight.arrival.time }}</div>
                       <div class="code">{{ flight.arrival.airport }}</div>
@@ -296,18 +785,20 @@
                     </div>
                   </div>
                 </div>
+
                 <div class="flight-action">
-                  @if (flight.badge) {
-                    <span class="badge" [ngClass]="flight.badge.type">
-                      {{ flight.badge.label }}
-                    </span>
-                  }
+                  <span *ngIf="flight.badge" class="badge" [ngClass]="flight.badge.type">
+                    {{ flight.badge.label }}
+                  </span>
                   <div class="price-block">
                     <div class="price-label">From</div>
                     <div class="price">€{{ flight.price }}</div>
                     <div class="price-pp">per traveler</div>
                   </div>
-                  <button type="button" class="select-btn" (click)="onSelectFlight(flight)">
+                  <button
+                    type="button"
+                    class="select-btn"
+                    (click)="$event.stopPropagation(); onSelectFlight(flight)">
                     Select
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <line x1="5" y1="12" x2="19" y2="12"/>
@@ -315,23 +806,51 @@
                     </svg>
                   </button>
                 </div>
-              </article>
-            }
-          </div>
+              </div>
 
-          <aside class="help-strip">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <p>
-              Selected flights can be added to a trip and tracked in your
-              <a routerLink="/budget">Budget Tracker</a> and
-              <a routerLink="/calendar">Calendar</a>.
-              Prices update every few minutes — book early for the best fares.
-            </p>
-          </aside>
-        </section>
+              <div *ngIf="isFlightExpanded(flight)" class="flight-details">
+                <div class="detail-block">
+                  <span class="detail-label">Stops</span>
+                  <strong>{{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}</strong>
+                  <p *ngIf="flight.stops > 0">
+                    This trip includes {{ flight.stops }} stop{{ flight.stops === 1 ? '' : 's' }} before arrival.
+                  </p>
+                  <p *ngIf="flight.stops === 0">No airport changes or layovers on this flight.</p>
+                </div>
+
+                <div class="detail-block">
+                  <span class="detail-label">Baggage</span>
+                  <strong>{{ baggageSummary(flight) }}</strong>
+                  <p>
+                    Carry-on:
+                    {{ flight.carryOnIncluded ? 'included, up to ' + flight.carryOnWeightKg + ' kg' : 'not included' }}.
+                    Checked bag:
+                    {{ flight.checkedBagIncluded ? 'included, up to ' + (flight.checkedBagWeightKg || 23) + ' kg' : 'not included' }}.
+                  </p>
+                </div>
+              </div>
+            </article>
+          </ng-container>
+        </ng-container>
+
+        <div *ngIf="hasSearched() && resultCount() === 0" class="empty-results">
+          No flights match the selected filters.
+        </div>
       </div>
+
+      <aside class="help-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <p>
+          Selected flights can be added to a trip and tracked in your
+          <a routerLink="/budget">Budget Tracker</a> and
+          <a routerLink="/calendar">Calendar</a>.
+          Prices update every few minutes — book early for the best fares.
+        </p>
+      </aside>
     </section>
+  </div>
+</section>

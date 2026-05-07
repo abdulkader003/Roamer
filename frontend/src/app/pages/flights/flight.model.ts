@@ -34,7 +34,17 @@ export interface Flight {
   stopDetails?: string; // '1 stop · AMS · 1h 10m layover'
   price: number;        // 132
   currency: string;     // 'EUR'
+  carryOnIncluded: boolean;
+  checkedBagIncluded: boolean;
+  carryOnWeightKg: number;
+  checkedBagWeightKg?: number;
   badge?: { type: BadgeType; label: string };
+}
+
+export interface MultiCitySegment {
+  fromText: string;
+  toText: string;
+  date: Date | null;
 }
 
 export interface SearchParams {
@@ -43,7 +53,10 @@ export interface SearchParams {
   to: Airport;
   departureDate: Date | null;
   returnDate: Date | null;
+  multiCitySegments?: MultiCitySegment[];
   travelers: number;
+  adults: number;
+  children: number;
   cabinClass: CabinClass;
 }
 
