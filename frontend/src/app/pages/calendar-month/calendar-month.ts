@@ -28,6 +28,8 @@ type EventDraft = {
   notes: string;
 };
 
+const API_BASE_URL = 'http://localhost:8081';
+
 @Component({
   selector: 'app-calendar-month',
   imports: [CommonModule, FormsModule, EventCardComponent],
@@ -143,7 +145,7 @@ export class CalendarMonth {
 
   async loadCalendarEvents() {
     try {
-      const response = await fetch('http://localhost:8080/api/calendar-events');
+      const response = await fetch(`${API_BASE_URL}/api/calendar-events`);
 
       if (!response.ok) {
         throw new Error(`Failed to load events: ${response.status}`);
@@ -162,7 +164,7 @@ export class CalendarMonth {
         cost: event.budgetCost ?? undefined,
         notes: event.notes ?? ''
       }));
-    this.cdr.detectChanges();
+      this.cdr.detectChanges();
     } catch (error) {
       console.error('Error loading calendar events:', error);
     }
@@ -216,43 +218,43 @@ export class CalendarMonth {
     this.closeEventDrawer();
   }
 
- async saveEvent() {
-   alert('saveEvent started');
+  async saveEvent() {
+    alert('saveEvent started');
 
-   const backendPayload = {
-     title: this.eventDraft.title,
-     description: this.eventDraft.description,
-     location: this.eventDraft.location,
-     startDateTime: `${this.eventDraft.date}T${this.eventDraft.startTime || '00:00'}:00`,
-     endDateTime: `${this.eventDraft.date}T${this.eventDraft.endTime || '23:59'}:00`,
-     category: this.eventDraft.category,
-     budgetCost: this.eventDraft.budget ? Number(this.eventDraft.budget) : null,
-     notes: this.eventDraft.notes
-   };
+    const backendPayload = {
+      title: this.eventDraft.title,
+      description: this.eventDraft.description,
+      location: this.eventDraft.location,
+      startDateTime: `${this.eventDraft.date}T${this.eventDraft.startTime || '00:00'}:00`,
+      endDateTime: `${this.eventDraft.date}T${this.eventDraft.endTime || '23:59'}:00`,
+      category: this.eventDraft.category,
+      budgetCost: this.eventDraft.budget ? Number(this.eventDraft.budget) : null,
+      notes: this.eventDraft.notes
+    };
 
-   try {
-     const response = await fetch('http://localhost:8080/api/calendar-events', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify(backendPayload)
-     });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/calendar-events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(backendPayload)
+      });
 
-     if (!response.ok) {
-       alert('Backend error: ' + response.status);
-       return;
-     }
+      if (!response.ok) {
+        alert('Backend error: ' + response.status);
+        return;
+      }
 
-     alert('Event saved successfully');
+      alert('Event saved successfully');
 
-     await this.loadCalendarEvents();
+      await this.loadCalendarEvents();
 
-     this.eventDraft = this.createEmptyEventDraft();
-     this.closeEventDrawer();
-   } catch (error) {
-     alert('Network error. Backend may not be running.');
-     console.error(error);
-   }
- }
+      this.eventDraft = this.createEmptyEventDraft();
+      this.closeEventDrawer();
+    } catch (error) {
+      alert('Network error. Backend may not be running.');
+      console.error(error);
+    }
+  }
 
   getEventsForDate(date: string): CalendarEvent[] {
     return this.events.filter((event) => event.date === date);
@@ -318,6 +320,6 @@ export class CalendarMonth {
       : 'Event';
   }
 
-constructor(private cdr: ChangeDetectorRef) {}
+  constructor(private cdr: ChangeDetectorRef) {}
 
 }

@@ -1,14 +1,25 @@
 services:
   backend:
+    profiles:
+      - app
     build:
       context: ./backend
     restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: sep
+      DB_USERNAME: sep
+      DB_PASSWORD: sepsep123
+      SERVER_PORT: 8080
     ports:
       - 8080:8080
     depends_on:
       - db
 
   frontend:
+    profiles:
+      - app
     build:
       context: ./frontend
     restart: unless-stopped
@@ -27,7 +38,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql
     ports:
-      - 5432:5432
+      - 5433:5432
 
 volumes:
   db_data:
