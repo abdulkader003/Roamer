@@ -1,13 +1,15 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
-
+import { ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HotelListComponent } from '../hotel-list/hotel-list.component';
 import { Hotel } from '../models/hotel.model';
+import { HotelService } from '../services/hotel.service';
+import { finalize, timeout } from 'rxjs';
 
 @Component({
   selector: 'app-hotel-search',
   standalone: true,
-  imports: [HotelListComponent, FormsModule],
+  imports: [CommonModule, HotelListComponent, FormsModule],
   templateUrl: './hotel-search.component.html',
   styleUrls: ['./hotel-search.component.css']
 })
@@ -19,9 +21,11 @@ export class HotelSearchComponent {
   children = 0;
   guestsOpen = false;
   isLoading = false;
+  isSearching = false;
   hasSearched = false;
   dateError = '';
   guestError = '';
+  searchError = '';
   hotels: Hotel[] = [];
   readonly maxGuests = 10;
 
@@ -40,9 +44,23 @@ export class HotelSearchComponent {
 
   @ViewChild('resultsSection') resultsSection!: ElementRef<HTMLElement>;
 
+  constructor(
+    private hotelService: HotelService,
+    private changeDetectorRef: ChangeDetectorRef
+  ) {}
+
   search() {
+    console.log('[HotelSearch] search started', {
+      location: this.location,
+      checkIn: this.checkIn,
+      checkOut: this.checkOut,
+      adults: this.adults,
+      children: this.children
+    });
+
     this.dateError = this.getDateError();
     this.guestError = this.getGuestError();
+    this.searchError = '';
 
     if (this.dateError || this.guestError) {
       return;
@@ -50,28 +68,42 @@ export class HotelSearchComponent {
 
     this.guestsOpen = false;
     this.isLoading = true;
+    this.isSearching = true;
     this.hasSearched = true;
+    this.hotels = [];
 
-    setTimeout(() => {
-      const selectedLocation = this.location.trim().toLowerCase();
+    const selectedLocation = this.location.trim();
+    const apiCheckIn = this.toApiDate(this.checkIn);
+    const apiCheckOut = this.toApiDate(this.checkOut);
 
-      this.hotels = this.withSearchDetails(this.mockHotels()).filter((hotel) => {
-        if (!selectedLocation) {
-          return true;
+    this.hotelService.searchHotels(selectedLocation, apiCheckIn, apiCheckOut, this.adults, this.children)
+      .pipe(
+        timeout(30000),
+        finalize(() => {
+          this.isLoading = false;
+          this.isSearching = false;
+          this.changeDetectorRef.detectChanges();
+        })
+      )
+      .subscribe({
+        next: (hotels) => {
+          this.hotels = hotels;
+          this.changeDetectorRef.detectChanges();
+        },
+        error: (error) => {
+          console.error('[HotelSearch] search failed', error);
+          this.searchError = 'Hotel availability could not be refreshed. Please try again.';
+          this.hotels = [];
+          this.changeDetectorRef.detectChanges();
         }
-
-        return hotel.city.toLowerCase().includes(selectedLocation);
       });
 
-      this.isLoading = false;
-
-      setTimeout(() => {
-        this.resultsSection.nativeElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }, 70);
-    }, 550);
+    window.requestAnimationFrame(() => {
+      this.resultsSection?.nativeElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
   }
 
   selectDestination(destination: string) {
@@ -105,16 +137,22 @@ export class HotelSearchComponent {
 
   private getDateError(): string {
     const today = this.getTodayDateString();
+    const checkIn = this.toApiDate(this.checkIn);
+    const checkOut = this.toApiDate(this.checkOut);
 
     if (!this.location.trim() || !this.checkIn || !this.checkOut) {
       return 'Please fill all required fields';
     }
 
-    if ((this.checkIn && this.checkIn < today) || (this.checkOut && this.checkOut < today)) {
+    if (!checkIn || !checkOut) {
+      return 'Dates must use a valid format';
+    }
+
+    if ((checkIn && checkIn < today) || (checkOut && checkOut < today)) {
       return 'Dates cannot be in the past';
     }
 
-    if (this.checkIn && this.checkOut && this.checkIn > this.checkOut) {
+    if (checkIn && checkOut && checkIn > checkOut) {
       return 'Invalid date selection';
     }
 
@@ -140,6 +178,22 @@ export class HotelSearchComponent {
     const day = `${today.getDate()}`.padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+  }
+
+  private toApiDate(value: string): string {
+    const trimmedValue = value.trim();
+    const isoDateMatch = trimmedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoDateMatch) {
+      return trimmedValue;
+    }
+
+    const europeanDateMatch = trimmedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (europeanDateMatch) {
+      const [, day, month, year] = europeanDateMatch;
+      return `${year}-${month}-${day}`;
+    }
+
+    return '';
   }
 
   private withSearchDetails(hotels: Hotel[]): Hotel[] {

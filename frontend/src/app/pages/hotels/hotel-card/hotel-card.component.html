@@ -1,42 +1,40 @@
 <div class="card">
-  @if (cardImages.length) {
-    <div class="gallery">
-      <img class="gallery-main" [src]="cardImages[currentImageIndex]" [alt]="hotel.name" />
-      @if (cardImages.length > 1) {
-        <button
-          class="gallery-arrow previous"
-          type="button"
-          (click)="previousImage($event)"
-          aria-label="Previous image"
-          >
-          ‹
-        </button>
-      }
-      @if (cardImages.length > 1) {
-        <button
-          class="gallery-arrow next"
-          type="button"
-          (click)="nextImage($event)"
-          aria-label="Next image"
-          >
-          ›
-        </button>
-      }
-      <span class="image-counter">{{ imageCounter }}</span>
-      <div class="thumbnails">
-        @for (image of cardImages; track image; let index = $index) {
-          <button
-            type="button"
-            [class.active]="index === currentImageIndex"
-            (click)="selectImage(index, $event)"
-            [attr.aria-label]="'Show image ' + (index + 1)"
-            >
-            <img [src]="image" [alt]="hotel.name + ' thumbnail ' + (index + 1)" />
-          </button>
-        }
-      </div>
+  <div class="gallery" *ngIf="cardImages.length">
+    <img class="gallery-main" [src]="cardImages[currentImageIndex]" [alt]="hotel.name" />
+
+    <button
+      class="gallery-arrow previous"
+      type="button"
+      *ngIf="cardImages.length > 1"
+      (click)="previousImage($event)"
+      aria-label="Previous image"
+    >
+      ‹
+    </button>
+    <button
+      class="gallery-arrow next"
+      type="button"
+      *ngIf="cardImages.length > 1"
+      (click)="nextImage($event)"
+      aria-label="Next image"
+    >
+      ›
+    </button>
+
+    <span class="image-counter">{{ imageCounter }}</span>
+
+    <div class="thumbnails">
+      <button
+        type="button"
+        *ngFor="let image of cardImages; let index = index"
+        [class.active]="index === currentImageIndex"
+        (click)="selectImage(index, $event)"
+        [attr.aria-label]="'Show image ' + (index + 1)"
+      >
+        <img [src]="image" [alt]="hotel.name + ' thumbnail ' + (index + 1)" />
+      </button>
     </div>
-  }
+  </div>
 
   <div class="card-header">
     <div>
@@ -59,20 +57,12 @@
     <p>Nights: {{ numberOfNights || 'Select dates' }}</p>
   </div>
 
-  @if (visibleAmenities.length) {
-    <div class="amenities">
-      @for (amenity of visibleAmenities; track amenity) {
-        <span class="amenity">{{ amenity }}</span>
-      }
-      @if (hiddenAmenitiesCount) {
-        <span class="amenity more">+{{ hiddenAmenitiesCount }} more</span>
-      }
-    </div>
-  }
+  <div class="amenities" *ngIf="visibleAmenities.length">
+    <span class="amenity" *ngFor="let amenity of visibleAmenities">{{ amenity }}</span>
+    <span class="amenity more" *ngIf="hiddenAmenitiesCount">+{{ hiddenAmenitiesCount }} more</span>
+  </div>
 
-  @if (errorMessage) {
-    <p class="error">{{ errorMessage }}</p>
-  }
+  <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
 
   <button (click)="addToCalendar()">Zum Kalender hinzufügen</button>
 </div>

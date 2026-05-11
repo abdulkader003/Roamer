@@ -20,3 +20,10 @@ external:
   aviationstack:
     access-key: ${AVIATIONSTACK_ACCESS_KEY}
     base-url: ${AVIATIONSTACK_BASE_URL:http://api.aviationstack.com/v1}
+
+
+agoda:
+  rapidapi:
+    key: ${RAPIDAPI_KEY:}
+    host: ${RAPIDAPI_HOST:agoda-com.p.rapidapi.com}
+    base-url: ${RAPIDAPI_BASE_URL:https://agoda-com.p.rapidapi.com}

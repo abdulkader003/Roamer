@@ -1,13 +1,13 @@
-<section class="hero">
-  <div class="hero-media" aria-hidden="true"></div>
+<section class="hotels-page">
+  <header class="page-head">
+    <div class="page-head__text">
+      <p class="crumbs">Hotels</p>
+      <h1 class="page-title">Find your <em>hotel</em>.</h1>
+      <p class="page-subtitle">Discover exceptional stays and turn every journey into an unforgettable experience.</p>
+    </div>
+  </header>
 
-  <div class="hero-content">
-    <p class="eyebrow"></p>
-    <h1>Find a quieter way to book your next hotel.</h1>
-    <p class="hero-copy">
-      Discover exceptional stays and turn every journey into an unforgettable experience.
-    </p>
-
+  <section class="search-card" aria-label="Search hotels">
     <form class="search-panel" (ngSubmit)="search()">
       <label class="field destination-field">
         <span>Destination</span>
@@ -17,152 +17,127 @@
           placeholder="Where are you traveling to?"
           autocomplete="off"
           [(ngModel)]="location"
-          />
-        </label>
+        />
+      </label>
 
-        <label class="field">
-          <span>Check-in</span>
-          <input
-            #checkInInput
-            [type]="checkIn ? 'date' : 'text'"
-            name="checkIn"
-            placeholder="Select date"
-            [(ngModel)]="checkIn"
-            (focus)="checkInInput.type = 'date'"
-            (blur)="!checkIn && (checkInInput.type = 'text')"
-            (ngModelChange)="validateDates()"
-            />
-          </label>
+      <label class="field">
+        <span>Check-in</span>
+        <input
+          #checkInInput
+          [type]="checkIn ? 'date' : 'text'"
+          name="checkIn"
+          placeholder="Select date"
+          [(ngModel)]="checkIn"
+          (focus)="checkInInput.type = 'date'"
+          (blur)="!checkIn && (checkInInput.type = 'text')"
+          (ngModelChange)="validateDates()"
+        />
+      </label>
 
-          <label class="field">
-            <span>Check-out</span>
-            <input
-              #checkOutInput
-              [type]="checkOut ? 'date' : 'text'"
-              name="checkOut"
-              placeholder="Select date"
-              [(ngModel)]="checkOut"
-              (focus)="checkOutInput.type = 'date'"
-              (blur)="!checkOut && (checkOutInput.type = 'text')"
-              (ngModelChange)="validateDates()"
-              />
-            </label>
+      <label class="field">
+        <span>Check-out</span>
+        <input
+          #checkOutInput
+          [type]="checkOut ? 'date' : 'text'"
+          name="checkOut"
+          placeholder="Select date"
+          [(ngModel)]="checkOut"
+          (focus)="checkOutInput.type = 'date'"
+          (blur)="!checkOut && (checkOutInput.type = 'text')"
+          (ngModelChange)="validateDates()"
+        />
+      </label>
 
-            <div class="field guest-field" [class.open]="guestsOpen">
-              <span>Guests</span>
-              <button class="guest-trigger" type="button" (click)="toggleGuests()">
-                {{ guestSummary }}
-              </button>
+      <div class="field guest-field" [class.open]="guestsOpen">
+        <span>Guests</span>
+        <button class="guest-trigger" type="button" (click)="toggleGuests()">
+          {{ guestSummary }}
+        </button>
 
-              @if (guestsOpen) {
-                <div class="guest-popover">
-                  <div class="guest-row">
-                    <div>
-                      <strong>Adults</strong>
-                      <small>Minimum 1</small>
-                    </div>
-                    <div class="stepper">
-                      <button type="button" (click)="changeGuests('adults', -1)" [disabled]="adults <= 1">−</button>
-                      <span>{{ adults }}</span>
-                      <button type="button" (click)="changeGuests('adults', 1)" [disabled]="adults + children >= maxGuests">+</button>
-                    </div>
-                  </div>
-                  <div class="guest-row">
-                    <div>
-                      <strong>Children</strong>
-                      <small>Ages 0–17</small>
-                    </div>
-                    <div class="stepper">
-                      <button type="button" (click)="changeGuests('children', -1)" [disabled]="children <= 0">−</button>
-                      <span>{{ children }}</span>
-                      <button type="button" (click)="changeGuests('children', 1)" [disabled]="adults + children >= maxGuests">+</button>
-                    </div>
-                  </div>
-                </div>
-              }
+        <div class="guest-popover" *ngIf="guestsOpen">
+          <div class="guest-row">
+            <div>
+              <strong>Adults</strong>
+              <small>Minimum 1</small>
             </div>
 
-            <button class="search-btn" type="submit" [class.loading]="isLoading" [disabled]="isLoading">
-              @if (!isLoading) {
-                <span>Search stays</span>
-              }
-              @if (isLoading) {
-                <span>Searching</span>
-              }
-            </button>
-          </form>
-          @if (dateError || guestError) {
-            <p class="validation-error">{{ dateError || guestError }}</p>
-          }
+            <div class="stepper">
+              <button type="button" (click)="changeGuests('adults', -1)" [disabled]="adults <= 1">−</button>
+              <span>{{ adults }}</span>
+              <button type="button" (click)="changeGuests('adults', 1)" [disabled]="adults + children >= maxGuests">+</button>
+            </div>
+          </div>
 
-          <div class="quick-picks" aria-label="Popular destinations">
-            @for (destination of popularDestinations; track destination) {
-              <button
-                type="button"
-                (click)="selectDestination(destination)"
-                >
-                {{ destination }}
-              </button>
-            }
+          <div class="guest-row">
+            <div>
+              <strong>Children</strong>
+              <small>Ages 0–17</small>
+            </div>
+
+            <div class="stepper">
+              <button type="button" (click)="changeGuests('children', -1)" [disabled]="children <= 0">−</button>
+              <span>{{ children }}</span>
+              <button type="button" (click)="changeGuests('children', 1)" [disabled]="adults + children >= maxGuests">+</button>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section class="results" #resultsSection>
-        <div class="results-header">
-          <div>
-            <p class="eyebrow">Available stays</p>
-            @if (hasSearched && !isLoading) {
-              <h2>{{ hotels.length }} results matches</h2>
-            }
-            @if (!hasSearched && !isLoading) {
-              <h2>Start with a destination</h2>
-            }
-            @if (isLoading) {
-              <h2>Preparing results</h2>
-            }
-          </div>
+      <button class="search-btn" type="submit" [class.loading]="isSearching" [disabled]="isSearching">
+        <span *ngIf="!isSearching">Search stays</span>
+        <span *ngIf="isSearching">Searching</span>
+      </button>
+    </form>
+    <p class="validation-error" *ngIf="dateError || guestError">{{ dateError || guestError }}</p>
+    <p class="search-error" *ngIf="searchError && !isSearching">{{ searchError }}</p>
 
-          <p class="results-copy">
-            @if (hasSearched && !isLoading && hotels.length) {
-              <span>
-                Prices are shown per night for your selected dates.
-              </span>
-            }
-            @if (!hasSearched && !isLoading) {
-              <span>
-                Use the search above to preview the current hotel experience.
-              </span>
-            }
-            @if (isLoading) {
-              <span>Checking availability and polishing the shortlist.</span>
-            }
-          </p>
-        </div>
+    <div class="quick-picks" aria-label="Popular destinations">
+      <button
+        type="button"
+        *ngFor="let destination of popularDestinations"
+        (click)="selectDestination(destination)"
+      >
+        {{ destination }}
+      </button>
+    </div>
+  </section>
+</section>
 
-        @if (isLoading) {
-          <div class="loading-grid" aria-live="polite">
-            @for (item of [1, 2, 3]; track item) {
-              <div class="skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-lines">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            }
-          </div>
-        }
+<section class="results" #resultsSection>
+  <div class="results-header">
+    <div>
+      <p class="eyebrow">Available stays</p>
+      <h2 *ngIf="hasSearched && !isSearching">{{ hotels.length }} results matches</h2>
+      <h2 *ngIf="!hasSearched && !isSearching">Start with a destination</h2>
+      <h2 *ngIf="isSearching">Preparing results</h2>
+    </div>
 
-        @if (hasSearched && !isLoading && hotels.length === 0) {
-          <div class="empty-state">
-            <p>No stays matched that destination.</p>
-            <button type="button" (click)="selectDestination('')">Clear destination</button>
-          </div>
-        }
+    <p class="results-copy">
+      <span *ngIf="hasSearched && !isSearching && hotels.length">
+        Prices are shown per night for your selected dates.
+      </span>
+      <span *ngIf="!hasSearched && !isSearching">
+        Use the search above to preview the current hotel experience.
+      </span>
+      <span *ngIf="isSearching">Checking availability and polishing the shortlist.</span>
+    </p>
+  </div>
 
-        @if (!isLoading && hotels.length) {
-          <app-hotel-list [hotels]="hotels"></app-hotel-list>
-        }
-      </section>
+  <div class="loading-grid" *ngIf="isSearching" aria-live="polite">
+    <div class="skeleton-card" *ngFor="let item of [1, 2, 3]">
+      <div class="skeleton-image"></div>
+      <div class="skeleton-lines">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="empty-state" *ngIf="hasSearched && !isSearching && hotels.length === 0">
+    <p>No stays matched that destination.</p>
+    <button type="button" (click)="selectDestination('')">Clear destination</button>
+  </div>
+
+  <app-hotel-list *ngIf="!isSearching && hotels.length > 0" [hotels]="hotels"></app-hotel-list>
+</section>
