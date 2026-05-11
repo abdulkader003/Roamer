@@ -1,4 +1,4 @@
-
+import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { CalendarService } from '../services/calendar.service';
 import { CalendarEvent, Hotel } from '../models/hotel.model';
@@ -8,7 +8,7 @@ import { CalendarEvent, Hotel } from '../models/hotel.model';
 @Component({
   selector: 'app-hotel-card',
   standalone: true,
-  imports: [],
+  imports: [CommonModule],
   templateUrl: './hotel-card.component.html',
   styleUrls: ['./hotel-card.component.css']
 })

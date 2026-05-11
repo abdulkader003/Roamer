@@ -21,19 +21,8 @@
     var(--surface-hover) 50%,
     var(--surface-secondary) 100%
   );
-  --hotel-hero-overlay: linear-gradient(
-    90deg,
-    rgba(244, 246, 251, 0.98) 0%,
-    rgba(244, 246, 251, 0.86) 38%,
-    rgba(232, 240, 255, 0.62) 64%,
-    rgba(26, 86, 219, 0.24) 100%
-  );
-  --hotel-hero-veiling-layer: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    rgba(244, 246, 251, 0.18) 100%
-  );
-  --hotel-hero-image-filter: saturate(0.82) brightness(0.72) contrast(1.02);
+  --primary: var(--accent, #1a56db);
+  --primary-soft: var(--accent-bg, #eff6ff);
   --hotel-field-bg: color-mix(in srgb, var(--surface-primary) 92%, transparent);
   --hotel-stepper-bg: var(--gold-bg);
   --hotel-chip-bg: color-mix(in srgb, var(--surface-primary) 82%, transparent);
@@ -43,56 +32,60 @@
 
 :host-context([data-theme='dark']) {
   --surface-glass: color-mix(in srgb, var(--surface-primary) 82%, transparent);
-  --hotel-hero-overlay: linear-gradient(
-    90deg,
-    rgba(5, 5, 6, 0.92) 0%,
-    rgba(11, 11, 13, 0.7) 48%,
-    rgba(212, 175, 55, 0.12) 100%
-  );
-  --hotel-hero-veiling-layer: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.08) 0%,
-    rgba(0, 0, 0, 0.08) 100%
-  );
-  --hotel-hero-image-filter: saturate(1) brightness(1) contrast(1);
   --hotel-field-bg: rgba(26, 26, 26, 0.96);
   --hotel-chip-bg: rgba(17, 17, 17, 0.52);
   --hotel-validation-bg: rgba(17, 17, 17, 0.72);
 }
 
-.hero {
-  position: relative;
-  z-index: 1;
-  min-height: 78vh;
-  display: grid;
-  align-items: end;
-  overflow: visible;
-  padding: 48px clamp(20px, 5vw, 72px);
-}
-
-.hero-media {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    var(--hotel-hero-veiling-layer),
-    var(--hotel-hero-overlay),
-    url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=2200&q=85');
-  background-position: center;
-  background-size: cover;
-  background-blend-mode: normal, normal, normal;
-  pointer-events: none;
-  transform: scale(1.02);
-  filter: var(--hotel-hero-image-filter);
-}
-
-.hero-content {
-  position: relative;
-  z-index: 2;
-  width: min(1120px, 100%);
+.hotels-page {
+  width: min(1600px, 100%);
   margin: 0 auto;
+  padding: 28px clamp(20px, 3vw, 40px) 0;
   color: var(--text);
   animation: riseIn 520ms ease-out both;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.page-head__text {
+  min-width: 0;
+}
+
+.crumbs {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.page-title {
+  margin: 10px 0 8px;
+  color: var(--text);
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.page-title em {
+  color: var(--primary);
+  font-style: italic;
+}
+
+.page-subtitle {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .eyebrow {
@@ -104,21 +97,25 @@
   text-transform: uppercase;
 }
 
-.hero h1 {
-  width: min(760px, 100%);
-  margin: 0;
-  font-size: clamp(2.45rem, 7vw, 5.8rem);
-  font-weight: 750;
-  line-height: 0.96;
-  letter-spacing: 0;
+.search-card {
+  position: relative;
+  width: min(1120px, 100%);
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  overflow: visible;
 }
 
-.hero-copy {
-  width: min(560px, 100%);
-  margin: 22px 0 32px;
-  color: var(--muted);
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  line-height: 1.6;
+.search-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(1200px 220px at 80% -50%, var(--primary-soft), transparent 70%);
+  pointer-events: none;
 }
 
 .search-panel {
@@ -127,12 +124,12 @@
   display: grid;
   grid-template-columns: minmax(220px, 1.35fr) repeat(3, minmax(150px, 0.75fr)) auto;
   gap: 10px;
-  width: min(1080px, 100%);
+  width: 100%;
   padding: 10px;
   border: 1px solid var(--gold-border);
   border-radius: 8px;
   background: var(--surface-glass);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.62), 0 0 48px var(--accent-soft);
+  box-shadow: none;
   backdrop-filter: blur(18px);
   overflow: visible;
 }
@@ -316,7 +313,8 @@
   margin-top: 18px;
 }
 
-.validation-error {
+.validation-error,
+.search-error {
   width: fit-content;
   margin: 12px 0 0;
   border: 1px solid rgba(245, 215, 110, 0.42);
@@ -327,6 +325,11 @@
   box-shadow: var(--gold-glow);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.search-error {
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 34%, var(--line));
+  color: var(--danger, #dc2626);
 }
 
 .quick-picks button {
@@ -498,9 +501,8 @@
 }
 
 @media (max-width: 860px) {
-  .hero {
-    min-height: auto;
-    padding-top: 104px;
+  .hotels-page {
+    padding-top: 28px;
   }
 
   .search-panel {
@@ -522,11 +524,7 @@
 }
 
 @media (max-width: 560px) {
-  .hero {
-    padding: 80px 16px 32px;
-  }
-
-  .hero h1 {
+  .page-title {
     font-size: 2.6rem;
   }
 

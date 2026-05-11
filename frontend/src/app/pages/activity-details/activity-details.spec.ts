@@ -1,17 +1,30 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute } from '@angular/router';
 
-import { ActivityDetails } from './activity-details';
+import { ActivityDetailsComponent } from './activity-details';
 
 describe('ActivityDetails', () => {
-  let component: ActivityDetails;
-  let fixture: ComponentFixture<ActivityDetails>;
+  let component: ActivityDetailsComponent;
+  let fixture: ComponentFixture<ActivityDetailsComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ActivityDetails],
+      imports: [ActivityDetailsComponent],
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: {
+                get: () => '1'
+              }
+            }
+          }
+        }
+      ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(ActivityDetails);
+    fixture = TestBed.createComponent(ActivityDetailsComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });
