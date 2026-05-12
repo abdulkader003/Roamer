@@ -30,6 +30,9 @@ interface CalendarDay {
   dayNumber: number;
   inCurrentMonth: boolean;
   isSelected: boolean;
+  isRangeStart: boolean;
+  isRangeEnd: boolean;
+  isInRange: boolean;
   isToday: boolean;
 }
 
@@ -70,12 +73,16 @@ export class FlightsComponent {
   readonly departureDate = signal<Date | null>(null);
   readonly returnDate = signal<Date | null>(null);
   readonly activeDatePicker = signal<'departure' | 'return' | null>(null);
+  readonly activeMultiCityDatePicker = signal<number | null>(null);
   readonly datePickerMonth = signal<Date>(new Date());
   readonly manualDateText = signal('');
   readonly manualDateError = signal('');
   readonly searchError = signal('');
   readonly isSearching = signal(false);
   readonly hasSearched = signal(false);
+  readonly selectedFlight = signal<Flight | null>(null);
+  readonly flightCalendarMessage = signal('');
+  readonly isAddingFlightToCalendar = signal(false);
   readonly appliedTripType = signal<TripType>('one-way');
   readonly appliedDepartureDate = signal<Date | null>(null);
   readonly appliedReturnDate = signal<Date | null>(null);
@@ -91,30 +98,136 @@ export class FlightsComponent {
   readonly expandedFlightId = signal<string | null>(null);
   readonly cabinClass = signal<CabinClass>('economy');
   readonly activeAirportPicker = signal<'from' | 'to' | null>(null);
+  readonly activeMultiCityAirportPicker = signal<{ index: number; key: 'fromText' | 'toText' } | null>(null);
 
   readonly airports: Airport[] = [
     { code: 'DUS', city: 'Düsseldorf', fullName: 'Düsseldorf Intl.' },
+    { code: 'CGN', city: 'Cologne', fullName: 'Cologne Bonn Airport' },
+    { code: 'HAM', city: 'Hamburg', fullName: 'Hamburg Airport' },
+    { code: 'STR', city: 'Stuttgart', fullName: 'Stuttgart Airport' },
+    { code: 'NUE', city: 'Nuremberg', fullName: 'Nuremberg Airport' },
+    { code: 'HAJ', city: 'Hanover', fullName: 'Hannover Airport' },
+    { code: 'LEJ', city: 'Leipzig', fullName: 'Leipzig/Halle Airport' },
+    { code: 'DRS', city: 'Dresden', fullName: 'Dresden Airport' },
+    { code: 'BRE', city: 'Bremen', fullName: 'Bremen Airport' },
+    { code: 'DTM', city: 'Dortmund', fullName: 'Dortmund Airport' },
     { code: 'CDG', city: 'Paris', fullName: 'Charles de Gaulle' },
+    { code: 'ORY', city: 'Paris', fullName: 'Paris Orly' },
+    { code: 'NCE', city: 'Nice', fullName: 'Nice Côte d’Azur' },
+    { code: 'LYS', city: 'Lyon', fullName: 'Lyon-Saint Exupéry' },
+    { code: 'MRS', city: 'Marseille', fullName: 'Marseille Provence' },
+    { code: 'TLS', city: 'Toulouse', fullName: 'Toulouse-Blagnac' },
     { code: 'LHR', city: 'London', fullName: 'Heathrow' },
+    { code: 'LGW', city: 'London', fullName: 'Gatwick' },
+    { code: 'STN', city: 'London', fullName: 'Stansted' },
+    { code: 'MAN', city: 'Manchester', fullName: 'Manchester Airport' },
+    { code: 'EDI', city: 'Edinburgh', fullName: 'Edinburgh Airport' },
+    { code: 'DUB', city: 'Dublin', fullName: 'Dublin Airport' },
     { code: 'BER', city: 'Berlin', fullName: 'Berlin Brandenburg' },
     { code: 'BCN', city: 'Barcelona', fullName: 'Barcelona-El Prat' },
     { code: 'MAD', city: 'Madrid', fullName: 'Adolfo Suárez Madrid-Barajas' },
+    { code: 'PMI', city: 'Palma de Mallorca', fullName: 'Palma de Mallorca Airport' },
+    { code: 'AGP', city: 'Málaga', fullName: 'Málaga-Costa del Sol' },
+    { code: 'ALC', city: 'Alicante', fullName: 'Alicante-Elche' },
+    { code: 'VLC', city: 'Valencia', fullName: 'Valencia Airport' },
+    { code: 'SVQ', city: 'Seville', fullName: 'Seville Airport' },
+    { code: 'BIO', city: 'Bilbao', fullName: 'Bilbao Airport' },
     { code: 'FCO', city: 'Rome', fullName: 'Fiumicino' },
+    { code: 'CIA', city: 'Rome', fullName: 'Ciampino' },
     { code: 'MXP', city: 'Milan', fullName: 'Malpensa' },
+    { code: 'LIN', city: 'Milan', fullName: 'Linate' },
+    { code: 'BGY', city: 'Milan', fullName: 'Bergamo Orio al Serio' },
+    { code: 'VCE', city: 'Venice', fullName: 'Marco Polo' },
+    { code: 'NAP', city: 'Naples', fullName: 'Naples Intl.' },
+    { code: 'BLQ', city: 'Bologna', fullName: 'Bologna Guglielmo Marconi' },
+    { code: 'CTA', city: 'Catania', fullName: 'Catania-Fontanarossa' },
+    { code: 'PMO', city: 'Palermo', fullName: 'Palermo Airport' },
     { code: 'VIE', city: 'Vienna', fullName: 'Vienna Intl.' },
+    { code: 'SZG', city: 'Salzburg', fullName: 'Salzburg Airport' },
+    { code: 'INN', city: 'Innsbruck', fullName: 'Innsbruck Airport' },
     { code: 'BUD', city: 'Budapest', fullName: 'Budapest Ferenc Liszt' },
+    { code: 'PRG', city: 'Prague', fullName: 'Václav Havel Airport' },
+    { code: 'WAW', city: 'Warsaw', fullName: 'Warsaw Chopin' },
+    { code: 'KRK', city: 'Kraków', fullName: 'John Paul II Kraków-Balice' },
+    { code: 'GDN', city: 'Gdańsk', fullName: 'Gdańsk Lech Wałęsa' },
     { code: 'AMS', city: 'Amsterdam', fullName: 'Amsterdam Schiphol' },
+    { code: 'EIN', city: 'Eindhoven', fullName: 'Eindhoven Airport' },
     { code: 'BRU', city: 'Brussels', fullName: 'Brussels Airport' },
+    { code: 'CRL', city: 'Brussels', fullName: 'Charleroi' },
     { code: 'FRA', city: 'Frankfurt', fullName: 'Frankfurt Airport' },
     { code: 'MUC', city: 'Munich', fullName: 'Munich Airport' },
     { code: 'LIS', city: 'Lisbon', fullName: 'Humberto Delgado' },
+    { code: 'OPO', city: 'Porto', fullName: 'Francisco Sá Carneiro' },
+    { code: 'FAO', city: 'Faro', fullName: 'Faro Airport' },
     { code: 'ZRH', city: 'Zurich', fullName: 'Zurich Airport' },
+    { code: 'GVA', city: 'Geneva', fullName: 'Geneva Airport' },
+    { code: 'BSL', city: 'Basel', fullName: 'EuroAirport Basel-Mulhouse-Freiburg' },
+    { code: 'CPH', city: 'Copenhagen', fullName: 'Copenhagen Airport' },
+    { code: 'ARN', city: 'Stockholm', fullName: 'Stockholm Arlanda' },
+    { code: 'OSL', city: 'Oslo', fullName: 'Oslo Gardermoen' },
+    { code: 'HEL', city: 'Helsinki', fullName: 'Helsinki Airport' },
+    { code: 'KEF', city: 'Reykjavík', fullName: 'Keflavík Intl.' },
+    { code: 'ATH', city: 'Athens', fullName: 'Athens Intl.' },
+    { code: 'SKG', city: 'Thessaloniki', fullName: 'Thessaloniki Airport' },
+    { code: 'HER', city: 'Heraklion', fullName: 'Heraklion Intl.' },
+    { code: 'JTR', city: 'Santorini', fullName: 'Santorini Airport' },
     { code: 'IST', city: 'Istanbul', fullName: 'Istanbul Airport' },
+    { code: 'SAW', city: 'Istanbul', fullName: 'Sabiha Gökçen' },
+    { code: 'AYT', city: 'Antalya', fullName: 'Antalya Airport' },
+    { code: 'BEY', city: 'Beirut', fullName: 'Beirut-Rafic Hariri Intl.' },
+    { code: 'DAM', city: 'Damascus', fullName: 'Damascus Intl.' },
+    { code: 'AMM', city: 'Amman', fullName: 'Queen Alia Intl.' },
+    { code: 'AQJ', city: 'Aqaba', fullName: 'King Hussein Intl.' },
+    { code: 'LCA', city: 'Larnaca', fullName: 'Larnaca Intl.' },
+    { code: 'PFO', city: 'Paphos', fullName: 'Paphos Intl.' },
+    { code: 'TLV', city: 'Tel Aviv', fullName: 'Ben Gurion Intl.' },
+    { code: 'BGW', city: 'Baghdad', fullName: 'Baghdad Intl.' },
+    { code: 'EBL', city: 'Erbil', fullName: 'Erbil Intl.' },
+    { code: 'KWI', city: 'Kuwait City', fullName: 'Kuwait Intl.' },
+    { code: 'BAH', city: 'Manama', fullName: 'Bahrain Intl.' },
+    { code: 'MCT', city: 'Muscat', fullName: 'Muscat Intl.' },
+    { code: 'RUH', city: 'Riyadh', fullName: 'King Khalid Intl.' },
+    { code: 'JED', city: 'Jeddah', fullName: 'King Abdulaziz Intl.' },
+    { code: 'MED', city: 'Medina', fullName: 'Prince Mohammad bin Abdulaziz Intl.' },
+    { code: 'IKA', city: 'Tehran', fullName: 'Imam Khomeini Intl.' },
+    { code: 'TBS', city: 'Tbilisi', fullName: 'Tbilisi Intl.' },
+    { code: 'EVN', city: 'Yerevan', fullName: 'Zvartnots Intl.' },
     { code: 'JFK', city: 'New York', fullName: 'John F. Kennedy' },
+    { code: 'EWR', city: 'New York', fullName: 'Newark Liberty' },
+    { code: 'LGA', city: 'New York', fullName: 'LaGuardia' },
+    { code: 'BOS', city: 'Boston', fullName: 'Logan Intl.' },
+    { code: 'IAD', city: 'Washington', fullName: 'Dulles Intl.' },
+    { code: 'ORD', city: 'Chicago', fullName: 'O’Hare Intl.' },
+    { code: 'MIA', city: 'Miami', fullName: 'Miami Intl.' },
+    { code: 'LAX', city: 'Los Angeles', fullName: 'Los Angeles Intl.' },
+    { code: 'SFO', city: 'San Francisco', fullName: 'San Francisco Intl.' },
+    { code: 'SEA', city: 'Seattle', fullName: 'Seattle-Tacoma' },
+    { code: 'YYZ', city: 'Toronto', fullName: 'Toronto Pearson' },
+    { code: 'YUL', city: 'Montréal', fullName: 'Montréal-Trudeau' },
     { code: 'DXB', city: 'Dubai', fullName: 'Dubai Intl.' },
+    { code: 'AUH', city: 'Abu Dhabi', fullName: 'Zayed Intl.' },
     { code: 'DOH', city: 'Doha', fullName: 'Hamad Intl.' },
     { code: 'CAI', city: 'Cairo', fullName: 'Cairo Intl.' },
+    { code: 'HRG', city: 'Hurghada', fullName: 'Hurghada Intl.' },
+    { code: 'SSH', city: 'Sharm El Sheikh', fullName: 'Sharm El Sheikh Intl.' },
+    { code: 'CMN', city: 'Casablanca', fullName: 'Mohammed V Intl.' },
+    { code: 'RAK', city: 'Marrakesh', fullName: 'Marrakesh Menara' },
+    { code: 'TUN', city: 'Tunis', fullName: 'Tunis-Carthage' },
+    { code: 'JNB', city: 'Johannesburg', fullName: 'O. R. Tambo Intl.' },
+    { code: 'CPT', city: 'Cape Town', fullName: 'Cape Town Intl.' },
     { code: 'HND', city: 'Tokyo', fullName: 'Haneda' },
+    { code: 'NRT', city: 'Tokyo', fullName: 'Narita Intl.' },
+    { code: 'ICN', city: 'Seoul', fullName: 'Incheon Intl.' },
+    { code: 'PEK', city: 'Beijing', fullName: 'Beijing Capital' },
+    { code: 'PVG', city: 'Shanghai', fullName: 'Shanghai Pudong' },
+    { code: 'HKG', city: 'Hong Kong', fullName: 'Hong Kong Intl.' },
+    { code: 'SIN', city: 'Singapore', fullName: 'Changi' },
+    { code: 'BKK', city: 'Bangkok', fullName: 'Suvarnabhumi' },
+    { code: 'KUL', city: 'Kuala Lumpur', fullName: 'Kuala Lumpur Intl.' },
+    { code: 'DEL', city: 'Delhi', fullName: 'Indira Gandhi Intl.' },
+    { code: 'BOM', city: 'Mumbai', fullName: 'Chhatrapati Shivaji Maharaj Intl.' },
+    { code: 'SYD', city: 'Sydney', fullName: 'Sydney Kingsford Smith' },
+    { code: 'MEL', city: 'Melbourne', fullName: 'Melbourne Airport' },
   ];
 
   readonly tripTypes: { id: TripType; label: string }[] = [
@@ -129,9 +242,22 @@ export class FlightsComponent {
   readonly filters = signal<FlightFilters>({
     priceMin: 80,
     priceMax: 420,
-    stops: { direct: true, oneStop: true, twoPlus: false },
-    airlines: { LH: true, AF: true, KL: true, EW: true, SN: false },
-    departureWindows: { early: true, morning: true, afternoon: true, evening: false },
+    stops: { direct: true, oneStop: true, twoPlus: true },
+    airlines: {
+      LH: true,
+      AF: true,
+      KL: true,
+      EW: true,
+      SN: true,
+      IB: true,
+      BA: true,
+      VY: true,
+      AZ: true,
+      TP: true,
+      LX: true,
+      TK: true,
+    },
+    departureWindows: { early: true, morning: true, afternoon: true, evening: true },
     carryOnIncluded: true,
     checkedBagIncluded: false,
   });
@@ -149,20 +275,31 @@ export class FlightsComponent {
     { code: 'KL', name: 'KLM',              minPrice: 132 },
     { code: 'EW', name: 'Eurowings',        minPrice: 98  },
     { code: 'SN', name: 'Brussels Airl.',   minPrice: 119 },
+    { code: 'IB', name: 'Iberia',           minPrice: 126 },
+    { code: 'BA', name: 'British Airways',  minPrice: 158 },
+    { code: 'VY', name: 'Vueling',          minPrice: 92  },
+    { code: 'AZ', name: 'ITA Airways',      minPrice: 137 },
+    { code: 'TP', name: 'TAP Air Portugal', minPrice: 149 },
+    { code: 'LX', name: 'SWISS',            minPrice: 176 },
+    { code: 'TK', name: 'Turkish Airlines', minPrice: 169 },
   ];
 
   // ---------------- Sort & results ----------------
   readonly sortMode = signal<SortMode>('best');
 
-  readonly sortTabs: { id: SortMode; label: string; meta: string }[] = [
-    { id: 'best',     label: 'Best',     meta: '€132 · 3h 25m' },
-    { id: 'cheapest', label: 'Cheapest', meta: '€98 · 1h 40m'  },
-    { id: 'fastest',  label: 'Fastest',  meta: '€215 · 1h 35m' },
-  ];
-
   readonly flights = signal<Flight[]>([]);
   readonly returnFlights = signal<Flight[]>([]);
   readonly segmentFlights = signal<SegmentFlights[]>([]);
+
+  readonly sortTabs = computed<{ id: SortMode; label: string; meta: string }[]>(() => {
+    const flights = this.matchingFlightsForSortMeta();
+
+    return [
+      { id: 'best', label: 'Best', meta: this.sortMetaFor('best', flights) },
+      { id: 'cheapest', label: 'Cheapest', meta: this.sortMetaFor('cheapest', flights) },
+      { id: 'fastest', label: 'Fastest', meta: this.sortMetaFor('fastest', flights) },
+    ];
+  });
 
   readonly filteredFlights = computed(() => this.filterAndSortFlights(this.flights()));
 
@@ -178,7 +315,7 @@ export class FlightsComponent {
     const filters = this.filters();
     const matchingFlights = flights.filter(flight => {
       if (flight.price < filters.priceMin || flight.price > filters.priceMax) return false;
-      if (!filters.airlines[flight.airline.code]) return false;
+      if (filters.airlines[flight.airline.code] === false) return false;
       if (!filters.departureWindows[this.getDepartureWindow(flight.departure.time)]) return false;
       if (filters.carryOnIncluded && !flight.carryOnIncluded) return false;
       if (filters.checkedBagIncluded && !flight.checkedBagIncluded) return false;
@@ -200,6 +337,9 @@ export class FlightsComponent {
   setTripType(t: TripType): void {
     this.tripType.set(t);
     this.searchError.set('');
+    this.activeAirportPicker.set(null);
+    this.activeMultiCityAirportPicker.set(null);
+    this.activeMultiCityDatePicker.set(null);
 
     if (t !== 'round-trip') {
       this.activeDatePicker.set(null);
@@ -207,12 +347,16 @@ export class FlightsComponent {
   }
   setSortMode(s: SortMode): void { this.sortMode.set(s); }
 
-  closeDatePicker(): void { this.activeDatePicker.set(null); }
+  closeDatePicker(): void {
+    this.activeDatePicker.set(null);
+    this.activeMultiCityDatePicker.set(null);
+  }
 
   closeTravelersPicker(): void { this.travelersPickerOpen.set(false); }
 
   toggleTravelersPicker(): void {
     this.activeDatePicker.set(null);
+    this.activeMultiCityDatePicker.set(null);
     this.travelersPickerOpen.update(open => !open);
   }
 
@@ -224,10 +368,16 @@ export class FlightsComponent {
     this.children.update(value => Math.max(0, value + delta));
   }
 
+  trackBySegmentIndex(index: number): number {
+    return index;
+  }
+
   updateMultiCityText(index: number, key: 'fromText' | 'toText', value: string): void {
     this.multiCitySegments.update(segments => segments.map((segment, i) => (
       i === index ? { ...segment, [key]: value } : segment
     )));
+    this.activeAirportPicker.set(null);
+    this.activeMultiCityAirportPicker.set({ index, key });
   }
 
   updateMultiCityDate(index: number, value: string): void {
@@ -235,6 +385,20 @@ export class FlightsComponent {
     this.multiCitySegments.update(segments => segments.map((segment, i) => (
       i === index ? { ...segment, date } : segment
     )));
+  }
+
+  toggleMultiCityDatePicker(index: number): void {
+    const selectedDate = this.multiCitySegments()[index]?.date ?? null;
+    const baseDate = selectedDate ?? new Date();
+
+    this.activeDatePicker.set(null);
+    this.activeMultiCityDatePicker.update(active => active === index ? null : index);
+    this.datePickerMonth.set(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
+    this.manualDateText.set(this.formatDateInput(selectedDate));
+    this.manualDateError.set('');
+    this.travelersPickerOpen.set(false);
+    this.activeAirportPicker.set(null);
+    this.activeMultiCityAirportPicker.set(null);
   }
 
   addMultiCitySegment(): void {
@@ -259,6 +423,7 @@ export class FlightsComponent {
 
   toggleDatePicker(kind: 'departure' | 'return'): void {
     this.travelersPickerOpen.set(false);
+    this.activeMultiCityDatePicker.set(null);
     this.activeDatePicker.update(active => {
       if (active === kind) return null;
 
@@ -306,8 +471,44 @@ export class FlightsComponent {
   selectCalendarDate(date: Date): void {
     const selected = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+    if (this.activeMultiCityDatePicker() !== null) {
+      this.updateMultiCityDate(this.activeMultiCityDatePicker()!, this.formatDateInput(selected));
+      this.manualDateText.set(this.formatDateInput(selected));
+      this.manualDateError.set('');
+      this.closeDatePicker();
+      return;
+    }
+
+    if (this.tripType() === 'round-trip') {
+      if (this.activeDatePicker() === 'return') {
+        const departure = this.departureDate();
+        if (!departure || selected < this.startOfDay(departure)) {
+          this.departureDate.set(selected);
+          this.returnDate.set(null);
+          this.activeDatePicker.set('return');
+        } else {
+          this.returnDate.set(selected);
+          this.closeDatePicker();
+        }
+      } else {
+        const returnDate = this.returnDate();
+        this.departureDate.set(selected);
+        if (returnDate && selected > this.startOfDay(returnDate)) {
+          this.returnDate.set(null);
+        }
+        this.activeDatePicker.set('return');
+      }
+
+      this.manualDateText.set(this.formatDateInput(this.activeDatePicker() === 'return' ? this.returnDate() : selected));
+      this.manualDateError.set('');
+      return;
+    }
+
     if (this.activeDatePicker() === 'departure') {
       this.departureDate.set(selected);
+      if (this.tripType() === 'one-way') {
+        this.closeDatePicker();
+      }
     } else {
       this.returnDate.set(selected);
       this.tripType.set('round-trip');
@@ -321,17 +522,21 @@ export class FlightsComponent {
     this.fromText.set(value);
     this.from.set(this.parseAirportText(value, this.from()));
     this.activeAirportPicker.set('from');
+    this.activeMultiCityAirportPicker.set(null);
   }
 
   updateDestinationText(value: string): void {
     this.toText.set(value);
     this.to.set(this.parseAirportText(value, this.to()));
     this.activeAirportPicker.set('to');
+    this.activeMultiCityAirportPicker.set(null);
   }
 
   showAirportSuggestions(kind: 'from' | 'to'): void {
     this.activeAirportPicker.set(kind);
+    this.activeMultiCityAirportPicker.set(null);
     this.activeDatePicker.set(null);
+    this.activeMultiCityDatePicker.set(null);
     this.travelersPickerOpen.set(false);
   }
 
@@ -362,6 +567,46 @@ export class FlightsComponent {
     }
 
     this.activeAirportPicker.set(null);
+    this.searchError.set('');
+  }
+
+  showMultiCityAirportSuggestions(index: number, key: 'fromText' | 'toText'): void {
+    this.activeAirportPicker.set(null);
+    this.activeMultiCityAirportPicker.set({ index, key });
+    this.activeDatePicker.set(null);
+    this.activeMultiCityDatePicker.set(null);
+    this.travelersPickerOpen.set(false);
+  }
+
+  multiCityAirportSuggestions(index: number, key: 'fromText' | 'toText'): Airport[] {
+    const segment = this.multiCitySegments()[index];
+    const query = (segment?.[key] ?? '').trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+
+    const otherText = key === 'fromText' ? segment?.toText : segment?.fromText;
+    const selectedCode = this.parseAirportText(otherText ?? '', { code: '', city: '', fullName: '' }).code;
+
+    const matches = this.airports.filter(airport => {
+      const haystack = `${airport.code} ${airport.city} ${airport.fullName}`.toLowerCase();
+      return airport.code !== selectedCode && haystack.includes(query);
+    });
+
+    return matches.slice(0, 6);
+  }
+
+  isMultiCityAirportPickerOpen(index: number, key: 'fromText' | 'toText'): boolean {
+    const active = this.activeMultiCityAirportPicker();
+    return active?.index === index && active.key === key;
+  }
+
+  selectMultiCityAirport(index: number, key: 'fromText' | 'toText', airport: Airport): void {
+    const text = `${airport.city} (${airport.code})`;
+    this.multiCitySegments.update(segments => segments.map((segment, i) => (
+      i === index ? { ...segment, [key]: text } : segment
+    )));
+    this.activeMultiCityAirportPicker.set(null);
     this.searchError.set('');
   }
 
@@ -418,7 +663,20 @@ export class FlightsComponent {
       priceMin: 80,
       priceMax: 420,
       stops: { direct: true, oneStop: true, twoPlus: true },
-      airlines: { LH: true, AF: true, KL: true, EW: true, SN: true },
+      airlines: {
+        LH: true,
+        AF: true,
+        KL: true,
+        EW: true,
+        SN: true,
+        IB: true,
+        BA: true,
+        VY: true,
+        AZ: true,
+        TP: true,
+        LX: true,
+        TK: true,
+      },
       departureWindows: { early: true, morning: true, afternoon: true, evening: true },
       carryOnIncluded: false,
       checkedBagIncluded: false,
@@ -435,16 +693,16 @@ export class FlightsComponent {
       return;
     }
 
+    const normalizedMultiCitySegments = this.tripType() === 'multi-city'
+      ? this.multiCitySegments().map(segment => this.normalizeMultiCitySegment(segment))
+      : [];
+
     this.searchError.set('');
     this.hasSearched.set(true);
     this.appliedTripType.set(this.tripType());
     this.appliedDepartureDate.set(this.departureDate());
     this.appliedReturnDate.set(this.tripType() === 'round-trip' ? this.returnDate() : null);
-    this.appliedMultiCitySegments.set(
-      this.tripType() === 'multi-city'
-        ? this.multiCitySegments().map(segment => ({ ...segment }))
-        : []
-    );
+    this.appliedMultiCitySegments.set(normalizedMultiCitySegments);
 
     const params: SearchParams = {
       tripType: this.tripType(),
@@ -453,7 +711,7 @@ export class FlightsComponent {
       departureDate: this.departureDate(),
       returnDate: this.returnDate(),
       multiCitySegments: this.tripType() === 'multi-city'
-        ? this.multiCitySegments().map(segment => ({ ...segment }))
+        ? normalizedMultiCitySegments
         : undefined,
       travelers: this.travelers(),
       adults: this.adults(),
@@ -485,9 +743,74 @@ export class FlightsComponent {
   }
 
   onSelectFlight(flight: Flight): void {
-    console.log('[FlightsComponent] select', flight);
-    // this.bookingService.addFlight(flight);
-    // this.router.navigate(['/bookings/new'], { state: { flight } });
+    this.selectedFlight.set(flight);
+    this.flightCalendarMessage.set('');
+    this.activeAirportPicker.set(null);
+    this.activeMultiCityAirportPicker.set(null);
+    this.activeDatePicker.set(null);
+    this.travelersPickerOpen.set(false);
+  }
+
+  closeSelectedFlightModal(): void {
+    if (this.isAddingFlightToCalendar()) {
+      return;
+    }
+
+    this.selectedFlight.set(null);
+    this.flightCalendarMessage.set('');
+  }
+
+  async addSelectedFlightToCalendar(): Promise<void> {
+    const flight = this.selectedFlight();
+    if (!flight) {
+      return;
+    }
+
+    const flightDate = this.selectedFlightDate(flight);
+    if (!flightDate) {
+      this.flightCalendarMessage.set('Choose a flight date before adding it to the calendar.');
+      return;
+    }
+
+    this.isAddingFlightToCalendar.set(true);
+    this.flightCalendarMessage.set('');
+
+    try {
+      const startDateTime = this.toCalendarDateTime(flightDate, flight.departure.time);
+      const endDateTime = this.toCalendarDateTime(flightDate, flight.arrival.time, startDateTime);
+      const payload = {
+        title: `${flight.airline.name} ${flight.departure.airport} to ${flight.arrival.airport}`,
+        description: [
+          `${flight.airline.name} flight from ${flight.departure.city} (${flight.departure.airport}) to ${flight.arrival.city} (${flight.arrival.airport}).`,
+          `Departure ${flight.departure.time}, arrival ${flight.arrival.time}, duration ${flight.duration}.`,
+          flight.stops === 0 ? 'Direct flight.' : `${flight.stopDetails || flight.stops + ' stop(s)'}.`,
+          this.baggageSummary(flight),
+        ].join(' '),
+        location: `${flight.departure.airport} to ${flight.arrival.airport}`,
+        startDateTime,
+        endDateTime,
+        category: 'Flight',
+        budgetCost: flight.price * this.travelers(),
+        notes: `Cabin: ${this.cabinClassLabel()}. Travelers: ${this.travelers()}. Price: ${flight.price} ${flight.currency} per traveler.`,
+      };
+
+      const response = await fetch('http://localhost:8080/api/calendar-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Calendar API returned ${response.status}`);
+      }
+
+      this.flightCalendarMessage.set('Added to calendar');
+    } catch (error) {
+      console.error('[FlightsComponent] add flight to calendar failed', error);
+      this.flightCalendarMessage.set('Unable to add this flight to the calendar right now.');
+    } finally {
+      this.isAddingFlightToCalendar.set(false);
+    }
   }
 
   toggleFlightDetails(flight: Flight): void {
@@ -547,6 +870,48 @@ export class FlightsComponent {
     return this.expandedFlightId() === flight.id;
   }
 
+  selectedFlightDate(flight: Flight | null = this.selectedFlight()): Date | null {
+    if (!flight) {
+      return null;
+    }
+
+    if (this.appliedTripType() === 'round-trip' && this.returnFlights().some(returnFlight => returnFlight.id === flight.id)) {
+      return this.appliedReturnDate();
+    }
+
+    if (this.appliedTripType() === 'multi-city') {
+      const segment = this.segmentFlights().find(segmentFlights =>
+        segmentFlights.flights.some(segmentFlight => segmentFlight.id === flight.id)
+      );
+      return segment ? this.parseDateInput(segment.date) : null;
+    }
+
+    return this.appliedDepartureDate();
+  }
+
+  selectedFlightLegLabel(flight: Flight | null = this.selectedFlight()): string {
+    if (!flight) {
+      return '';
+    }
+
+    if (this.appliedTripType() === 'round-trip' && this.returnFlights().some(returnFlight => returnFlight.id === flight.id)) {
+      return 'Return flight';
+    }
+
+    if (this.appliedTripType() === 'multi-city') {
+      const segment = this.segmentFlights().find(segmentFlights =>
+        segmentFlights.flights.some(segmentFlight => segmentFlight.id === flight.id)
+      );
+      return segment ? `Segment ${segment.segmentIndex}` : 'Multi-city flight';
+    }
+
+    return 'Outbound flight';
+  }
+
+  selectedFlightTotalPrice(flight: Flight | null = this.selectedFlight()): number {
+    return flight ? flight.price * this.travelers() : 0;
+  }
+
   baggageSummary(flight: Flight): string {
     const carryOn = flight.carryOnIncluded
       ? `Carry-on ${flight.carryOnWeightKg} kg`
@@ -556,6 +921,17 @@ export class FlightsComponent {
       : 'No checked bag included';
 
     return `${carryOn} · ${checkedBag}`;
+  }
+
+  cabinClassLabel(): string {
+    const labels: Record<CabinClass, string> = {
+      economy: 'Economy',
+      premium: 'Premium economy',
+      business: 'Business',
+      first: 'First',
+    };
+
+    return labels[this.cabinClass()];
   }
 
   formatMultiCityDate(index: number): string {
@@ -581,7 +957,33 @@ export class FlightsComponent {
   }
 
   activeDatePickerTitle(): string {
+    if (this.activeMultiCityDatePicker() !== null) {
+      return `Choose segment ${this.activeMultiCityDatePicker()! + 1} date`;
+    }
+
+    if (this.tripType() === 'round-trip') {
+      return this.returnDate() ? 'Edit trip dates' : 'Choose departure and return';
+    }
+
     return this.activeDatePicker() === 'return' ? 'Choose return date' : 'Choose departure date';
+  }
+
+  activeDatePickerHint(): string {
+    if (this.manualDateError()) {
+      return this.manualDateError();
+    }
+
+    if (this.activeMultiCityDatePicker() !== null) {
+      return 'Pick the segment date.';
+    }
+
+    if (this.tripType() === 'round-trip') {
+      return this.activeDatePicker() === 'return'
+        ? 'Pick the return date.'
+        : 'Pick the departure date.';
+    }
+
+    return 'Pick a day or type YYYY-MM-DD.';
   }
 
   activeDatePickerInputValue(): string {
@@ -592,6 +994,12 @@ export class FlightsComponent {
     this.manualDateText.set(value);
 
     if (!value.trim()) {
+      if (this.activeMultiCityDatePicker() !== null) {
+        this.updateMultiCityDate(this.activeMultiCityDatePicker()!, '');
+        this.manualDateError.set('');
+        return;
+      }
+
       if (this.activeDatePicker() === 'return') {
         this.returnDate.set(null);
         this.manualDateError.set('');
@@ -605,6 +1013,13 @@ export class FlightsComponent {
     const parsed = this.parseDateInput(value);
     if (!parsed) {
       this.manualDateError.set('Use a valid date in YYYY-MM-DD format.');
+      return;
+    }
+
+    if (this.activeMultiCityDatePicker() !== null) {
+      this.updateMultiCityDate(this.activeMultiCityDatePicker()!, this.formatDateInput(parsed));
+      this.datePickerMonth.set(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+      this.manualDateError.set('');
       return;
     }
 
@@ -629,6 +1044,9 @@ export class FlightsComponent {
     }
 
     this.departureDate.set(parsed);
+    if (this.tripType() === 'round-trip') {
+      this.activeDatePicker.set('return');
+    }
     this.datePickerMonth.set(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
     this.manualDateError.set('');
   }
@@ -646,18 +1064,33 @@ export class FlightsComponent {
     const mondayOffset = (firstDay.getDay() + 6) % 7;
     const startDate = new Date(firstDay);
     startDate.setDate(firstDay.getDate() - mondayOffset);
+    const departure = this.departureDate() ? this.startOfDay(this.departureDate()!) : null;
+    const returnDate = this.returnDate() ? this.startOfDay(this.returnDate()!) : null;
+    const multiCityActiveDate = this.activeMultiCityDatePicker() !== null
+      ? this.multiCitySegments()[this.activeMultiCityDatePicker()!]?.date ?? null
+      : null;
 
     return Array.from({ length: 42 }, (_, index) => {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + index);
+      const current = this.startOfDay(date);
 
-      const activeDate = this.activeDatePicker() === 'return' ? this.returnDate() : this.departureDate();
+      const activeDate = multiCityActiveDate ?? (this.activeDatePicker() === 'return' ? this.returnDate() : this.departureDate());
+      const isRangeStart = !!departure && this.isSameDate(date, departure);
+      const isRangeEnd = !!returnDate && this.isSameDate(date, returnDate);
+      const shouldShowRange = this.activeMultiCityDatePicker() === null && this.tripType() === 'round-trip';
+      const isInRange = shouldShowRange && !!departure && !!returnDate && current > departure && current < returnDate;
 
       return {
         date,
         dayNumber: date.getDate(),
         inCurrentMonth: date.getMonth() === month.getMonth(),
-        isSelected: this.isSameDate(date, activeDate),
+        isSelected: shouldShowRange
+          ? isRangeStart || isRangeEnd
+          : this.isSameDate(date, activeDate),
+        isRangeStart: shouldShowRange && isRangeStart,
+        isRangeEnd: shouldShowRange && isRangeEnd,
+        isInRange,
         isToday: this.isSameDate(date, new Date()),
       };
     });
@@ -674,15 +1107,36 @@ export class FlightsComponent {
     const trimmed = value.trim();
     const codeMatch = trimmed.match(/\(([A-Za-z]{3})\)\s*$/);
     const typedCodeMatch = trimmed.match(/^[A-Za-z]{3}$/);
-    const city = codeMatch ? trimmed.slice(0, codeMatch.index).trim() : trimmed;
-    const knownAirport = this.knownAirport(city || trimmed);
-    const code = codeMatch?.[1].toUpperCase() ?? typedCodeMatch?.[0].toUpperCase() ?? knownAirport?.code ?? '';
+    const trailingCodeMatch = !codeMatch && !typedCodeMatch
+      ? trimmed.match(/(?:^|[\s,\-–—])([A-Za-z]{3})\s*$/)
+      : null;
+    const typedCode = codeMatch?.[1] ?? typedCodeMatch?.[0] ?? trailingCodeMatch?.[1] ?? '';
+    const city = codeMatch
+      ? trimmed.slice(0, codeMatch.index).trim()
+      : trailingCodeMatch
+        ? trimmed.slice(0, trailingCodeMatch.index).trim()
+        : trimmed;
+    const knownAirport = this.knownAirport(typedCode || city || trimmed);
+    const code = typedCode.toUpperCase() || knownAirport?.code || '';
 
     return {
       code,
-      city: knownAirport?.city ?? city,
-      fullName: knownAirport?.fullName ?? (code && code === current.code ? current.fullName : city),
+      city: knownAirport?.city ?? (city || code),
+      fullName: knownAirport?.fullName ?? (code && code === current.code ? current.fullName : (city || code)),
     };
+  }
+
+  private normalizeMultiCitySegment(segment: MultiCitySegment): MultiCitySegment {
+    return {
+      ...segment,
+      fromText: this.normalizeAirportText(segment.fromText),
+      toText: this.normalizeAirportText(segment.toText),
+    };
+  }
+
+  private normalizeAirportText(value: string): string {
+    const airport = this.parseAirportText(value, { code: '', city: '', fullName: '' });
+    return airport.code ? `${airport.city || airport.code} (${airport.code})` : value.trim();
   }
 
   private knownAirport(value: string): Airport | null {
@@ -725,6 +1179,10 @@ export class FlightsComponent {
       const segment = segments[i];
       if (!segment.fromText.trim() || !segment.toText.trim()) {
         return `Please enter origin and destination for segment ${i + 1}.`;
+      }
+      if (!this.parseAirportText(segment.fromText, { code: '', city: '', fullName: '' }).code
+          || !this.parseAirportText(segment.toText, { code: '', city: '', fullName: '' }).code) {
+        return `Segment ${i + 1} needs airport codes, for example DUS or Düsseldorf DUS.`;
       }
       if (!segment.date) return `Please choose a valid date for segment ${i + 1}.`;
 
@@ -770,11 +1228,62 @@ export class FlightsComponent {
     });
   }
 
+  private matchingFlightsForSortMeta(): Flight[] {
+    return [
+      ...this.matchingFlights(this.flights()),
+      ...this.matchingFlights(this.returnFlights()),
+      ...this.segmentFlights().flatMap(segment => this.matchingFlights(segment.flights)),
+    ];
+  }
+
+  private matchingFlights(flights: Flight[]): Flight[] {
+    const filters = this.filters();
+
+    return flights.filter(flight => {
+      if (flight.price < filters.priceMin || flight.price > filters.priceMax) return false;
+      if (filters.airlines[flight.airline.code] === false) return false;
+      if (!filters.departureWindows[this.getDepartureWindow(flight.departure.time)]) return false;
+      if (filters.carryOnIncluded && !flight.carryOnIncluded) return false;
+      if (filters.checkedBagIncluded && !flight.checkedBagIncluded) return false;
+      if (flight.stops === 0 && !filters.stops.direct) return false;
+      if (flight.stops === 1 && !filters.stops.oneStop) return false;
+      if (flight.stops >= 2 && !filters.stops.twoPlus) return false;
+
+      return true;
+    });
+  }
+
+  private sortMetaFor(sortMode: SortMode, flights: Flight[]): string {
+    if (!flights.length) {
+      return 'No matches';
+    }
+
+    const selectedFlight = this.sortFlights(flights, sortMode)[0];
+    return `€${selectedFlight.price} · ${selectedFlight.duration}`;
+  }
+
   private durationMinutes(duration: string): number {
     const hours = duration.match(/(\d+)h/)?.[1] ?? '0';
     const minutes = duration.match(/(\d+)m/)?.[1] ?? '0';
 
     return Number(hours) * 60 + Number(minutes);
+  }
+
+  private toCalendarDateTime(date: Date, time: string, startDateTime?: string): string {
+    const [hours = '00', minutes = '00'] = time.split(':');
+    const calendarDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), Number(hours), Number(minutes));
+
+    if (startDateTime && calendarDate <= new Date(startDateTime)) {
+      calendarDate.setDate(calendarDate.getDate() + 1);
+    }
+
+    const year = calendarDate.getFullYear();
+    const month = String(calendarDate.getMonth() + 1).padStart(2, '0');
+    const day = String(calendarDate.getDate()).padStart(2, '0');
+    const hour = String(calendarDate.getHours()).padStart(2, '0');
+    const minute = String(calendarDate.getMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hour}:${minute}:00`;
   }
 
   private parseDateInput(value: string): Date | null {
