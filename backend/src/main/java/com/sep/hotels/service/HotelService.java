@@ -256,6 +256,10 @@ public class HotelService {
         int resolvedAdults = adults == null ? 2 : adults;
         int resolvedChildren = children == null ? 0 : children;
         String city = cityNameMapper.normalize(location);
+        if (!cityNameMapper.isKnownCity(location)) {
+            log.info("Unknown hotel destination '{}'. Returning empty hotel result.", location);
+            return List.of();
+        }
 
         List<Hotel> cachedHotels = hotelRepository.findWithDetailsByCityIgnoreCase(city);
         if (cachedHotels.size() < MAX_HOTELS_PER_CITY) {

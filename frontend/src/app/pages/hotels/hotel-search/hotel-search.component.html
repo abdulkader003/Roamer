@@ -1,113 +1,111 @@
 <section class="hotels-page">
-  <header class="page-head">
-    <div class="page-head__text">
-      <p class="crumbs">Hotels</p>
-      <h1 class="page-title">Find your <em>hotel</em>.</h1>
-      <p class="page-subtitle">Discover exceptional stays and turn every journey into an unforgettable experience.</p>
-    </div>
-  </header>
-
-  <section class="search-card" aria-label="Search hotels">
-    <form class="search-panel" (ngSubmit)="search()">
-      <label class="field destination-field">
-        <span>Destination</span>
-        <input
-          type="text"
-          name="location"
-          placeholder="Where are you traveling to?"
-          autocomplete="off"
-          [(ngModel)]="location"
-        />
-      </label>
-
-      <label class="field">
-        <span>Check-in</span>
-        <input
-          #checkInInput
-          [type]="checkIn ? 'date' : 'text'"
-          name="checkIn"
-          placeholder="Select date"
-          [(ngModel)]="checkIn"
-          (focus)="checkInInput.type = 'date'"
-          (blur)="!checkIn && (checkInInput.type = 'text')"
-          (ngModelChange)="validateDates()"
-        />
-      </label>
-
-      <label class="field">
-        <span>Check-out</span>
-        <input
-          #checkOutInput
-          [type]="checkOut ? 'date' : 'text'"
-          name="checkOut"
-          placeholder="Select date"
-          [(ngModel)]="checkOut"
-          (focus)="checkOutInput.type = 'date'"
-          (blur)="!checkOut && (checkOutInput.type = 'text')"
-          (ngModelChange)="validateDates()"
-        />
-      </label>
-
-      <div class="field guest-field" [class.open]="guestsOpen">
-        <span>Guests</span>
-        <button class="guest-trigger" type="button" (click)="toggleGuests()">
-          {{ guestSummary }}
-        </button>
-
-        <div class="guest-popover" *ngIf="guestsOpen">
-          <div class="guest-row">
-            <div>
-              <strong>Adults</strong>
-              <small>Minimum 1</small>
-            </div>
-
-            <div class="stepper">
-              <button type="button" (click)="changeGuests('adults', -1)" [disabled]="adults <= 1">−</button>
-              <span>{{ adults }}</span>
-              <button type="button" (click)="changeGuests('adults', 1)" [disabled]="adults + children >= maxGuests">+</button>
-            </div>
-          </div>
-
-          <div class="guest-row">
-            <div>
-              <strong>Children</strong>
-              <small>Ages 0–17</small>
-            </div>
-
-            <div class="stepper">
-              <button type="button" (click)="changeGuests('children', -1)" [disabled]="children <= 0">−</button>
-              <span>{{ children }}</span>
-              <button type="button" (click)="changeGuests('children', 1)" [disabled]="adults + children >= maxGuests">+</button>
-            </div>
-          </div>
-        </div>
+  <div class="page-shell">
+    <header class="page-head">
+      <div class="page-head__text">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a routerLink="/dashboard">Dashboard</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+          <strong aria-current="page">Hotels</strong>
+        </nav>
+        <h1 class="page-title">Find your <em>hotel</em>.</h1>
+        <p class="page-subtitle">Discover exceptional stays and turn every journey into an unforgettable experience.</p>
       </div>
+    </header>
 
-      <button class="search-btn" type="submit" [class.loading]="isSearching" [disabled]="isSearching">
-        <span *ngIf="!isSearching">Search stays</span>
-        <span *ngIf="isSearching">Searching</span>
-      </button>
-    </form>
-    <p class="validation-error" *ngIf="dateError || guestError">{{ dateError || guestError }}</p>
-    <p class="search-error" *ngIf="searchError && !isSearching">{{ searchError }}</p>
+    <section
+      class="search-stage"
+      [class.search-stage--city-open]="activeCitySuggestions && citySuggestions.length > 0"
+      [class.search-stage--date-open]="!!activeDatePicker">
+      <section
+        class="search-card"
+        [class.search-card--popover-open]="activeCitySuggestions || guestsOpen || !!activeDatePicker"
+        aria-label="Search hotels">
+        <form class="search-panel" (ngSubmit)="search()">
+          <label class="field destination-field" [class.destination-field--open]="activeCitySuggestions">
+            <span class="field-label">Destination</span>
+            <input
+              type="text"
+              name="location"
+              placeholder="Where are you traveling to?"
+              autocomplete="off"
+              [ngModel]="location"
+              (ngModelChange)="updateLocationText($event)"
+              (focus)="showCitySuggestions()"
+            />
+            <span class="field-meta">Type a city name and choose from suggestions.</span>
+          </label>
 
-    <div class="quick-picks" aria-label="Popular destinations">
-      <button
-        type="button"
-        *ngFor="let destination of popularDestinations"
-        (click)="selectDestination(destination)"
-      >
-        {{ destination }}
-      </button>
-    </div>
-  </section>
+          <div class="field date-field" [class.open]="activeDatePicker === 'checkIn'">
+            <button
+              type="button"
+              class="date-trigger"
+              aria-label="Choose check-in date"
+              [attr.aria-expanded]="activeDatePicker === 'checkIn'"
+              (click)="toggleDatePicker('checkIn')">
+              <span class="field-label">Check-in</span>
+              <span class="field-value" [class.placeholder]="!checkIn">
+                {{ checkIn ? formatSelectedDate(checkIn) : 'Select date' }}
+              </span>
+              <span class="field-meta">{{ checkIn ? formatSelectedYear(checkIn) : 'Arrival' }}</span>
+            </button>
+          </div>
+
+          <div class="field date-field" [class.open]="activeDatePicker === 'checkOut'">
+            <button
+              type="button"
+              class="date-trigger"
+              aria-label="Choose check-out date"
+              [attr.aria-expanded]="activeDatePicker === 'checkOut'"
+              (click)="toggleDatePicker('checkOut')">
+              <span class="field-label">Check-out</span>
+              <span class="field-value" [class.placeholder]="!checkOut">
+                {{ checkOut ? formatSelectedDate(checkOut) : 'Select date' }}
+              </span>
+              <span class="field-meta">{{ checkOut ? formatSelectedYear(checkOut) : 'Departure' }}</span>
+            </button>
+          </div>
+
+          <div
+            class="field guest-field"
+            [class.open]="guestsOpen"
+            role="button"
+            tabindex="0"
+            [attr.aria-expanded]="guestsOpen"
+            aria-label="Change guests"
+            (click)="openGuestsModal()"
+            (keydown.enter)="openGuestsModal()"
+            (keydown.space)="$event.preventDefault(); openGuestsModal()">
+            <span class="field-label">Guests</span>
+            <button class="guest-trigger" type="button" tabindex="-1">
+              {{ guestSummary }}
+            </button>
+            <span class="field-meta">Adjust adult and child counts.</span>
+          </div>
+
+          <button class="search-btn" type="submit" [class.loading]="isSearching" [disabled]="isSearching">
+            <svg *ngIf="!isSearching" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <span *ngIf="!isSearching">Search stays</span>
+            <span *ngIf="isSearching">Searching</span>
+          </button>
+        </form>
+
+        <p class="validation-error" *ngIf="dateError || guestError">{{ dateError || guestError }}</p>
+        <p class="search-error" *ngIf="searchError && !isSearching">{{ searchError }}</p>
+      </section>
+    </section>
+  </div>
 </section>
 
-<section class="results" #resultsSection>
+<section class="results page-shell" #resultsSection>
   <div class="results-header">
     <div>
       <p class="eyebrow">Available stays</p>
-      <h2 *ngIf="hasSearched && !isSearching">{{ hotels.length }} results matches</h2>
+      <h2 *ngIf="hasSearched && !isSearching">{{ hotels.length }} result{{ hotels.length === 1 ? '' : 's' }}</h2>
       <h2 *ngIf="!hasSearched && !isSearching">Start with a destination</h2>
       <h2 *ngIf="isSearching">Preparing results</h2>
     </div>
@@ -139,5 +137,349 @@
     <button type="button" (click)="selectDestination('')">Clear destination</button>
   </div>
 
-  <app-hotel-list *ngIf="!isSearching && hotels.length > 0" [hotels]="hotels"></app-hotel-list>
+  <div class="hotel-container" *ngIf="!isSearching && hotels.length > 0">
+    <div class="toolbar">
+      <button class="filter-btn" type="button">
+        <span class="filter-dot"></span>
+        Filters
+      </button>
+
+      <div class="tabs" role="tablist" aria-label="Sort hotels">
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.active]="selectedSort === 'recommended'"
+          (click)="sortHotels('recommended')">
+          Recommended
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.active]="selectedSort === 'rating'"
+          (click)="sortHotels('rating')">
+          Top rated
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.active]="selectedSort === 'price'"
+          (click)="sortHotels('price')">
+          Lowest price
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [class.active]="selectedSort === 'stars'"
+          (click)="sortHotels('stars')">
+          Most stars
+        </button>
+      </div>
+    </div>
+
+    <article class="hotel-card" *ngFor="let hotel of displayedHotels; trackBy: trackByHotelId">
+      <button class="image-button" type="button" (click)="selectHotel(hotel)" [attr.aria-label]="'View ' + hotel.name">
+        <img [src]="hotel.image" [alt]="hotel.name" />
+        <span class="image-badge">{{ hotel.tag }}</span>
+      </button>
+
+      <div class="hotel-content">
+        <div>
+          <p class="city">{{ hotel.city }}</p>
+          <h3>{{ hotel.name }}</h3>
+        </div>
+
+        <div class="meta-row">
+          <span>{{ getDistanceLabel(hotel) }}</span>
+        </div>
+
+        <p class="description">
+          {{ hotel.description }}
+        </p>
+
+        <div class="booking-rating">
+          <span class="rating">{{ getRatingScore(hotel) }}</span>
+          <strong>{{ getRatingLabel(hotel) }}</strong>
+          <span>{{ getReviewCount(hotel) }} reviews</span>
+        </div>
+
+        <div class="amenity-strip" *ngIf="getKeyAmenities(hotel).length">
+          <span *ngFor="let amenity of getKeyAmenities(hotel)">{{ amenity }}</span>
+        </div>
+      </div>
+
+      <div class="hotel-price">
+        <p>{{ formatStayDetails(hotel) }}</p>
+        <strong>{{ formatTotalPrice(hotel) }}</strong>
+        <span>Includes taxes and fees</span>
+        <button type="button" (click)="selectHotel(hotel)">Choose stay</button>
+      </div>
+    </article>
+  </div>
 </section>
+
+<div class="modal-overlay" *ngIf="selectedHotel" (click)="closeHotelModal()">
+  <section class="modal-content" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <button class="close-btn" type="button" (click)="closeHotelModal()" aria-label="Close details">×</button>
+
+    <div class="modal-gallery">
+      <img class="modal-image" [src]="modalImages[currentImageIndex]" [alt]="selectedHotel.name" />
+
+      <button
+        class="modal-gallery-arrow previous"
+        type="button"
+        *ngIf="modalImages.length > 1"
+        (click)="previousModalImage($event)"
+        aria-label="Previous image">
+        ‹
+      </button>
+
+      <button
+        class="modal-gallery-arrow next"
+        type="button"
+        *ngIf="modalImages.length > 1"
+        (click)="nextModalImage($event)"
+        aria-label="Next image">
+        ›
+      </button>
+
+      <span class="modal-image-counter">{{ modalImageCounter }}</span>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-heading">
+        <div>
+          <p class="city">{{ selectedHotel.city }}</p>
+          <h2>{{ selectedHotel.name }}</h2>
+        </div>
+        <span class="rating large">{{ selectedHotel.rating }}</span>
+      </div>
+
+      <p class="modal-copy">
+        {{ selectedHotel.description }}
+      </p>
+
+      <div class="details">
+        <div>
+          <span>Check-in</span>
+          <strong>{{ selectedHotel.checkIn || 'Select date' }}</strong>
+        </div>
+        <div>
+          <span>Check-out</span>
+          <strong>{{ selectedHotel.checkOut || 'Select date' }}</strong>
+        </div>
+        <div>
+          <span>Stay</span>
+          <strong>{{ totalNightsLabel }}</strong>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div>
+          <span>From</span>
+          <strong>{{ formatTotalPrice(selectedHotel) }}</strong>
+          <span>Includes taxes and fees</span>
+        </div>
+
+        <button class="add-btn" type="button" (click)="addHotelToCalendar()">
+          {{ calendarMessage || 'Add to calendar' }}
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div
+  *ngIf="guestsOpen"
+  class="guest-popover-backdrop"
+  role="presentation"
+  (click)="closeGuestsModal()">
+  <section
+    class="guest-popover"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Choose hotel guests"
+    (click)="$event.stopPropagation()">
+    <header class="guest-popover__head">
+      <div>
+        <span class="guest-popover__eyebrow">Hotel guests</span>
+        <h3>Choose guests</h3>
+      </div>
+      <button type="button" class="guest-close" aria-label="Close guest selector" (click)="closeGuestsModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+
+    <div class="guest-row">
+      <div>
+        <strong>Adults</strong>
+        <small>Minimum 1</small>
+      </div>
+
+      <div class="stepper">
+        <button type="button" (click)="changeGuests('adults', -1)" [disabled]="adults <= 1" aria-label="Decrease adults">−</button>
+        <span>{{ adults }}</span>
+        <button type="button" (click)="changeGuests('adults', 1)" [disabled]="adults + children >= maxGuests" aria-label="Increase adults">+</button>
+      </div>
+    </div>
+
+    <div class="guest-row">
+      <div>
+        <strong>Children</strong>
+        <small>Ages 0–17</small>
+      </div>
+
+      <div class="stepper">
+        <button type="button" (click)="changeGuests('children', -1)" [disabled]="children <= 0" aria-label="Decrease children">−</button>
+        <span>{{ children }}</span>
+        <button type="button" (click)="changeGuests('children', 1)" [disabled]="adults + children >= maxGuests" aria-label="Increase children">+</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div
+  *ngIf="activeCitySuggestions"
+  class="city-popover-backdrop"
+  role="presentation"
+  (click)="closeDestinationOverlay()">
+  <section
+    class="city-popover"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Choose hotel destination"
+    (click)="$event.stopPropagation()">
+    <header class="city-popover__head">
+      <div>
+        <span class="city-popover__eyebrow">Hotel destination</span>
+        <h3>Choose a destination</h3>
+      </div>
+      <button type="button" class="city-close" aria-label="Close destination search" (click)="closeDestinationOverlay()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+
+    <label class="city-search-field">
+      <span>Destination</span>
+      <input
+        #destinationModalInput
+        type="text"
+        autocomplete="off"
+        placeholder="Type a city name"
+        [ngModel]="location"
+        (ngModelChange)="updateLocationText($event)"
+        (keydown)="handleDestinationKeydown($event)"
+      />
+    </label>
+
+    <div class="city-modal-suggestions" *ngIf="location.trim().length > 0; else destinationPrompt">
+      <button
+        type="button"
+        class="city-modal-option"
+        *ngFor="let city of citySuggestions; let i = index"
+        [class.active]="i === activeCitySuggestionIndex"
+        (mouseenter)="activeCitySuggestionIndex = i"
+        (click)="selectDestination(city)">
+        <strong>{{ city }}</strong>
+        <span>Popular hotel destination</span>
+      </button>
+
+      <p class="city-modal-empty" *ngIf="citySuggestions.length === 0">No matching destinations found.</p>
+    </div>
+
+    <ng-template #destinationPrompt>
+      <p class="city-modal-empty">Start typing to see matching destinations.</p>
+    </ng-template>
+  </section>
+</div>
+
+<div
+  *ngIf="activeDatePicker"
+  class="date-popover-backdrop"
+  role="presentation"
+  (click)="closeDatePicker()">
+  <section
+    class="date-popover"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="activeDatePickerTitle()"
+    (click)="$event.stopPropagation()">
+    <header class="date-popover__head">
+      <div>
+        <span class="date-popover__eyebrow">Hotel dates</span>
+        <h3>{{ activeDatePickerTitle() }}</h3>
+      </div>
+      <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+
+    <div class="date-popover__body">
+      <aside class="date-manual">
+        <label>
+          <span>Manual date</span>
+          <input
+            type="text"
+            [value]="activeDatePickerInputValue()"
+            (input)="updateActiveDatePickerInput($any($event.target).value)"
+            [class.invalid]="manualDateError"
+            placeholder="YYYY-MM-DD"
+          />
+        </label>
+        <p class="date-hint" [class.error]="manualDateError">{{ activeDatePickerHint() }}</p>
+      </aside>
+
+      <div class="date-calendar">
+        <div class="date-calendar__toolbar">
+          <button type="button" aria-label="Previous month" (click)="shiftDatePickerMonth(-1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <strong>{{ datePickerMonthLabel() }}</strong>
+          <button type="button" aria-label="Next month" (click)="shiftDatePickerMonth(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <div class="date-weekdays">
+          <span *ngFor="let day of weekDays">{{ day }}</span>
+        </div>
+
+        <div class="date-days">
+          <button
+            type="button"
+            *ngFor="let day of calendarDays()"
+            [class.muted]="!day.inCurrentMonth"
+            [class.today]="day.isToday"
+            [class.selected]="day.isSelected"
+            [class.range-start]="day.isRangeStart"
+            [class.range-end]="day.isRangeEnd"
+            [class.in-range]="day.isInRange"
+            (click)="onCalendarDaySelect(day)">
+            {{ day.dayNumber }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<app-status-toast [message]="toastMessage" [type]="toastType"></app-status-toast>
