@@ -190,6 +190,7 @@ public class FlightMapper {
     public FlightSearchRequest.AirportDto airportFromText(String text) {
         String value = text == null ? "" : text.trim();
         Matcher matcher = Pattern.compile("\\(([A-Za-z]{3})\\)\\s*$").matcher(value);
+        Matcher trailingCodeMatcher = Pattern.compile("(?:^|[\\s,\\-–—])([A-Za-z]{3})\\s*$").matcher(value);
         String code = "";
         String city = value;
 
@@ -201,6 +202,15 @@ public class FlightMapper {
         if (code.isBlank() && value.matches("(?i)^[a-z]{3}$")) {
             code = value.toUpperCase(Locale.ROOT);
             city = value.toUpperCase(Locale.ROOT);
+        }
+
+        if (code.isBlank() && trailingCodeMatcher.find()) {
+            code = trailingCodeMatcher.group(1).toUpperCase(Locale.ROOT);
+            city = value.substring(0, trailingCodeMatcher.start()).trim();
+        }
+
+        if (city.isBlank() && !code.isBlank()) {
+            city = code;
         }
 
         return new FlightSearchRequest.AirportDto(code, city, city);
@@ -295,19 +305,31 @@ public class FlightMapper {
                 {"SN", "Brussels Airlines"},
                 {"IB", "Iberia"},
                 {"BA", "British Airways"},
-                {"VY", "Vueling"}
+                {"VY", "Vueling"},
+                {"AZ", "ITA Airways"},
+                {"TP", "TAP Air Portugal"},
+                {"LX", "SWISS"},
+                {"TK", "Turkish Airlines"},
+                {"MS", "EgyptAir"},
+                {"SM", "Air Cairo"},
+                {"ME", "Middle East Airlines"},
+                {"RJ", "Royal Jordanian"},
+                {"GF", "Gulf Air"},
+                {"FZ", "flydubai"},
+                {"G9", "Air Arabia"},
+                {"PC", "Pegasus Airlines"}
         };
         int seed = Math.abs((request.from().code() + request.to().code() + request.departureDate()).hashCode());
         int baseDurationMinutes = 85 + (seed % 155);
         int basePrice = 70 + (seed % 180);
 
         List<FlightOfferDto> flights = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 20; i++) {
             String[] airline = airlines[(seed + i) % airlines.length];
-            int departureMinutes = 390 + (i * 165) + (seed % 25);
-            int durationMinutes = baseDurationMinutes + (i % 3) * 35;
-            int price = basePrice + (i * 28) - (i == 0 ? 18 : 0);
-            int stops = i == 1 || i == 4 ? 1 : 0;
+            int departureMinutes = 330 + (i * 95) + (seed % 45);
+            int durationMinutes = baseDurationMinutes + (i % 4) * 30 + (i / 4) * 10;
+            int price = basePrice + ((i * 23) % 170) - (i == 0 ? 18 : 0);
+            int stops = i % 6 == 5 ? 2 : i % 3 == 1 ? 1 : 0;
             String badgeType = i == 0 ? "cheapest" : i == 2 ? "fastest" : i == 3 ? "recommended" : null;
             String badgeLabel = i == 0 ? "Cheapest" : i == 2 ? "Fastest" : i == 3 ? "Best value" : null;
 
@@ -353,7 +375,7 @@ public class FlightMapper {
                 new FlightOfferDto.FlightEndpointDto(arrivalTime, request.to().code(), request.to().city()),
                 duration,
                 stops,
-                stops == 0 ? null : "1 stop",
+                stops == 0 ? null : stops + " stop" + (stops == 1 ? "" : "s"),
                 price,
                 "EUR",
                 true,

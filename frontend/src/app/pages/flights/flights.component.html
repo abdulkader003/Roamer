@@ -166,40 +166,72 @@
     <div *ngIf="tripType() === 'multi-city'" class="multi-city-builder">
       <div class="multi-city-segments">
         <div
-          *ngFor="let segment of multiCitySegments(); let i = index"
+          *ngFor="let segment of multiCitySegments(); let i = index; trackBy: trackBySegmentIndex"
           class="multi-city-row">
           <div class="segment-number">{{ i + 1 }}</div>
 
-          <label class="field">
+          <label class="field airport-field">
             <span class="field-label">From</span>
             <input
               type="text"
-              list="airport-options"
               [value]="segment.fromText"
               (input)="updateMultiCityText(i, 'fromText', $any($event.target).value)"
+              (focus)="showMultiCityAirportSuggestions(i, 'fromText')"
               placeholder="Add origin"
               [attr.aria-label]="'Segment ' + (i + 1) + ' origin'"/>
+            <span class="field-meta">Type a city or airport code</span>
+
+            <div class="airport-suggestions" *ngIf="isMultiCityAirportPickerOpen(i, 'fromText') && multiCityAirportSuggestions(i, 'fromText').length">
+              <button
+                type="button"
+                class="airport-option"
+                *ngFor="let airport of multiCityAirportSuggestions(i, 'fromText')"
+                (mousedown)="$event.preventDefault(); selectMultiCityAirport(i, 'fromText', airport)">
+                <strong>{{ airport.city }}</strong>
+                <span>{{ airport.fullName }}</span>
+                <em>{{ airport.code }}</em>
+              </button>
+            </div>
           </label>
 
-          <label class="field">
+          <label class="field airport-field airport-field--to">
             <span class="field-label">To</span>
             <input
               type="text"
-              list="airport-options"
               [value]="segment.toText"
               (input)="updateMultiCityText(i, 'toText', $any($event.target).value)"
+              (focus)="showMultiCityAirportSuggestions(i, 'toText')"
               placeholder="Add destination"
               [attr.aria-label]="'Segment ' + (i + 1) + ' destination'"/>
+            <span class="field-meta">Type a city or airport code</span>
+
+            <div class="airport-suggestions" *ngIf="isMultiCityAirportPickerOpen(i, 'toText') && multiCityAirportSuggestions(i, 'toText').length">
+              <button
+                type="button"
+                class="airport-option"
+                *ngFor="let airport of multiCityAirportSuggestions(i, 'toText')"
+                (mousedown)="$event.preventDefault(); selectMultiCityAirport(i, 'toText', airport)">
+                <strong>{{ airport.city }}</strong>
+                <span>{{ airport.fullName }}</span>
+                <em>{{ airport.code }}</em>
+              </button>
+            </div>
           </label>
 
-          <label class="field">
-            <span class="field-label">Date</span>
-            <input
-              type="date"
-              [value]="formatMultiCityDate(i)"
-              (input)="updateMultiCityDate(i, $any($event.target).value)"
-              [attr.aria-label]="'Segment ' + (i + 1) + ' date'"/>
-          </label>
+          <div class="field date-field" [class.open]="activeMultiCityDatePicker() === i">
+            <button
+              type="button"
+              class="date-trigger"
+              [attr.aria-label]="'Choose date for segment ' + (i + 1)"
+              [attr.aria-expanded]="activeMultiCityDatePicker() === i"
+              (click)="toggleMultiCityDatePicker(i)">
+              <span class="field-label">Date</span>
+              <span class="field-value" [class.placeholder]="!segment.date">
+                {{ segment.date ? formatDate(segment.date) : 'Choose date' }}
+              </span>
+              <span class="field-meta">{{ segment.date ? formatYear(segment.date) : 'Segment ' + (i + 1) }}</span>
+            </button>
+          </div>
 
           <button
             type="button"
@@ -296,7 +328,7 @@
     </div>
 
     <div
-      *ngIf="activeDatePicker()"
+      *ngIf="activeDatePicker() || activeMultiCityDatePicker() !== null"
       class="date-popover-backdrop"
       role="presentation"
       (click)="closeDatePicker()">
@@ -337,7 +369,12 @@
               id="manual-date-hint"
               class="date-hint"
               [class.error]="manualDateError()">
-              {{ manualDateError() || 'Use the calendar or type the date directly.' }}
+              {{ activeDatePickerHint() }}
+            </p>
+            <p class="date-range-summary" *ngIf="tripType() === 'round-trip' && activeMultiCityDatePicker() === null">
+              {{ departureDate() ? formatDate(departureDate()) : 'Departure' }}
+              →
+              {{ returnDate() ? formatDate(returnDate()) : 'Return' }}
             </p>
             <button
               *ngIf="activeDatePicker() === 'return'"
@@ -373,6 +410,9 @@
                 type="button"
                 [class.muted]="!day.inCurrentMonth"
                 [class.selected]="day.isSelected"
+                [class.range-start]="day.isRangeStart"
+                [class.range-end]="day.isRangeEnd"
+                [class.in-range]="day.isInRange"
                 [class.today]="day.isToday"
                 (click)="selectCalendarDate(day.date)">
                 {{ day.dayNumber }}
@@ -524,7 +564,7 @@
     <section class="results">
       <div class="results-toolbar" role="tablist">
         <button
-          *ngFor="let s of sortTabs"
+          *ngFor="let s of sortTabs()"
           type="button"
           role="tab"
           class="sort-tab"
@@ -540,15 +580,6 @@
         <div>
           <strong>{{ resultCount() }} flights</strong> · {{ from().code || from().city || 'From' }} → {{ to().code || to().city || 'To' }} · {{ formatAppliedSearch() }}
         </div>
-        <select
-          class="sort-select"
-          aria-label="Sort by"
-          [value]="sortMode()"
-          (change)="setSortMode($any($event.target).value)">
-          <option value="best">Sort: Recommended</option>
-          <option value="cheapest">Price · Low to high</option>
-          <option value="fastest">Duration · Shortest</option>
-        </select>
       </div>
 
       <div class="flight-list">
@@ -851,6 +882,95 @@
           Prices update every few minutes — book early for the best fares.
         </p>
       </aside>
+    </section>
+  </div>
+
+  <div
+    class="flight-modal-backdrop"
+    *ngIf="selectedFlight() as flight"
+    (click)="closeSelectedFlightModal()">
+    <section
+      class="flight-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="selected-flight-title"
+      (click)="$event.stopPropagation()">
+      <header class="flight-modal__head">
+        <div>
+          <p class="modal-eyebrow">{{ selectedFlightLegLabel(flight) }}</p>
+          <h2 id="selected-flight-title">{{ flight.airline.name }}</h2>
+          <span>{{ flight.departure.airport }} → {{ flight.arrival.airport }} · {{ formatDate(selectedFlightDate(flight)) }}</span>
+        </div>
+
+        <button
+          type="button"
+          class="flight-modal__close"
+          aria-label="Close flight details"
+          (click)="closeSelectedFlightModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="flight-modal__route">
+        <div class="modal-endpoint">
+          <span>Departure</span>
+          <strong>{{ flight.departure.time }}</strong>
+          <p>{{ flight.departure.city }} · {{ flight.departure.airport }}</p>
+        </div>
+
+        <div class="modal-duration">
+          <strong>{{ flight.duration }}</strong>
+          <div class="modal-duration-line" [class.direct]="flight.stops === 0"></div>
+          <span>{{ flight.stops === 0 ? 'Direct flight' : flight.stopDetails }}</span>
+        </div>
+
+        <div class="modal-endpoint right">
+          <span>Arrival</span>
+          <strong>{{ flight.arrival.time }}</strong>
+          <p>{{ flight.arrival.city }} · {{ flight.arrival.airport }}</p>
+        </div>
+      </div>
+
+      <div class="flight-modal__details">
+        <div>
+          <span>Travelers</span>
+          <strong>{{ travelers() }}</strong>
+          <p>{{ cabinClassLabel() }}</p>
+        </div>
+
+        <div>
+          <span>Baggage</span>
+          <strong>{{ baggageSummary(flight) }}</strong>
+          <p>{{ flight.checkedBagIncluded ? 'Checked baggage included' : 'Checked baggage not included' }}</p>
+        </div>
+
+        <div>
+          <span>Total estimate</span>
+          <strong>€{{ selectedFlightTotalPrice(flight) }}</strong>
+          <p>€{{ flight.price }} per traveler</p>
+        </div>
+      </div>
+
+      <footer class="flight-modal__footer">
+        <p class="calendar-status" *ngIf="flightCalendarMessage()">{{ flightCalendarMessage() }}</p>
+
+        <div class="flight-modal__actions">
+          <a routerLink="/calendar" class="calendar-link" *ngIf="flightCalendarMessage() === 'Added to calendar'">
+            View calendar
+          </a>
+          <button type="button" class="modal-secondary-btn" (click)="closeSelectedFlightModal()">Close</button>
+          <button
+            type="button"
+            class="modal-primary-btn"
+            [disabled]="isAddingFlightToCalendar()"
+            (click)="addSelectedFlightToCalendar()">
+            {{ isAddingFlightToCalendar() ? 'Adding...' : 'Add to calendar' }}
+          </button>
+        </div>
+      </footer>
     </section>
   </div>
 </section>

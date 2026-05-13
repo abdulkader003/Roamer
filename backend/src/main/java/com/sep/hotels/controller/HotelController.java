@@ -30,11 +30,11 @@ public class HotelController {
 
     @GetMapping
     public ResponseEntity<?> searchHotels(
-            @RequestParam String location,
-            @RequestParam String checkIn,
-            @RequestParam String checkOut,
-            @RequestParam(required = false) Integer adults,
-            @RequestParam(required = false) Integer children
+            @RequestParam("location") String location,
+            @RequestParam("checkIn") String checkIn,
+            @RequestParam("checkOut") String checkOut,
+            @RequestParam(value = "adults", required = false) Integer adults,
+            @RequestParam(value = "children", required = false) Integer children
     ) {
         String validationError = validate(location, checkIn, checkOut, adults, children);
         if (validationError != null) {
