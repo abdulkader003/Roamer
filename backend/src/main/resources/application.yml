@@ -6,9 +6,22 @@ spring:
   application:
     name: sep-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sep}
-    username: ${SPRING_DATASOURCE_USERNAME:sep}
-    password: ${SPRING_DATASOURCE_PASSWORD:sepsep123}
+    url: jdbc:postgresql://localhost:5432/sep
+    username: sep
+    password: sepsep123
+
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAMEL:sepdrivec@gmail.com}
+    password: ${MAIL_PASSWORD:omxd wvmu blwr zbfw}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
@@ -18,12 +31,20 @@ spring:
 
 external:
   aviationstack:
-    access-key: ${AVIATIONSTACK_ACCESS_KEY}
+    access-key: ${AVIATIONSTACK_ACCESS_KEY:9c23442025c71c4f389631e73661b449}
     base-url: ${AVIATIONSTACK_BASE_URL:http://api.aviationstack.com/v1}
-
 
 agoda:
   rapidapi:
-    key: ${RAPIDAPI_KEY:}
+    key: ${RAPIDAPI_KEY:1886dd5ad1msh7b9de41da81a229p1b918bjsn5c39246e02d1}
     host: ${RAPIDAPI_HOST:agoda-com.p.rapidapi.com}
     base-url: ${RAPIDAPI_BASE_URL:https://agoda-com.p.rapidapi.com}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:U0VQX0RFVl9KV1RfU0VDUkVUX0NIQU5HRV9NRV9CRUZPUkVfUFJPRFVDVElPTl8xMjM0NTY3ODkw}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:43200}
+
+
+ticketmaster:
+  api-key: ${TICKETMASTER_API_KEY:m2TfR4rKANzCJw0YsmEkNvuOymytTOpj}

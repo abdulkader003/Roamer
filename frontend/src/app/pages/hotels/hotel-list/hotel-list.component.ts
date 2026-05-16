@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { CalendarEvent, Hotel, HotelSort } from '../models/hotel.model';
 import { CalendarService } from '../services/calendar.service';
+import { AuthService } from '../../../services/auth';
 
 @Component({
   selector: 'app-hotel-list',
@@ -24,7 +25,10 @@ export class HotelListComponent {
   calendarMessage = '';
   currentImageIndex = 0;
 
-  constructor(private calendarService: CalendarService) {}
+  constructor(
+    private calendarService: CalendarService,
+    private authService: AuthService,
+  ) {}
 
   sortHotels(type: HotelSort) {
     this.selectedSort = type;
@@ -81,9 +85,13 @@ export class HotelListComponent {
     this.currentImageIndex = (this.currentImageIndex + 1) % imageCount;
   }
 
-  addToCalendar() {
+  async addToCalendar() {
     if (!this.selectedHotel) {
       return;
+    }
+
+    if (!this.authService.isAuthenticated()) {
+      this.calendarMessage = 'Log in to save stays to your calendar.';
     }
 
     const stayDetails = this.getStayDetails(this.selectedHotel);
@@ -98,11 +106,20 @@ export class HotelListComponent {
       startDate: this.selectedHotel.checkIn,
       endDate: this.selectedHotel.checkOut,
       price: stayDetails.totalPrice,
+      location: this.selectedHotel.city,
+      category: 'Hotel',
       description: this.buildCalendarDescription(this.selectedHotel, stayDetails)
     };
 
-    this.calendarService.addEvent(event);
-    this.calendarMessage = 'Added to calendar';
+    try {
+      const result = await this.calendarService.addEventOrRedirectToLogin(event);
+      this.calendarMessage = result === 'added'
+        ? 'Added to calendar'
+        : 'Continue with login to save this stay to your calendar.';
+    } catch (error) {
+      console.error('Error adding hotel stay to calendar:', error);
+      this.calendarMessage = 'Unable to add this stay right now.';
+    }
   }
 
   trackByHotelId(_index: number, hotel: Hotel) {

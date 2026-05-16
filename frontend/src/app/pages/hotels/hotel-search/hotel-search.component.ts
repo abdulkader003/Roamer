@@ -52,15 +52,28 @@ export class HotelSearchComponent implements OnDestroy {
   displayedHotels: Hotel[] = [];
   selectedHotel: Hotel | null = null;
   selectedSort: HotelSort = 'recommended';
+  selectedPriceFilter = 'All prices';
+  selectedStarFilter = 'All stars';
+  selectedScoreFilter = 'Any score';
+  selectedAmenities: string[] = [];
+  filtersDrawerOpen = false;
   calendarMessage = '';
   currentImageIndex = 0;
   activeCitySuggestionIndex = 0;
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  readonly priceFilters = ['All prices', 'Budget', 'Mid-range', 'Premium'];
+  readonly starFilters = ['All stars', '5-star', '4-star', '3-star & below'];
+  readonly scoreFilters = ['Any score', 'Wonderful 9+', 'Very good 8+', 'Good 7+'];
+  readonly sortOptions: Array<{ value: HotelSort; label: string; meta: string }> = [
+    { value: 'recommended', label: 'Recommended', meta: 'Balanced value' },
+    { value: 'rating', label: 'Top rated', meta: 'Best guest score' },
+    { value: 'price', label: 'Lowest price', meta: 'Budget first' },
+    { value: 'stars', label: 'Most stars', meta: 'Luxury first' },
+  ];
 
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private previousBodyOverflow: string | null = null;
   private destinationFocusTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private searchSequence = 0;
 
   readonly cityOptions = HOTEL_DESTINATION_NAMES;
 
@@ -115,13 +128,13 @@ export class HotelSearchComponent implements OnDestroy {
     this.guestsOpen = false;
     this.setActiveDatePicker(null);
     this.setDestinationOverlayOpen(false);
+    this.closeFiltersDrawer();
     this.isLoading = true;
     this.isSearching = true;
     this.hasSearched = true;
     this.hotels = [];
     this.displayedHotels = [];
     this.selectedHotel = null;
-    const searchId = ++this.searchSequence;
 
     const selectedLocation = this.location.trim();
     const apiCheckIn = this.toApiDate(this.checkIn);
@@ -132,9 +145,6 @@ export class HotelSearchComponent implements OnDestroy {
       .pipe(
         timeout(30000),
         finalize(() => {
-          if (searchId !== this.searchSequence) {
-            return;
-          }
           this.isLoading = false;
           this.isSearching = false;
           this.changeDetectorRef.detectChanges();
@@ -142,9 +152,6 @@ export class HotelSearchComponent implements OnDestroy {
       )
       .subscribe({
         next: (hotels) => {
-          if (searchId !== this.searchSequence) {
-            return;
-          }
           this.hotels = this.withSearchDetails(Array.isArray(hotels) ? hotels : []);
           this.applySort();
           this.showToast(
@@ -156,9 +163,6 @@ export class HotelSearchComponent implements OnDestroy {
           this.changeDetectorRef.detectChanges();
         },
         error: (error) => {
-          if (searchId !== this.searchSequence) {
-            return;
-          }
           console.error('[HotelSearch] search failed', error);
           this.searchError = this.getSearchErrorMessage(error);
           this.hotels = [];
@@ -514,6 +518,48 @@ export class HotelSearchComponent implements OnDestroy {
     this.applySort();
   }
 
+  toggleFiltersDrawer(): void {
+    this.filtersDrawerOpen = !this.filtersDrawerOpen;
+  }
+
+  closeFiltersDrawer(): void {
+    this.filtersDrawerOpen = false;
+  }
+
+  setPriceFilter(value: string): void {
+    this.selectedPriceFilter = value;
+    this.applySort();
+  }
+
+  setStarFilter(value: string): void {
+    this.selectedStarFilter = value;
+    this.applySort();
+  }
+
+  setScoreFilter(value: string): void {
+    this.selectedScoreFilter = value;
+    this.applySort();
+  }
+
+  toggleAmenityFilter(amenity: string): void {
+    this.selectedAmenities = this.selectedAmenities.includes(amenity)
+      ? this.selectedAmenities.filter((item) => item !== amenity)
+      : [...this.selectedAmenities, amenity];
+
+    this.applySort();
+  }
+
+  resetFilters(): void {
+    this.selectedPriceFilter = 'All prices';
+    this.selectedStarFilter = 'All stars';
+    this.selectedScoreFilter = 'Any score';
+    this.selectedAmenities = [];
+    this.selectedSort = 'recommended';
+    this.applySort();
+    this.closeFiltersDrawer();
+    this.showToast('Hotel filters reset.', 'info');
+  }
+
   selectHotel(hotel: Hotel): void {
     this.selectedHotel = hotel;
     this.calendarMessage = '';
@@ -577,13 +623,22 @@ export class HotelSearchComponent implements OnDestroy {
       startDate: this.selectedHotel.checkIn,
       endDate: this.selectedHotel.checkOut,
       price: stayDetails.totalPrice,
+      location: this.selectedHotel.city,
+      category: 'Hotel',
       description: this.buildCalendarDescription(this.selectedHotel, stayDetails),
     };
 
     try {
-      await this.calendarService.addEvent(event);
-      this.calendarMessage = 'Added to calendar';
-      this.showToast(`${this.selectedHotel.name} added to calendar.`, 'success');
+      const result = await this.calendarService.addEventOrRedirectToLogin(event);
+      this.calendarMessage = result === 'added'
+        ? 'Added to calendar'
+        : 'Continue with login to save this stay to your calendar.';
+      this.showToast(
+        result === 'added'
+          ? `${this.selectedHotel.name} added to calendar.`
+          : 'Continue with login to save this stay to your calendar.',
+        result === 'added' ? 'success' : 'info'
+      );
     } catch (error) {
       console.error('Error adding hotel stay to calendar:', error);
       this.calendarMessage = 'Unable to add this stay right now.';
@@ -666,6 +721,37 @@ export class HotelSearchComponent implements OnDestroy {
 
   getKeyAmenities(hotel: Hotel): string[] {
     return hotel.amenities?.slice(0, 4) ?? [];
+  }
+
+  get availableAmenities(): string[] {
+    const counts = new Map<string, number>();
+
+    for (const hotel of this.hotels) {
+      for (const amenity of hotel.amenities ?? []) {
+        counts.set(amenity, (counts.get(amenity) ?? 0) + 1);
+      }
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 8)
+      .map(([amenity]) => amenity);
+  }
+
+  priceFilterCount(filter: string): number {
+    return this.hotels.filter((hotel) => this.matchesPriceFilter(hotel, filter)).length;
+  }
+
+  starFilterCount(filter: string): number {
+    return this.hotels.filter((hotel) => this.matchesStarFilter(hotel, filter)).length;
+  }
+
+  scoreFilterCount(filter: string): number {
+    return this.hotels.filter((hotel) => this.matchesScoreFilter(hotel, filter)).length;
+  }
+
+  amenityFilterCount(amenity: string): number {
+    return this.hotels.filter((hotel) => (hotel.amenities ?? []).includes(amenity)).length;
   }
 
   private showToast(message: string, type: StatusToastType = 'info'): void {
@@ -796,7 +882,12 @@ export class HotelSearchComponent implements OnDestroy {
   }
 
   private applySort(): void {
-    let sortedHotels = [...this.hotels];
+    let sortedHotels = this.hotels.filter((hotel) =>
+      this.matchesPriceFilter(hotel, this.selectedPriceFilter)
+      && this.matchesStarFilter(hotel, this.selectedStarFilter)
+      && this.matchesScoreFilter(hotel, this.selectedScoreFilter)
+      && this.matchesAmenityFilters(hotel)
+    );
 
     switch (this.selectedSort) {
       case 'price':
@@ -813,6 +904,65 @@ export class HotelSearchComponent implements OnDestroy {
     }
 
     this.displayedHotels = sortedHotels;
+  }
+
+  private matchesPriceFilter(hotel: Hotel, filter: string): boolean {
+    if (filter === 'All prices') {
+      return true;
+    }
+
+    if (filter === 'Budget') {
+      return hotel.pricePerNight <= 120;
+    }
+
+    if (filter === 'Mid-range') {
+      return hotel.pricePerNight > 120 && hotel.pricePerNight <= 250;
+    }
+
+    return hotel.pricePerNight > 250;
+  }
+
+  private matchesStarFilter(hotel: Hotel, filter: string): boolean {
+    if (filter === 'All stars') {
+      return true;
+    }
+
+    if (filter === '5-star') {
+      return hotel.stars >= 5;
+    }
+
+    if (filter === '4-star') {
+      return hotel.stars >= 4;
+    }
+
+    return hotel.stars <= 3;
+  }
+
+  private matchesScoreFilter(hotel: Hotel, filter: string): boolean {
+    const score = Number(this.getRatingScore(hotel));
+
+    if (filter === 'Any score') {
+      return true;
+    }
+
+    if (filter === 'Wonderful 9+') {
+      return score >= 9;
+    }
+
+    if (filter === 'Very good 8+') {
+      return score >= 8;
+    }
+
+    return score >= 7;
+  }
+
+  private matchesAmenityFilters(hotel: Hotel): boolean {
+    if (!this.selectedAmenities.length) {
+      return true;
+    }
+
+    const hotelAmenities = hotel.amenities ?? [];
+    return this.selectedAmenities.every((amenity) => hotelAmenities.includes(amenity));
   }
 
   private parseDateInput(value: string): Date | null {

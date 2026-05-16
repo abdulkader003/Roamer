@@ -28,5 +28,10 @@ export interface CalendarEvent {
   startDate: string;
   endDate: string;
   price: number;
+  location?: string;
+  category?: string;
+  notes?: string;
+  startTime?: string;
+  endTime?: string;
   description?: string;
 }
