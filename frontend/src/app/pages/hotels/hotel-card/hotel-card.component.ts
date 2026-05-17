@@ -28,7 +28,9 @@ export class HotelCardComponent {
   errorMessage = '';
   currentImageIndex = 0;
 
-  constructor(private calendarService: CalendarService) {}
+  constructor(
+    private calendarService: CalendarService,
+  ) {}
 
   get numberOfNights(): number | null {
     return this.stayDetails?.nights ?? null;
@@ -93,7 +95,7 @@ export class HotelCardComponent {
     this.currentImageIndex = index;
   }
 
-  addToCalendar() {
+  async addToCalendar() {
     const stayDetails = this.stayDetails;
 
     if (!stayDetails) {
@@ -108,10 +110,20 @@ export class HotelCardComponent {
       startDate: this.hotel.checkIn,
       endDate: this.hotel.checkOut,
       price: stayDetails.totalPrice,
+      location: this.hotel.city,
+      category: 'Hotel',
       description: this.buildEventDescription(stayDetails)
     };
 
-    this.calendarService.addEvent(event);
+    try {
+      const result = await this.calendarService.addEventOrRedirectToLogin(event);
+      this.errorMessage = result === 'added'
+        ? 'Added to calendar'
+        : 'Continue with login to save this stay to your calendar.';
+    } catch (error) {
+      console.error('Error adding hotel stay to calendar:', error);
+      this.errorMessage = 'Unable to add this stay to the calendar right now.';
+    }
   }
 
   private get stayDetails(): { nights: number; totalPrice: number } | null {

@@ -102,125 +102,218 @@
 </section>
 
 <section class="results page-shell" #resultsSection>
-  <div class="results-header">
-    <div>
-      <p class="eyebrow">Available stays</p>
-      <h2 *ngIf="hasSearched && !isSearching">{{ hotels.length }} result{{ hotels.length === 1 ? '' : 's' }}</h2>
-      <h2 *ngIf="!hasSearched && !isSearching">Start with a destination</h2>
-      <h2 *ngIf="isSearching">Preparing results</h2>
-    </div>
+  <button type="button" class="filters-trigger" (click)="toggleFiltersDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="20" y2="6"></line>
+      <line x1="7" y1="12" x2="17" y2="12"></line>
+      <line x1="10" y1="18" x2="14" y2="18"></line>
+    </svg>
+    Filters
+  </button>
 
-    <p class="results-copy">
-      <span *ngIf="hasSearched && !isSearching && hotels.length">
-        Prices are shown per night for your selected dates.
-      </span>
-      <span *ngIf="!hasSearched && !isSearching">
-        Use the search above to preview the current hotel experience.
-      </span>
-      <span *ngIf="isSearching">Checking availability and polishing the shortlist.</span>
-    </p>
-  </div>
-
-  <div class="loading-grid" *ngIf="isSearching" aria-live="polite">
-    <div class="skeleton-card" *ngFor="let item of [1, 2, 3]">
-      <div class="skeleton-image"></div>
-      <div class="skeleton-lines">
-        <span></span>
-        <span></span>
-        <span></span>
+  <div class="results-layout">
+    <aside class="filters" [class.open]="filtersDrawerOpen" aria-label="Hotel filters">
+      <div class="filters-head">
+        <h3>Filters</h3>
+        <div class="filters-head__actions">
+          <button type="button" class="link-btn" (click)="resetFilters()">Reset all</button>
+          <button type="button" class="filters-close" (click)="closeFiltersDrawer()" aria-label="Close filters">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <div class="empty-state" *ngIf="hasSearched && !isSearching && hotels.length === 0">
-    <p>No stays matched that destination.</p>
-    <button type="button" (click)="selectDestination('')">Clear destination</button>
-  </div>
-
-  <div class="hotel-container" *ngIf="!isSearching && hotels.length > 0">
-    <div class="toolbar">
-      <button class="filter-btn" type="button">
-        <span class="filter-dot"></span>
-        Filters
-      </button>
-
-      <div class="tabs" role="tablist" aria-label="Sort hotels">
-        <button
-          type="button"
-          role="tab"
-          class="tab"
-          [class.active]="selectedSort === 'recommended'"
-          (click)="sortHotels('recommended')">
-          Recommended
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          class="tab"
-          [class.active]="selectedSort === 'rating'"
-          (click)="sortHotels('rating')">
-          Top rated
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          class="tab"
-          [class.active]="selectedSort === 'price'"
-          (click)="sortHotels('price')">
-          Lowest price
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          class="tab"
-          [class.active]="selectedSort === 'stars'"
-          (click)="sortHotels('stars')">
-          Most stars
-        </button>
+      <div class="filter-group">
+        <h4>Price level</h4>
+        <div class="check-list">
+          <button
+            *ngFor="let option of priceFilters"
+            type="button"
+            class="check-row"
+            [class.checked]="selectedPriceFilter === option"
+            (click)="setPriceFilter(option)">
+            <span class="check-left">
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="check-label">{{ option }}</span>
+            </span>
+            <span class="check-count">{{ priceFilterCount(option) }}</span>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <article class="hotel-card" *ngFor="let hotel of displayedHotels; trackBy: trackByHotelId">
-      <button class="image-button" type="button" (click)="selectHotel(hotel)" [attr.aria-label]="'View ' + hotel.name">
-        <img [src]="hotel.image" [alt]="hotel.name" />
-        <span class="image-badge">{{ hotel.tag }}</span>
-      </button>
+      <div class="filter-group">
+        <h4>Star rating</h4>
+        <div class="check-list">
+          <button
+            *ngFor="let option of starFilters"
+            type="button"
+            class="check-row"
+            [class.checked]="selectedStarFilter === option"
+            (click)="setStarFilter(option)">
+            <span class="check-left">
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="check-label">{{ option }}</span>
+            </span>
+            <span class="check-count">{{ starFilterCount(option) }}</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="hotel-content">
+      <div class="filter-group">
+        <h4>Guest score</h4>
+        <div class="check-list">
+          <button
+            *ngFor="let option of scoreFilters"
+            type="button"
+            class="check-row"
+            [class.checked]="selectedScoreFilter === option"
+            (click)="setScoreFilter(option)">
+            <span class="check-left">
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="check-label">{{ option }}</span>
+            </span>
+            <span class="check-count">{{ scoreFilterCount(option) }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group" *ngIf="availableAmenities.length">
+        <h4>Amenities</h4>
+        <div class="check-list">
+          <button
+            *ngFor="let amenity of availableAmenities"
+            type="button"
+            class="check-row"
+            [class.checked]="selectedAmenities.includes(amenity)"
+            (click)="toggleAmenityFilter(amenity)">
+            <span class="check-left">
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="check-label">{{ amenity }}</span>
+            </span>
+            <span class="check-count">{{ amenityFilterCount(amenity) }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Sort</h4>
+        <div class="sort-list">
+          <button
+            *ngFor="let option of sortOptions"
+            type="button"
+            class="sort-row"
+            [class.active]="selectedSort === option.value"
+            (click)="sortHotels(option.value)">
+            <span class="sort-label">{{ option.label }}</span>
+            <span class="sort-meta">{{ option.meta }}</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="filters-backdrop" [class.open]="filtersDrawerOpen" (click)="closeFiltersDrawer()"></div>
+
+    <div class="results-main">
+      <div class="results-header">
         <div>
-          <p class="city">{{ hotel.city }}</p>
-          <h3>{{ hotel.name }}</h3>
+          <p class="eyebrow">Available stays</p>
+          <h2 *ngIf="hasSearched && !isSearching">{{ displayedHotels.length }} result{{ displayedHotels.length === 1 ? '' : 's' }}</h2>
+          <h2 *ngIf="!hasSearched && !isSearching">Start with a destination</h2>
+          <h2 *ngIf="isSearching">Preparing results</h2>
         </div>
 
-        <div class="meta-row">
-          <span>{{ getDistanceLabel(hotel) }}</span>
-        </div>
-
-        <p class="description">
-          {{ hotel.description }}
+        <p class="results-copy">
+          <span *ngIf="hasSearched && !isSearching && displayedHotels.length">
+            Prices are shown per night for your selected dates.
+          </span>
+          <span *ngIf="!hasSearched && !isSearching">
+            Use the search above to preview the current hotel experience.
+          </span>
+          <span *ngIf="isSearching">Checking availability and polishing the shortlist.</span>
         </p>
+      </div>
 
-        <div class="booking-rating">
-          <span class="rating">{{ getRatingScore(hotel) }}</span>
-          <strong>{{ getRatingLabel(hotel) }}</strong>
-          <span>{{ getReviewCount(hotel) }} reviews</span>
-        </div>
-
-        <div class="amenity-strip" *ngIf="getKeyAmenities(hotel).length">
-          <span *ngFor="let amenity of getKeyAmenities(hotel)">{{ amenity }}</span>
+      <div class="loading-grid" *ngIf="isSearching" aria-live="polite">
+        <div class="skeleton-card" *ngFor="let item of [1, 2, 3]">
+          <div class="skeleton-image"></div>
+          <div class="skeleton-lines">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
         </div>
       </div>
 
-      <div class="hotel-price">
-        <p>{{ formatStayDetails(hotel) }}</p>
-        <strong>{{ formatTotalPrice(hotel) }}</strong>
-        <span>Includes taxes and fees</span>
-        <button type="button" (click)="selectHotel(hotel)">Choose stay</button>
+      <div class="empty-state" *ngIf="hasSearched && !isSearching && hotels.length === 0">
+        <p>No stays matched that destination.</p>
+        <button type="button" (click)="selectDestination('')">Clear destination</button>
       </div>
-    </article>
+
+      <div class="empty-state" *ngIf="hasSearched && !isSearching && hotels.length > 0 && displayedHotels.length === 0">
+        <p>No stays match the current filters.</p>
+        <button type="button" (click)="resetFilters()">Clear filters</button>
+      </div>
+
+      <div class="hotel-container" *ngIf="!isSearching && displayedHotels.length > 0">
+        <article class="hotel-card" *ngFor="let hotel of displayedHotels; trackBy: trackByHotelId">
+          <button class="image-button" type="button" (click)="selectHotel(hotel)" [attr.aria-label]="'View ' + hotel.name">
+            <img [src]="hotel.image" [alt]="hotel.name" />
+            <span class="image-badge">{{ hotel.tag }}</span>
+          </button>
+
+          <div class="hotel-content">
+            <div>
+              <p class="city">{{ hotel.city }}</p>
+              <h3>{{ hotel.name }}</h3>
+            </div>
+
+            <div class="meta-row">
+              <span>{{ getDistanceLabel(hotel) }}</span>
+            </div>
+
+            <p class="description">
+              {{ hotel.description }}
+            </p>
+
+            <div class="booking-rating">
+              <span class="rating">{{ getRatingScore(hotel) }}</span>
+              <strong>{{ getRatingLabel(hotel) }}</strong>
+              <span>{{ getReviewCount(hotel) }} reviews</span>
+            </div>
+
+            <div class="amenity-strip" *ngIf="getKeyAmenities(hotel).length">
+              <span *ngFor="let amenity of getKeyAmenities(hotel)">{{ amenity }}</span>
+            </div>
+          </div>
+
+          <div class="hotel-price">
+            <p>{{ formatStayDetails(hotel) }}</p>
+            <strong>{{ formatTotalPrice(hotel) }}</strong>
+            <span>Includes taxes and fees</span>
+            <button type="button" (click)="selectHotel(hotel)">Choose stay</button>
+          </div>
+        </article>
+      </div>
+    </div>
   </div>
 </section>
 
