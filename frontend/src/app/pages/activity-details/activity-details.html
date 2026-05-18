@@ -1,113 +1,182 @@
-@if (activity; as activity) {
-  <div class="details-page">
-    <section class="details-hero">
-      <div class="hero-image-wrapper">
-        <img [src]="activity.image" [alt]="activity.title" class="hero-image" />
-        <div class="hero-overlay"></div>
-        <div class="hero-topbar">
-          <a routerLink="/activities" class="back-btn">← Back to activities</a>
-          <span class="rating-badge">★ {{ activity.rating }}</span>
+<div class="activity-details-page">
+  <div class="details-shell">
+    <button type="button" class="back-link" (click)="goBackToActivities()">← Back to activities</button>
+
+    <div class="loading-state" *ngIf="loading && !activity">
+      Loading activity details...
+    </div>
+
+    <div class="error-state" *ngIf="!loading && errorMessage && !activity">
+      <h2>Something went wrong</h2>
+      <p>{{ errorMessage }}</p>
+      <button type="button" class="primary-btn" (click)="goBackToActivities()">Go back</button>
+    </div>
+
+    <section class="details-content" *ngIf="activity as activity">
+      <div class="hero-card">
+        <div class="hero-media">
+          <div class="hero-image-wrapper">
+            <img
+              class="hero-image"
+              [src]="getHeroImageUrl()"
+              [alt]="activity.title"
+            />
+            <div class="hero-overlay"></div>
+
+            <span class="featured-badge" *ngIf="activity.featured">Featured</span>
+            <span class="rating-badge">★ {{ activity.rating }}</span>
+          </div>
+
+          <div class="gallery-strip" *ngIf="getGalleryImages(activity).length > 1">
+            <button
+              type="button"
+              class="gallery-thumb"
+              *ngFor="let image of getGalleryImages(activity)"
+              [class.active]="image.url === selectedImageUrl"
+              (click)="selectImage(image)">
+              <img [src]="getImageUrl(image.url)" [alt]="activity.title" />
+            </button>
+          </div>
         </div>
-        <div class="hero-content">
-          <div class="hero-badges">
+
+        <div class="hero-info">
+          <div class="hero-top-row">
             <span class="category-badge" [ngClass]="getCategoryClass(activity.category)">
               {{ activity.category }}
             </span>
-            <span class="time-badge">{{ activity.timeOfDay }}</span>
-            @if (activity.featured) {
-              <span class="featured-badge">Featured</span>
-            }
+            <div class="hero-badges">
+              <span class="status-badge">{{ getStatusLabel(activity) }}</span>
+              <span class="time-badge">{{ activity.timeOfDay }}</span>
+            </div>
           </div>
+
           <h1>{{ activity.title }}</h1>
-          <p class="hero-location">{{ activity.city }}, {{ activity.country }} • {{ activity.venue }}</p>
-        </div>
-      </div>
-    </section>
-    <section class="details-content">
-      <div class="main-content">
-        <div class="info-card">
-          <h2>About this activity</h2>
-          <p>{{ activity.description }}</p>
-          <p>
-            This experience is ideal for travelers looking to explore
-            <strong>{{ activity.city }}</strong>
-            through a realistic and well-matched activity option.
+
+          <div class="location-line">
+            <span>{{ getVenueLocation(activity) }}</span>
+            <span class="dot">•</span>
+            <span>{{ activity.venue }}</span>
+          </div>
+
+          <p class="description">
+            {{ getDisplayDescription(activity) }}
           </p>
-        </div>
-        <div class="info-card">
-          <h2>What to expect</h2>
-          <ul>
-            <li>Well-located experience in {{ activity.city }}</li>
-            <li>Suitable for {{ activity.timeOfDay.toLowerCase() }} plans</li>
-            <li>Clear pricing and duration for easier trip planning</li>
-            <li>Fits well into city exploration and travel itineraries</li>
-          </ul>
-        </div>
-        @if (relatedActivities.length > 0) {
-          <div class="info-card">
-            <h2>Related activities</h2>
-            <div class="related-grid">
-              @for (related of relatedActivities; track related) {
-                <a
-                  class="related-card"
-                  [routerLink]="['/activities', related.id]"
-                  >
-                  <img [src]="related.image" [alt]="related.title" />
-                  <div class="related-card-content">
-                    <span>{{ related.city }}</span>
-                    <h3>{{ related.title }}</h3>
-                    <p>{{ related.category }} • €{{ related.price }}</p>
-                  </div>
-                </a>
-              }
+
+          <div class="meta-grid">
+            <div class="meta-card">
+              <span class="meta-label">Starts</span>
+              <span class="meta-value">{{ getDisplayStartDate(activity) }}</span>
+              <span class="meta-subvalue">{{ getDisplayStartTime(activity) }}</span>
+            </div>
+
+            <div class="meta-card">
+              <span class="meta-label">Ends</span>
+              <span class="meta-value">{{ getDisplayEndDate(activity) }}</span>
+              <span class="meta-subvalue">{{ getDisplayDuration(activity) }}</span>
+            </div>
+
+            <div class="meta-card">
+              <span class="meta-label">Price</span>
+              <span class="meta-value highlight">{{ getDisplayPrice(activity) }}</span>
+              <span class="meta-subvalue">{{ getDisplayPriceLevel(activity) }}</span>
+            </div>
+
+            <div class="meta-card">
+              <span class="meta-label">Event type</span>
+              <span class="meta-value">{{ getEventType(activity) }}</span>
+              <span class="meta-subvalue">{{ activity.source || 'Ticketmaster Discovery' }}</span>
             </div>
           </div>
-        }
+
+          <div class="action-row">
+            <a class="primary-btn" *ngIf="hasTicketLink(activity)" [href]="activity.url" target="_blank" rel="noreferrer">
+              Buy tickets
+            </a>
+            <a class="secondary-btn" *ngIf="hasSeatmap(activity)" [href]="activity.seatmapUrl" target="_blank" rel="noreferrer">
+              Seatmap
+            </a>
+            <a class="secondary-btn" *ngIf="hasVenueLink(activity)" [href]="activity.venueUrl" target="_blank" rel="noreferrer">
+              Venue page
+            </a>
+            <button type="button" class="secondary-btn" (click)="goBackToActivities()">Browse more</button>
+          </div>
+        </div>
       </div>
-      <aside class="sidebar-card">
-        <div class="booking-card">
-          <div class="price-row">
-            <span class="from-label">From</span>
-            @if (activity.price > 0) {
-              <span class="price">€{{ activity.price }}</span>
-            }
-            @if (activity.price === 0) {
-              <span class="price">Free</span>
-            }
+
+      <div class="details-sections">
+        <section class="info-card">
+          <h2>About this event</h2>
+          <p>{{ getDisplayDescription(activity) }}</p>
+
+          <div class="chip-list" *ngIf="getClassificationChips(activity).length > 0">
+            <span class="detail-chip" *ngFor="let chip of getClassificationChips(activity)">
+              {{ chip }}
+            </span>
           </div>
-          <div class="meta-list">
-            <div class="meta-item">
-              <span class="label">Duration</span>
-              <span class="value">{{ activity.duration }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">Time</span>
-              <span class="value">{{ activity.timeOfDay }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">Price Level</span>
-              <span class="value">{{ activity.priceLevel }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">Venue</span>
-              <span class="value">{{ activity.venue }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">City</span>
-              <span class="value">{{ activity.city }}</span>
+        </section>
+
+        <section class="info-card">
+          <h2>Ticketing</h2>
+          <ul class="info-list">
+            <li><strong>Status:</strong> {{ getStatusLabel(activity) }}</li>
+            <li><strong>Public sales:</strong> {{ getSalesWindow(activity) }}</li>
+            <li><strong>Ticket limit:</strong> {{ activity.ticketLimitInfo || 'Not provided' }}</li>
+            <li><strong>Price range:</strong> {{ getDisplayPrice(activity) }}</li>
+          </ul>
+
+          <div class="presales" *ngIf="getPresales(activity).length > 0">
+            <h3>Presales</h3>
+            <div class="presale-card" *ngFor="let presale of getPresales(activity)">
+              <strong>{{ presale.name || 'Presale' }}</strong>
+              <p *ngIf="presale.description">{{ presale.description }}</p>
+              <span>{{ presale.startDateTime || 'Start TBD' }} → {{ presale.endDateTime || 'End TBD' }}</span>
             </div>
           </div>
-          <button class="primary-btn" type="button">Add to trip</button>
-          <button class="secondary-btn" type="button">Save for later</button>
-        </div>
-      </aside>
+        </section>
+
+        <section class="info-card">
+          <h2>Venue details</h2>
+          <ul class="info-list">
+            <li><strong>Venue:</strong> {{ activity.venue }}</li>
+            <li><strong>Address:</strong> {{ getVenueAddress(activity) }}</li>
+            <li><strong>Timezone:</strong> {{ activity.venueTimezone || activity.venueDetails?.timezone || 'Not provided' }}</li>
+            <li><strong>Accessibility:</strong> {{ activity.accessibilityInfo || activity.venueDetails?.accessibleSeatingDetail || 'Not provided' }}</li>
+            <li><strong>Parking:</strong> {{ activity.venueDetails?.parkingDetail || 'Not provided' }}</li>
+          </ul>
+        </section>
+
+        <section class="info-card">
+          <h2>Attractions</h2>
+          <div class="attractions-grid" *ngIf="getAttractions(activity).length > 0; else noAttractions">
+            <article class="attraction-card" *ngFor="let attraction of getAttractions(activity)">
+              <img
+                *ngIf="attraction.images?.[0]?.url"
+                [src]="getImageUrl(attraction.images?.[0]?.url)"
+                [alt]="attraction.name || 'Attraction image'"
+              />
+              <div>
+                <strong>{{ attraction.name }}</strong>
+                <p>{{ attraction.classifications?.[0]?.genre?.name || attraction.classifications?.[0]?.segment?.name || 'Featured with this event' }}</p>
+              </div>
+            </article>
+          </div>
+          <ng-template #noAttractions>
+            <p>No linked attractions were returned for this event.</p>
+          </ng-template>
+        </section>
+
+        <section class="info-card" *ngIf="activity.pleaseNote || activity.info || activity.promoterName">
+          <h2>Additional information</h2>
+          <ul class="info-list">
+            <li *ngIf="activity.promoterName"><strong>Promoter:</strong> {{ activity.promoterName }}</li>
+            <li *ngIf="activity.promoterDescription"><strong>Promoter details:</strong> {{ activity.promoterDescription }}</li>
+            <li *ngIf="activity.info"><strong>Info:</strong> {{ activity.info }}</li>
+            <li *ngIf="activity.pleaseNote"><strong>Please note:</strong> {{ activity.pleaseNote }}</li>
+          </ul>
+        </section>
+      </div>
     </section>
   </div>
-} @else {
-  <section class="not-found">
-    <h2>Activity not found</h2>
-    <p>The activity you are looking for does not exist.</p>
-    <a routerLink="/activities" class="back-link">Back to activities</a>
-  </section>
-}
+</div>
 
+<app-status-toast [message]="toastMessage" [type]="toastType"></app-status-toast>

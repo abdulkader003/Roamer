@@ -1,865 +1,385 @@
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, tap } from 'rxjs';
+
 export type ActivityCategory =
   | 'Sightseeing'
   | 'Adventure'
   | 'Nightlife'
   | 'Food & Drink'
   | 'Relax'
-  | 'Culture';
+  | 'Culture'
+  | string;
 
-export type PriceLevel = 'Free' | 'Budget' | 'Mid-Range' | 'Premium';
-export type TimeOfDay = 'Morning' | 'Afternoon' | 'Evening' | 'Night';
+export type PriceLevel = 'Free' | 'Budget' | 'Mid-Range' | 'Premium' | string;
+export type TimeOfDay = 'Morning' | 'Afternoon' | 'Evening' | 'Night' | string;
+
+export interface ActivityImage {
+  url?: string;
+  ratio?: string;
+  width?: number;
+  height?: number;
+  fallback?: boolean;
+  attribution?: string;
+}
+
+export interface ActivityPriceRange {
+  type?: string;
+  currency?: string;
+  min?: number;
+  max?: number;
+}
+
+export interface ActivityEntityRef {
+  id?: string;
+  name?: string;
+}
+
+export interface ActivityClassification {
+  primary?: boolean;
+  family?: boolean;
+  segment?: ActivityEntityRef;
+  genre?: ActivityEntityRef;
+  subGenre?: ActivityEntityRef;
+  type?: ActivityEntityRef;
+  subType?: ActivityEntityRef;
+}
+
+export interface ActivityAttraction {
+  id?: string;
+  name?: string;
+  type?: string;
+  url?: string;
+  images?: ActivityImage[];
+  classifications?: ActivityClassification[];
+}
+
+export interface ActivityPromoter {
+  id?: string;
+  name?: string;
+  description?: string;
+}
+
+export interface ActivityOutlet {
+  url?: string;
+  type?: string;
+}
+
+export interface ActivityProduct {
+  id?: string;
+  name?: string;
+  type?: string;
+  url?: string;
+}
+
+export interface ActivityAddress {
+  line1?: string;
+  line2?: string;
+  line3?: string;
+}
+
+export interface ActivityLocation {
+  latitude?: string;
+  longitude?: string;
+}
+
+export interface ActivityVenueDetails {
+  id?: string;
+  name?: string;
+  type?: string;
+  url?: string;
+  timezone?: string;
+  postalCode?: string;
+  address?: ActivityAddress;
+  city?: ActivityEntityRef;
+  state?: {
+    name?: string;
+    stateCode?: string;
+  };
+  country?: {
+    name?: string;
+    countryCode?: string;
+  };
+  location?: ActivityLocation;
+  parkingDetail?: string;
+  accessibleSeatingDetail?: string;
+  generalInfo?: {
+    generalRule?: string;
+    childRule?: string;
+  };
+  boxOfficeInfo?: {
+    phoneNumberDetail?: string;
+    openHoursDetail?: string;
+    acceptedPaymentDetail?: string;
+    willCallDetail?: string;
+  };
+  social?: {
+    twitter?: {
+      handle?: string;
+      hashtags?: string[];
+    };
+  };
+}
+
+export interface ActivityPresale {
+  name?: string;
+  description?: string;
+  url?: string;
+  startDateTime?: string;
+  endDateTime?: string;
+}
+
+export interface ActivitySales {
+  public?: {
+    startDateTime?: string;
+    endDateTime?: string;
+    startTBD?: boolean;
+  };
+  presales?: ActivityPresale[];
+}
 
 export interface Activity {
-  id: number;
+  id: string;
   title: string;
+  type?: string;
+  url?: string;
+  locale?: string;
+  source?: string;
   city: string;
   country: string;
+  state?: string;
   category: ActivityCategory;
+  segment?: string;
+  genre?: string;
+  subGenre?: string;
   priceLevel: PriceLevel;
+  priceCurrency?: string;
   price: number;
+  minPrice?: number;
+  maxPrice?: number;
   rating: number;
   timeOfDay: TimeOfDay;
   duration: string;
   venue: string;
+  venueId?: string;
+  venueUrl?: string;
+  venueTimezone?: string;
+  venueAddress?: string;
+  venuePostalCode?: string;
+  venueLatitude?: number | null;
+  venueLongitude?: number | null;
   description: string;
+  info?: string;
+  pleaseNote?: string;
   image: string;
+  seatmapUrl?: string;
+  accessibilityInfo?: string;
+  ticketLimitInfo?: string;
+  status?: string;
+  promoterName?: string;
+  promoterDescription?: string;
   featured?: boolean;
+  tba?: boolean;
+  tbd?: boolean;
+  spanMultipleDays?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  salesStartDate?: string | null;
+  salesEndDate?: string | null;
+  sales?: ActivitySales | null;
+  priceRanges?: ActivityPriceRange[] | null;
+  images?: ActivityImage[] | null;
+  venueDetails?: ActivityVenueDetails | null;
+  attractions?: ActivityAttraction[] | null;
+  classifications?: ActivityClassification[] | null;
+  promoter?: ActivityPromoter | null;
+  promoters?: ActivityPromoter[] | null;
+  outlets?: ActivityOutlet[] | null;
+  products?: ActivityProduct[] | null;
 }
 
-export const ACTIVITIES: Activity[] = [
-  {
-    id: 1,
-    title: 'Thames Evening River Cruise',
-    city: 'London',
-    country: 'United Kingdom',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 34,
-    rating: 4.7,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Westminster Pier',
-    description:
-      'Enjoy a scenic cruise on the Thames with views of Big Ben, Tower Bridge and the London Eye.',
-    image:
-      'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 2,
-    title: 'Camden Market Street Food Walk',
-    city: 'London',
-    country: 'United Kingdom',
-    category: 'Food & Drink',
-    priceLevel: 'Budget',
-    price: 18,
-    rating: 4.6,
-    timeOfDay: 'Afternoon',
-    duration: '2.5h',
-    venue: 'Camden Market',
-    description:
-      'Taste your way through one of London’s most famous food spots with global street food options.',
-    image:
-      'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 3,
-    title: 'Soho Rooftop DJ Night',
-    city: 'London',
-    country: 'United Kingdom',
-    category: 'Nightlife',
-    priceLevel: 'Premium',
-    price: 42,
-    rating: 4.5,
-    timeOfDay: 'Night',
-    duration: '4h',
-    venue: 'Soho Rooftop Lounge',
-    description: 'A stylish rooftop party with city skyline views, cocktails and live DJ sets.',
-    image:
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 4,
-    title: 'Tower of London Guided Visit',
-    city: 'London',
-    country: 'United Kingdom',
-    category: 'Culture',
-    priceLevel: 'Mid-Range',
-    price: 32,
-    rating: 4.8,
-    timeOfDay: 'Morning',
-    duration: '2h',
-    venue: 'Tower of London',
-    description:
-      'Discover royal history, the Crown Jewels and iconic stories from one of London’s landmarks.',
-    image:
-      'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 5,
-    title: 'Hyde Park Bike Ride',
-    city: 'London',
-    country: 'United Kingdom',
-    category: 'Adventure',
-    priceLevel: 'Budget',
-    price: 15,
-    rating: 4.4,
-    timeOfDay: 'Morning',
-    duration: '1.5h',
-    venue: 'Hyde Park',
-    description: 'A relaxed but active bike ride through Hyde Park and nearby royal routes.',
-    image:
-      'https://images.unsplash.com/photo-1508973379184-7517410fb0dd?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 6,
-    title: 'Berlin Wall & East Side Gallery Tour',
-    city: 'Berlin',
-    country: 'Germany',
-    category: 'Culture',
-    priceLevel: 'Free',
-    price: 0,
-    rating: 4.7,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'East Side Gallery',
-    description:
-      'Walk along the East Side Gallery and learn about the city’s divided past and reunification.',
-    image:
-      'https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 7,
-    title: 'Museum Island Highlights',
-    city: 'Berlin',
-    country: 'Germany',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 24,
-    rating: 4.6,
-    timeOfDay: 'Morning',
-    duration: '3h',
-    venue: 'Museum Island',
-    description:
-      'Explore Berlin’s world-famous museum district and its iconic historic architecture.',
-    image:
-      'https://images.unsplash.com/photo-1587330979470-3595ac045ab0?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 8,
-    title: 'Spree Sunset Kayak Session',
-    city: 'Berlin',
-    country: 'Germany',
-    category: 'Adventure',
-    priceLevel: 'Mid-Range',
-    price: 29,
-    rating: 4.5,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'River Spree',
-    description:
-      'Paddle through central Berlin on the Spree and catch sunset views from the water.',
-    image:
-      'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 9,
-    title: 'Kreuzberg Craft Beer Crawl',
-    city: 'Berlin',
-    country: 'Germany',
-    category: 'Food & Drink',
-    priceLevel: 'Budget',
-    price: 21,
-    rating: 4.4,
-    timeOfDay: 'Evening',
-    duration: '3h',
-    venue: 'Kreuzberg',
-    description:
-      'Visit local bars and taste a mix of Berlin craft beers in one of the city’s most vibrant neighborhoods.',
-    image:
-      'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 10,
-    title: 'Techno Club Night Experience',
-    city: 'Berlin',
-    country: 'Germany',
-    category: 'Nightlife',
-    priceLevel: 'Premium',
-    price: 35,
-    rating: 4.3,
-    timeOfDay: 'Night',
-    duration: '6h',
-    venue: 'Friedrichshain Club District',
-    description:
-      'An energetic nightlife experience with Berlin’s underground electronic music scene.',
-    image:
-      'https://images.unsplash.com/photo-1571266028243-9f5f87b79fc4?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 11,
-    title: 'Sagrada Família Priority Visit',
-    city: 'Barcelona',
-    country: 'Spain',
-    category: 'Culture',
-    priceLevel: 'Mid-Range',
-    price: 30,
-    rating: 4.9,
-    timeOfDay: 'Morning',
-    duration: '1.5h',
-    venue: 'Sagrada Família',
-    description:
-      'Visit Gaudí’s masterpiece with skip-the-line access and detailed architectural insights.',
-    image:
-      'https://images.unsplash.com/photo-1583779457094-ab6f7df2b6f9?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 12,
-    title: 'Barceloneta Beach Club Afternoon',
-    city: 'Barcelona',
-    country: 'Spain',
-    category: 'Relax',
-    priceLevel: 'Premium',
-    price: 38,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '4h',
-    venue: 'Barceloneta Beach',
-    description: 'Spend the afternoon at a stylish beach club with loungers, music and sea views.',
-    image:
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 13,
-    title: 'Gothic Quarter Tapas Walk',
-    city: 'Barcelona',
-    country: 'Spain',
-    category: 'Food & Drink',
-    priceLevel: 'Budget',
-    price: 19,
-    rating: 4.7,
-    timeOfDay: 'Evening',
-    duration: '2.5h',
-    venue: 'Barri Gòtic',
-    description:
-      'Walk through the old city while enjoying tapas and local specialties in hidden spots.',
-    image:
-      'https://images.unsplash.com/photo-1515442261605-65987783cb6a?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 14,
-    title: 'Montjuïc Cable Car & Viewpoint',
-    city: 'Barcelona',
-    country: 'Spain',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 22,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'Montjuïc',
-    description: 'Ride up Montjuïc for panoramic city views, gardens and photo spots.',
-    image:
-      'https://images.unsplash.com/photo-1509840841025-9088ba78a826?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 15,
-    title: 'Beachside Pool Party',
-    city: 'Barcelona',
-    country: 'Spain',
-    category: 'Nightlife',
-    priceLevel: 'Premium',
-    price: 45,
-    rating: 4.4,
-    timeOfDay: 'Night',
-    duration: '5h',
-    venue: 'Port Olímpic',
-    description: 'A lively summer-style pool party with DJs, cocktails and a beachside atmosphere.',
-    image:
-      'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 16,
-    title: 'Retiro Park Rowboat Experience',
-    city: 'Madrid',
-    country: 'Spain',
-    category: 'Relax',
-    priceLevel: 'Budget',
-    price: 10,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '1h',
-    venue: 'El Retiro Park',
-    description:
-      'Relax on the lake in Retiro Park and enjoy one of Madrid’s classic city activities.',
-    image:
-      'https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 17,
-    title: 'Royal Palace & Historic Center Walk',
-    city: 'Madrid',
-    country: 'Spain',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 26,
-    rating: 4.7,
-    timeOfDay: 'Morning',
-    duration: '2h',
-    venue: 'Royal Palace of Madrid',
-    description: 'Discover Madrid’s royal heritage and elegant plazas with a guided walking route.',
-    image:
-      'https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 18,
-    title: 'Flamenco Night Show',
-    city: 'Madrid',
-    country: 'Spain',
-    category: 'Culture',
-    priceLevel: 'Premium',
-    price: 39,
-    rating: 4.8,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Centro Cultural Tablao',
-    description: 'Experience a powerful live flamenco performance in an intimate Madrid venue.',
-    image:
-      'https://images.unsplash.com/photo-1504609813442-a8924e83f76e?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 19,
-    title: 'Gran Vía Rooftop Cocktail Evening',
-    city: 'Madrid',
-    country: 'Spain',
-    category: 'Food & Drink',
-    priceLevel: 'Premium',
-    price: 31,
-    rating: 4.6,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Gran Vía',
-    description: 'Enjoy Madrid’s skyline at sunset with rooftop drinks and a stylish city vibe.',
-    image:
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 20,
-    title: 'Malasaña Club Night',
-    city: 'Madrid',
-    country: 'Spain',
-    category: 'Nightlife',
-    priceLevel: 'Mid-Range',
-    price: 24,
-    rating: 4.3,
-    timeOfDay: 'Night',
-    duration: '5h',
-    venue: 'Malasaña',
-    description: 'A fun clubbing experience in one of Madrid’s most popular nightlife districts.',
-    image:
-      'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 21,
-    title: 'Levada Walk in the Laurisilva Forest',
-    city: 'Madera',
-    country: 'Portugal',
-    category: 'Adventure',
-    priceLevel: 'Budget',
-    price: 16,
-    rating: 4.8,
-    timeOfDay: 'Morning',
-    duration: '3h',
-    venue: 'Laurisilva Trails',
-    description: 'A classic island levada hike through lush green landscapes and scenic paths.',
-    image:
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 22,
-    title: 'Funchal Old Town Walking Tour',
-    city: 'Madera',
-    country: 'Portugal',
-    category: 'Sightseeing',
-    priceLevel: 'Budget',
-    price: 14,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'Funchal Old Town',
-    description: 'Explore colorful streets, local history and charming corners of Funchal.',
-    image:
-      'https://images.unsplash.com/photo-1468413253725-0d5181091126?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 23,
-    title: 'Cabo Girão Skywalk Visit',
-    city: 'Madera',
-    country: 'Portugal',
-    category: 'Adventure',
-    priceLevel: 'Mid-Range',
-    price: 20,
-    rating: 4.6,
-    timeOfDay: 'Afternoon',
-    duration: '1.5h',
-    venue: 'Cabo Girão',
-    description:
-      'Stand above dramatic cliffs and enjoy one of the island’s most famous viewpoints.',
-    image:
-      'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 24,
-    title: 'Oceanfront Pool Lounge',
-    city: 'Madera',
-    country: 'Portugal',
-    category: 'Relax',
-    priceLevel: 'Premium',
-    price: 33,
-    rating: 4.4,
-    timeOfDay: 'Afternoon',
-    duration: '4h',
-    venue: 'Funchal Seafront Resort',
-    description: 'A relaxed poolside experience with Atlantic views, sunbeds and drinks.',
-    image:
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 25,
-    title: 'Sunset Bar & Live Music',
-    city: 'Madera',
-    country: 'Portugal',
-    category: 'Nightlife',
-    priceLevel: 'Mid-Range',
-    price: 25,
-    rating: 4.3,
-    timeOfDay: 'Evening',
-    duration: '3h',
-    venue: 'Funchal Harbor',
-    description: 'Chill with live music and sunset drinks near the waterfront.',
-    image:
-      'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 26,
-    title: 'Eiffel Tower Evening Entry',
-    city: 'Paris',
-    country: 'France',
-    category: 'Sightseeing',
-    priceLevel: 'Premium',
-    price: 36,
-    rating: 4.8,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Eiffel Tower',
-    description:
-      'See Paris from above and enjoy the city lights from one of the world’s most iconic landmarks.',
-    image:
-      'https://images.unsplash.com/photo-1502602898536-47ad22581b52?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 27,
-    title: 'Seine Picnic & Riverside Walk',
-    city: 'Paris',
-    country: 'France',
-    category: 'Relax',
-    priceLevel: 'Budget',
-    price: 12,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'Seine Riverside',
-    description:
-      'A calm riverside activity ideal for enjoying the city atmosphere with snacks and views.',
-    image:
-      'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 28,
-    title: 'Montmartre Art & Café Walk',
-    city: 'Paris',
-    country: 'France',
-    category: 'Culture',
-    priceLevel: 'Budget',
-    price: 17,
-    rating: 4.7,
-    timeOfDay: 'Morning',
-    duration: '2.5h',
-    venue: 'Montmartre',
-    description:
-      'Stroll through the artistic heart of Paris with viewpoints, cafés and local stories.',
-    image:
-      'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 29,
-    title: 'Latin Quarter Wine & Cheese Tasting',
-    city: 'Paris',
-    country: 'France',
-    category: 'Food & Drink',
-    priceLevel: 'Mid-Range',
-    price: 29,
-    rating: 4.6,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Latin Quarter',
-    description: 'Taste classic French wines and cheeses in an intimate Paris setting.',
-    image:
-      'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 30,
-    title: 'Champs-Élysées Late Night Lounge',
-    city: 'Paris',
-    country: 'France',
-    category: 'Nightlife',
-    priceLevel: 'Premium',
-    price: 44,
-    rating: 4.4,
-    timeOfDay: 'Night',
-    duration: '4h',
-    venue: 'Champs-Élysées',
-    description: 'A glamorous lounge evening with cocktails, music and upscale Paris nightlife.',
-    image:
-      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 31,
-    title: 'Colosseum & Roman Forum Tour',
-    city: 'Rome',
-    country: 'Italy',
-    category: 'Culture',
-    priceLevel: 'Premium',
-    price: 37,
-    rating: 4.9,
-    timeOfDay: 'Morning',
-    duration: '2.5h',
-    venue: 'Colosseum',
-    description: 'Walk through ancient Roman history with access to the Colosseum and Forum area.',
-    image:
-      'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 32,
-    title: 'Trastevere Food Street Evening',
-    city: 'Rome',
-    country: 'Italy',
-    category: 'Food & Drink',
-    priceLevel: 'Mid-Range',
-    price: 28,
-    rating: 4.7,
-    timeOfDay: 'Evening',
-    duration: '3h',
-    venue: 'Trastevere',
-    description:
-      'Taste Roman classics in a lively district known for local food and authentic atmosphere.',
-    image:
-      'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 33,
-    title: 'Villa Borghese Bike Ride',
-    city: 'Rome',
-    country: 'Italy',
-    category: 'Adventure',
-    priceLevel: 'Budget',
-    price: 14,
-    rating: 4.4,
-    timeOfDay: 'Afternoon',
-    duration: '1.5h',
-    venue: 'Villa Borghese',
-    description: 'Ride through one of Rome’s most beautiful parks and stop at scenic viewpoints.',
-    image:
-      'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 34,
-    title: 'Tiber Riverside Aperitivo',
-    city: 'Rome',
-    country: 'Italy',
-    category: 'Relax',
-    priceLevel: 'Budget',
-    price: 16,
-    rating: 4.3,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Tiber Riverside',
-    description: 'Unwind with an aperitivo by the river in a stylish but relaxed Roman setting.',
-    image:
-      'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 35,
-    title: 'Testaccio Night Party',
-    city: 'Rome',
-    country: 'Italy',
-    category: 'Nightlife',
-    priceLevel: 'Mid-Range',
-    price: 27,
-    rating: 4.2,
-    timeOfDay: 'Night',
-    duration: '5h',
-    venue: 'Testaccio',
-    description: 'A classic Rome nightlife experience in a district known for bars and clubbing.',
-    image:
-      'https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 36,
-    title: 'Duomo Rooftop Visit',
-    city: 'Mailand',
-    country: 'Italy',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 25,
-    rating: 4.8,
-    timeOfDay: 'Morning',
-    duration: '1.5h',
-    venue: 'Duomo di Milano',
-    description:
-      'See the Gothic cathedral from above and enjoy one of Milan’s most famous viewpoints.',
-    image:
-      'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 37,
-    title: 'Navigli Canal Aperitivo Tour',
-    city: 'Mailand',
-    country: 'Italy',
-    category: 'Food & Drink',
-    priceLevel: 'Mid-Range',
-    price: 24,
-    rating: 4.6,
-    timeOfDay: 'Evening',
-    duration: '2.5h',
-    venue: 'Navigli',
-    description:
-      'Experience Milan’s famous aperitivo culture in the vibrant Navigli canal district.',
-    image:
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 38,
-    title: 'Brera Art District Walk',
-    city: 'Mailand',
-    country: 'Italy',
-    category: 'Culture',
-    priceLevel: 'Budget',
-    price: 13,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'Brera',
-    description:
-      'Stroll through elegant streets, galleries and cafés in one of Milan’s most artistic areas.',
-    image:
-      'https://images.unsplash.com/photo-1518391846015-55a9cc003b25?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 39,
-    title: 'Porta Nuova Skyline Lounge',
-    city: 'Mailand',
-    country: 'Italy',
-    category: 'Nightlife',
-    priceLevel: 'Premium',
-    price: 41,
-    rating: 4.4,
-    timeOfDay: 'Night',
-    duration: '4h',
-    venue: 'Porta Nuova',
-    description: 'A stylish nightlife spot with skyline views, cocktails and a luxury Milan mood.',
-    image:
-      'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 40,
-    title: 'Lake Como Day Escape Meetup',
-    city: 'Mailand',
-    country: 'Italy',
-    category: 'Adventure',
-    priceLevel: 'Premium',
-    price: 49,
-    rating: 4.7,
-    timeOfDay: 'Morning',
-    duration: '6h',
-    venue: 'Milan Departure Point',
-    description:
-      'A curated excursion departing from Milan toward Lake Como for a scenic adventure day.',
-    image:
-      'https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 41,
-    title: 'Schönbrunn Palace Visit',
-    city: 'Wien',
-    country: 'Austria',
-    category: 'Culture',
-    priceLevel: 'Mid-Range',
-    price: 27,
-    rating: 4.8,
-    timeOfDay: 'Morning',
-    duration: '2h',
-    venue: 'Schönbrunn Palace',
-    description:
-      'Visit Vienna’s imperial palace and its beautiful grounds with a classic city experience.',
-    image:
-      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 42,
-    title: 'Danube Riverside Bike Tour',
-    city: 'Wien',
-    country: 'Austria',
-    category: 'Adventure',
-    priceLevel: 'Budget',
-    price: 18,
-    rating: 4.5,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'Danube Canal',
-    description: 'A pleasant cycling route along the river with urban and green views.',
-    image:
-      'https://images.unsplash.com/photo-1507035895480-2b3156c31fc8?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 43,
-    title: 'Viennese Coffeehouse Tasting',
-    city: 'Wien',
-    country: 'Austria',
-    category: 'Food & Drink',
-    priceLevel: 'Budget',
-    price: 15,
-    rating: 4.6,
-    timeOfDay: 'Afternoon',
-    duration: '1.5h',
-    venue: 'Innere Stadt',
-    description: 'Discover traditional Viennese café culture with coffee and pastries.',
-    image:
-      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 44,
-    title: 'Belvedere & Garden Walk',
-    city: 'Wien',
-    country: 'Austria',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 21,
-    rating: 4.6,
-    timeOfDay: 'Morning',
-    duration: '2h',
-    venue: 'Belvedere Palace',
-    description: 'A calm visit to one of Vienna’s most elegant palace complexes and gardens.',
-    image:
-      'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 45,
-    title: 'Danube Club Boat Night',
-    city: 'Wien',
-    country: 'Austria',
-    category: 'Nightlife',
-    priceLevel: 'Premium',
-    price: 37,
-    rating: 4.3,
-    timeOfDay: 'Night',
-    duration: '4h',
-    venue: 'Danube Canal',
-    description: 'A nightlife event on a party boat with music, lights and river views.',
-    image:
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 46,
-    title: 'Danube Night Cruise',
-    city: 'Budapest',
-    country: 'Hungary',
-    category: 'Sightseeing',
-    priceLevel: 'Mid-Range',
-    price: 26,
-    rating: 4.8,
-    timeOfDay: 'Evening',
-    duration: '2h',
-    venue: 'Danube River',
-    description:
-      'See Budapest’s illuminated landmarks from the water, including Parliament and Buda Castle.',
-    image:
-      'https://images.unsplash.com/photo-1541849546-216549ae216d?auto=format&fit=crop&w=1200&q=80',
-    featured: true,
-  },
-  {
-    id: 47,
-    title: 'Széchenyi Thermal Bath Session',
-    city: 'Budapest',
-    country: 'Hungary',
-    category: 'Relax',
-    priceLevel: 'Mid-Range',
-    price: 29,
-    rating: 4.7,
-    timeOfDay: 'Afternoon',
-    duration: '3h',
-    venue: 'Széchenyi Baths',
-    description: 'Relax in one of Europe’s most famous thermal bath complexes.',
-    image:
-      'https://images.unsplash.com/photo-1519822473471-e1d0f22e2c39?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 48,
-    title: 'Buda Castle District Walk',
-    city: 'Budapest',
-    country: 'Hungary',
-    category: 'Culture',
-    priceLevel: 'Budget',
-    price: 14,
-    rating: 4.6,
-    timeOfDay: 'Morning',
-    duration: '2h',
-    venue: 'Buda Castle',
-    description: 'Walk through the castle district and enjoy panoramic city views and history.',
-    image:
-      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 49,
-    title: 'Ruin Bar Crawl',
-    city: 'Budapest',
-    country: 'Hungary',
-    category: 'Nightlife',
-    priceLevel: 'Budget',
-    price: 22,
-    rating: 4.5,
-    timeOfDay: 'Night',
-    duration: '4h',
-    venue: 'District VII',
-    description: 'Explore Budapest’s unique ruin bars and lively nightlife scene.',
-    image:
-      'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 50,
-    title: 'Margaret Island Bike & Picnic',
-    city: 'Budapest',
-    country: 'Hungary',
-    category: 'Adventure',
-    priceLevel: 'Budget',
-    price: 12,
-    rating: 4.4,
-    timeOfDay: 'Afternoon',
-    duration: '2h',
-    venue: 'Margaret Island',
-    description:
-      'A laid-back outdoor activity with bike rental, green space and riverside atmosphere.',
-    image:
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
-  },
-];
+export interface ActivitySearchResponse {
+  items: Activity[];
+  page: number;
+  size: number;
+  hasMore: boolean;
+}
+
+type ActivitiesCacheStore = Record<string, Activity[]>;
+
+@Injectable({
+  providedIn: 'root',
+})
+export class ActivitiesService {
+  private readonly apiUrl = '/api/activities';
+  private readonly cacheKey = 'roamer_activities_cache';
+  private readonly detailKeyPrefix = '__detail__::';
+  private readonly viewStateKey = 'roamer_activities_view_state';
+
+  constructor(private readonly http: HttpClient) {}
+
+  getActivities(city?: string, keyword?: string, page = 0, size = 12): Observable<ActivitySearchResponse> {
+    let params = new HttpParams();
+
+    if (city && city !== 'All Cities') {
+      params = params.set('city', city);
+    }
+
+    if (keyword && keyword.trim()) {
+      params = params.set('keyword', keyword.trim());
+    }
+
+    params = params
+      .set('page', page)
+      .set('size', size);
+
+    return this.http.get<ActivitySearchResponse>(this.apiUrl, { params }).pipe(
+      tap((response) => {
+        if (Array.isArray(response?.items)) {
+          response.items.forEach((activity) => this.setCachedActivity(activity));
+        }
+      })
+    );
+  }
+
+  getActivityById(id: string): Observable<Activity> {
+    return this.http.get<Activity>(`${this.apiUrl}/${id}`).pipe(
+      tap((activity) => this.setCachedActivity(activity))
+    );
+  }
+
+  setCachedActivities(cacheKey: string, activities: Activity[]): void {
+    try {
+      const store = this.getCacheStore();
+      store[cacheKey] = Array.isArray(activities) ? activities : [];
+
+      if (Array.isArray(activities)) {
+        activities.forEach((activity) => {
+          if (activity?.id) {
+            store[this.detailCacheKey(activity.id)] = [activity];
+          }
+        });
+      }
+
+      sessionStorage.setItem(this.cacheKey, JSON.stringify(store));
+    } catch (error) {
+      console.warn('Could not cache activities in sessionStorage', error);
+    }
+  }
+
+  mergeCachedActivities(cacheKey: string, activities: Activity[]): Activity[] {
+    const existing = this.getCachedActivities(cacheKey);
+    const merged = new Map<string, Activity>();
+
+    existing.forEach((activity) => {
+      if (activity?.id) {
+        merged.set(activity.id, activity);
+      }
+    });
+
+    activities.forEach((activity) => {
+      if (activity?.id) {
+        merged.set(activity.id, activity);
+      }
+    });
+
+    const result = Array.from(merged.values());
+    this.setCachedActivities(cacheKey, result);
+    return result;
+  }
+
+  setCachedActivity(activity: Activity): void {
+    if (!activity?.id) {
+      return;
+    }
+
+    try {
+      const store = this.getCacheStore();
+      store[this.detailCacheKey(activity.id)] = [activity];
+
+      for (const [key, activities] of Object.entries(store)) {
+        if (!Array.isArray(activities) || key.startsWith(this.detailKeyPrefix)) {
+          continue;
+        }
+
+        store[key] = activities.map((current) => current.id === activity.id ? activity : current);
+      }
+
+      sessionStorage.setItem(this.cacheKey, JSON.stringify(store));
+    } catch (error) {
+      console.warn('Could not cache activity details in sessionStorage', error);
+    }
+  }
+
+  getCachedActivities(cacheKey?: string): Activity[] {
+    try {
+      const store = this.getCacheStore();
+
+      if (cacheKey) {
+        return Array.isArray(store[cacheKey]) ? store[cacheKey] : [];
+      }
+
+      return Object.entries(store)
+        .filter(([key]) => !key.startsWith(this.detailKeyPrefix))
+        .flatMap(([, activities]) => Array.isArray(activities) ? activities : []);
+    } catch (error) {
+      console.warn('Could not read cached activities from sessionStorage', error);
+      return [];
+    }
+  }
+
+  getCachedActivityById(id: string): Activity | null {
+    const store = this.getCacheStore();
+    const detail = store[this.detailCacheKey(id)];
+    if (Array.isArray(detail) && detail[0]) {
+      return detail[0];
+    }
+
+    const activities = this.getCachedActivities();
+    return activities.find((activity) => activity.id === id) ?? null;
+  }
+
+  buildCacheKey(city?: string, keyword?: string): string {
+    const normalizedCity = city?.trim().toLowerCase() || 'all-cities';
+    const normalizedKeyword = keyword?.trim().toLowerCase() || 'all-keywords';
+    return `${normalizedCity}::${normalizedKeyword}`;
+  }
+
+  setViewState(state: Record<string, unknown>): void {
+    try {
+      sessionStorage.setItem(this.viewStateKey, JSON.stringify(state));
+    } catch (error) {
+      console.warn('Could not save activities view state', error);
+    }
+  }
+
+  getViewState<T>(): T | null {
+    try {
+      const raw = sessionStorage.getItem(this.viewStateKey);
+
+      if (!raw) {
+        return null;
+      }
+
+      return JSON.parse(raw) as T;
+    } catch (error) {
+      console.warn('Could not read activities view state', error);
+      return null;
+    }
+  }
+
+  private detailCacheKey(id: string): string {
+    return `${this.detailKeyPrefix}${id}`;
+  }
+
+  private getCacheStore(): ActivitiesCacheStore {
+    const raw = sessionStorage.getItem(this.cacheKey);
+
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as ActivitiesCacheStore : {};
+  }
+}
