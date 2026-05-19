@@ -23,6 +23,10 @@ variables:
     - ude-sse
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+    - |
+      if [ -n "$CI_DEPENDENCY_PROXY_SERVER" ] && [ -n "$CI_DEPENDENCY_PROXY_USER" ] && [ -n "$CI_DEPENDENCY_PROXY_PASSWORD" ]; then
+        echo "$CI_DEPENDENCY_PROXY_PASSWORD" | docker login "$CI_DEPENDENCY_PROXY_SERVER" -u "$CI_DEPENDENCY_PROXY_USER" --password-stdin
+      fi
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG
@@ -33,8 +37,13 @@ build_frontend:
     - IMAGE="$CI_REGISTRY_IMAGE/frontend"
     - SHA_TAG="$CI_COMMIT_SHORT_SHA"
     - BRANCH_TAG="$CI_COMMIT_REF_SLUG"
+    - FRONTEND_BUILD_ARGS=""
+    - |
+      if [ -n "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX" ] && [ -n "$CI_DEPENDENCY_PROXY_USER" ] && [ -n "$CI_DEPENDENCY_PROXY_PASSWORD" ]; then
+        FRONTEND_BUILD_ARGS="--build-arg NODE_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/node:22-alpine --build-arg NGINX_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/nginx:alpine"
+      fi
  
-    - docker build -t "$IMAGE:$SHA_TAG" frontend/
+    - docker build $FRONTEND_BUILD_ARGS -t "$IMAGE:$SHA_TAG" frontend/
     - docker push "$IMAGE:$SHA_TAG"
  
     - |
@@ -59,8 +68,13 @@ build_backend:
     - IMAGE="$CI_REGISTRY_IMAGE/backend"
     - SHA_TAG="$CI_COMMIT_SHORT_SHA"
     - BRANCH_TAG="$CI_COMMIT_REF_SLUG"
+    - BACKEND_BUILD_ARGS=""
+    - |
+      if [ -n "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX" ] && [ -n "$CI_DEPENDENCY_PROXY_USER" ] && [ -n "$CI_DEPENDENCY_PROXY_PASSWORD" ]; then
+        BACKEND_BUILD_ARGS="--build-arg GRADLE_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/gradle:jdk21 --build-arg RUNTIME_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/eclipse-temurin:21-jre"
+      fi
  
-    - docker build -t "$IMAGE:$SHA_TAG" backend/
+    - docker build $BACKEND_BUILD_ARGS -t "$IMAGE:$SHA_TAG" backend/
     - docker push "$IMAGE:$SHA_TAG"
  
     - |
