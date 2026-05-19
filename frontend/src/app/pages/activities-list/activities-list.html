@@ -1,208 +1,483 @@
 <div class="activities-page">
-  <section class="hero-section">
-    <div class="hero-content">
-      <div class="hero-text">
-        <span class="hero-badge">ROAMER ACTIVITIES</span>
-        <h1>Discover the best activities for your trip</h1>
-        <p>
-          Explore realistic city-based experiences, nightlife, sightseeing, food spots
-          and adventure activities across Europe.
-        </p>
+  <header class="page-head">
+    <div class="page-head__text">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a routerLink="/dashboard">Dashboard</a>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        <strong aria-current="page">Activities</strong>
+      </nav>
+      <h1 class="page-title">Find your <em>activity</em>.</h1>
+      <p class="page-subtitle">Search by city, combine it with an activity keyword and date, then refine the results from the left filter rail.</p>
+    </div>
 
-        <div class="hero-stats-mobile">
-          <div class="stat-card">
-            <span class="stat-number">{{ totalActivities }}</span>
-            <span class="stat-label">Total activities</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-number">{{ filteredCount }}</span>
-            <span class="stat-label">Filtered results</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-number">{{ cities.length }}</span>
-            <span class="stat-label">Cities</span>
-          </div>
+    <div class="page-head__stats">
+      <div class="stat-pill">
+        <strong>{{ totalActivities }}</strong>
+        <span>Loaded</span>
+      </div>
+      <div class="stat-pill">
+        <strong>{{ filteredCount }}</strong>
+        <span>Visible</span>
+      </div>
+      <div class="stat-pill">
+        <strong>{{ featuredCount }}</strong>
+        <span>Featured</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="search-card" aria-label="Search activities">
+    <div class="search-grid">
+      <label class="field city-field">
+        <span class="field-label">City</span>
+        <input
+          type="text"
+          [ngModel]="cityText"
+          (ngModelChange)="updateCityText($event)"
+          (focus)="showCitySuggestions()"
+          placeholder="Search any city worldwide"
+          autocomplete="off"
+        />
+        <span class="field-meta">Search global cities with local spellings and aliases.</span>
+
+        <div class="city-suggestions" *ngIf="activeCitySuggestions && citySuggestions.length">
+          <button
+            type="button"
+            class="city-option"
+            *ngFor="let city of citySuggestions"
+            (mousedown)="$event.preventDefault(); applyCity(city)">
+            <strong>{{ city.name }}</strong>
+            <span>{{ city.aliases.length ? city.aliases.slice(0, 2).join(' · ') : 'Global city search' }}</span>
+          </button>
         </div>
+      </label>
+
+      <label class="field keyword-field">
+        <span class="field-label">Activity keyword</span>
+        <input
+          type="text"
+          [ngModel]="searchTerm"
+          (ngModelChange)="updateKeywordText($event)"
+          (focus)="showKeywordSuggestions()"
+          placeholder="Concert, museum, gallery..."
+        />
+
+        <div class="city-suggestions city-suggestions--keywords" *ngIf="activeKeywordSuggestions && keywordSuggestions.length">
+          <button
+            type="button"
+            class="city-option city-option--keyword"
+            *ngFor="let keyword of keywordSuggestions"
+            (mousedown)="$event.preventDefault(); applyKeyword(keyword)">
+            <strong>{{ keyword }}</strong>
+            <span>Popular event search</span>
+          </button>
+        </div>
+      </label>
+
+      <div class="field date-field" [class.open]="activeDatePicker">
+        <button
+          type="button"
+          class="date-trigger"
+          aria-label="Choose event date"
+          [attr.aria-expanded]="activeDatePicker"
+          (click)="toggleDatePicker()">
+          <span class="field-label">Date</span>
+          <span class="field-value" [class.placeholder]="!selectedDate">
+            {{ selectedDate ? formatSelectedDate(selectedDate) : 'Any date' }}
+          </span>
+          <span class="field-meta">{{ selectedDate ? formatSelectedYear(selectedDate) : 'Today or later' }}</span>
+        </button>
       </div>
 
-      <div class="hero-stats">
-        <div class="stat-card">
-          <span class="stat-number">{{ totalActivities }}</span>
-          <span class="stat-label">Total activities</span>
+      <button class="search-btn" type="button" (click)="searchActivities(true)" [disabled]="loading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span *ngIf="!loading">Search</span>
+        <span *ngIf="loading">Searching</span>
+      </button>
+    </div>
+
+    <p class="search-error" *ngIf="errorMessage && !loading">{{ errorMessage }}</p>
+
+    <div
+      *ngIf="activeDatePicker"
+      class="date-popover-backdrop"
+      role="presentation"
+      (click)="closeDatePicker()">
+      <section
+        class="date-popover"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="activeDatePickerTitle()"
+        (click)="$event.stopPropagation()">
+        <header class="date-popover__head">
+          <div>
+            <span class="date-popover__eyebrow">Activity dates</span>
+            <h3>{{ activeDatePickerTitle() }}</h3>
+          </div>
+          <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </header>
+
+        <div class="date-popover__body">
+          <aside class="date-manual">
+            <label>
+              <span>Manual date</span>
+              <input
+                type="text"
+                [value]="activeDatePickerInputValue()"
+                (input)="updateActiveDatePickerInput($any($event.target).value)"
+                [class.invalid]="manualDateError"
+                placeholder="YYYY-MM-DD"
+                inputmode="numeric"
+              />
+            </label>
+            <p class="date-hint" [class.error]="manualDateError">{{ activeDatePickerHint() }}</p>
+            <button type="button" class="date-clear" (click)="clearDateFilter()">Clear date</button>
+          </aside>
+
+          <div class="date-calendar">
+            <div class="date-calendar__toolbar">
+              <button type="button" aria-label="Previous month" (click)="shiftDatePickerMonth(-1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <strong>{{ datePickerMonthLabel() }}</strong>
+              <button type="button" aria-label="Next month" (click)="shiftDatePickerMonth(1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
+
+            <div class="date-weekdays">
+              <span *ngFor="let day of weekDays">{{ day }}</span>
+            </div>
+
+            <div class="date-days">
+              <button
+                type="button"
+                *ngFor="let day of calendarDays()"
+                [class.muted]="!day.inCurrentMonth"
+                [class.today]="day.isToday"
+                [class.selected]="day.isSelected"
+                [class.past]="isPastCalendarDay(day)"
+                (click)="onCalendarDaySelect(day)">
+                {{ day.dayNumber }}
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="stat-card">
-          <span class="stat-number">{{ filteredCount }}</span>
-          <span class="stat-label">Filtered results</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-number">{{ cities.length }}</span>
-          <span class="stat-label">Cities</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-number">{{ featuredCount }}</span>
-          <span class="stat-label">Featured picks</span>
-        </div>
-      </div>
+      </section>
     </div>
   </section>
 
-  <section class="filters-section">
-    <div class="filters-top">
-      <div class="search-box">
-        <input
-          type="text"
-          [(ngModel)]="searchTerm"
-          placeholder="Search by title, city, category, venue or description..."
-          />
-        </div>
+  <button type="button" class="filters-trigger" (click)="toggleFiltersDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="20" y2="6"></line>
+      <line x1="7" y1="12" x2="17" y2="12"></line>
+      <line x1="10" y1="18" x2="14" y2="18"></line>
+    </svg>
+    Filters
+  </button>
 
-        <div class="filter-grid">
-          <select [(ngModel)]="selectedCity">
-            <option value="All Cities">All Cities</option>
-            @for (city of cities; track city) {
-              <option [value]="city">{{ city }}</option>
-            }
-          </select>
-
-          <select [(ngModel)]="selectedCategory">
-            <option value="All Categories">All Categories</option>
-            @for (category of categories; track category) {
-              <option [value]="category">{{ category }}</option>
-            }
-          </select>
-
-          <select [(ngModel)]="selectedPriceLevel">
-            <option value="All Prices">All Prices</option>
-            <option value="Free">Free</option>
-            <option value="Budget">Budget</option>
-            <option value="Mid-Range">Mid-Range</option>
-            <option value="Premium">Premium</option>
-          </select>
-
-          <select [(ngModel)]="selectedTimeOfDay">
-            <option value="Any Time">Any Time</option>
-            <option value="Morning">Morning</option>
-            <option value="Afternoon">Afternoon</option>
-            <option value="Evening">Evening</option>
-            <option value="Night">Night</option>
-          </select>
-
-          <select [(ngModel)]="selectedSort">
-            <option value="recommended">Recommended</option>
-            <option value="rating">Highest Rating</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="city">City A-Z</option>
-            <option value="title">Title A-Z</option>
-          </select>
-
-          <button class="reset-btn" (click)="resetFilters()">Reset</button>
-        </div>
-      </div>
-
-      <div class="active-summary">
-        <div class="summary-left">
-          <strong>{{ filteredCount }}</strong> activities found
-        </div>
-
-        <div class="selected-filters">
-          @if (selectedCity !== 'All Cities') {
-            <span>{{ selectedCity }}</span>
-          }
-          @if (selectedCategory !== 'All Categories') {
-            <span>{{ selectedCategory }}</span>
-          }
-          @if (selectedPriceLevel !== 'All Prices') {
-            <span>{{ selectedPriceLevel }}</span>
-          }
-          @if (selectedTimeOfDay !== 'Any Time') {
-            <span>{{ selectedTimeOfDay }}</span>
-          }
-        </div>
-      </div>
-    </section>
-
-    <section class="city-chips">
-      <button
-        class="chip"
-        [class.active]="selectedCity === 'All Cities'"
-        (click)="selectedCity = 'All Cities'"
-        >
-        All Cities
-      </button>
-
-      @for (city of cities; track city) {
-        <button
-          class="chip"
-          [class.active]="selectedCity === city"
-          (click)="selectedCity = city"
-          >
-          {{ city }}
+  <div class="content-grid">
+    <aside class="filters" [class.open]="filtersDrawerOpen" aria-label="Activity filters">
+      <div class="filters-head">
+        <h3>Filters</h3>
+        <button type="button" class="filters-close" (click)="closeFiltersDrawer()" aria-label="Close filters">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
-      }
-    </section>
+      </div>
 
-    @if (filteredActivities.length > 0) {
-      <section class="activities-grid">
-        @for (activity of filteredActivities; track trackByActivityId($index, activity)) {
-          <article
-            class="activity-card"
-            >
-            <div class="activity-image-wrapper">
-              <img [src]="activity.image" [alt]="activity.title" class="activity-image" />
-              <div class="image-overlay"></div>
-              @if (activity.featured) {
-                <span class="featured-badge">Featured</span>
-              }
-              <span class="rating-badge">★ {{ activity.rating }}</span>
-            </div>
-            <div class="activity-content">
-              <div class="activity-top-row">
-                <span class="category-badge" [ngClass]="getCategoryClass(activity.category)">
-                  {{ activity.category }}
-                </span>
+      <div class="filter-group">
+        <h4>Category</h4>
+        <div class="check-list">
+          <button
+            type="button"
+            class="check-row"
+            *ngFor="let category of availableCategories"
+            [class.checked]="selectedCategory === category"
+            (click)="selectedCategory = category">
+            <span class="check-left">
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="check-label">{{ category }}</span>
+            </span>
+            <span class="check-count">{{ categoryResultCount(category) }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Price level</h4>
+        <div class="check-list">
+          <button
+            type="button"
+            class="check-row"
+            *ngFor="let priceLevel of priceOptions"
+            [class.checked]="selectedPriceLevel === priceLevel"
+            (click)="selectedPriceLevel = priceLevel">
+            <span class="check-left">
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span class="check-label">{{ priceLevel }}</span>
+            </span>
+            <span class="check-count">{{ priceResultCount(priceLevel) }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Time of day</h4>
+        <div class="time-grid">
+          <button
+            *ngFor="let time of timeOptions"
+            type="button"
+            class="time-chip"
+            [class.active]="selectedTimeOfDay === time"
+            (click)="selectedTimeOfDay = time">
+            <span class="time-chip-label">{{ time }}</span>
+            <span class="time-chip-range">{{ timeResultCount(time) }} match{{ timeResultCount(time) === 1 ? '' : 'es' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h4>Sort</h4>
+        <div class="sort-list">
+          <button
+            *ngFor="let option of sortOptions"
+            type="button"
+            class="sort-row"
+            [class.active]="selectedSort === option.value"
+            (click)="selectedSort = option.value">
+            <span class="sort-label">{{ option.label }}</span>
+            <span class="sort-meta">{{ option.meta }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-group filter-group--summary">
+        <h4>Search summary</h4>
+        <p><strong>{{ selectedCity || 'No city selected' }}</strong></p>
+        <p *ngIf="searchTerm.trim()">Keyword: "{{ searchTerm.trim() }}"</p>
+        <p *ngIf="selectedDate">Date: {{ formatSelectedDate(selectedDate) }}</p>
+        <p *ngIf="!selectedDate">Date: Any date</p>
+        <p *ngIf="isShowingCachedResults">Showing saved results while live data is unavailable.</p>
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="reset-filters-btn" (click)="resetFilters()">Reset filters</button>
+        <button type="button" class="retry-btn" *ngIf="errorMessage || isShowingCachedResults" (click)="retryLoad()">
+          Retry live search
+        </button>
+      </div>
+    </aside>
+
+    <div class="filters-backdrop" [class.open]="filtersDrawerOpen" (click)="closeFiltersDrawer()"></div>
+
+    <section class="results-section">
+      <div class="results-meta" *ngIf="hasSearched">
+        <div>
+          <strong>{{ filteredCount }} activities</strong> · {{ selectedCity || 'No city selected' }}
+          <span *ngIf="searchTerm.trim()"> · "{{ searchTerm.trim() }}"</span>
+          <span *ngIf="selectedDate"> · {{ formatSelectedDate(selectedDate) }}</span>
+        </div>
+        <div>
+          <span *ngIf="loading && activities.length === 0">Searching live event data.</span>
+          <span *ngIf="loading && activities.length > 0">Refreshing search results.</span>
+          <span *ngIf="!loading && isShowingCachedResults">Saved session data is visible while the live request is unavailable.</span>
+          <span *ngIf="!loading && !isShowingCachedResults">Use the filters on the left to refine the result set.</span>
+        </div>
+      </div>
+
+      <div class="results-header">
+        <div>
+          <p class="eyebrow">Available activities</p>
+          <h2 *ngIf="!hasSearched">Choose a city to start searching</h2>
+          <h2 *ngIf="hasSearched && loading && activities.length === 0">Preparing activities</h2>
+          <h2 *ngIf="hasSearched && loading && activities.length > 0">Refreshing {{ selectedCity }}</h2>
+          <h2 *ngIf="hasSearched && !loading && filteredActivities.length > 0">{{ filteredCount }} result{{ filteredCount === 1 ? '' : 's' }}</h2>
+          <h2 *ngIf="hasSearched && !loading && filteredActivities.length === 0">No matching activities</h2>
+        </div>
+
+        <p class="results-copy">
+          <span *ngIf="!hasSearched">Choose a city, optionally add an event keyword and date, then run the search.</span>
+          <span *ngIf="hasSearched && loading && activities.length === 0">Searching available events for your selected city.</span>
+          <span *ngIf="hasSearched && loading && activities.length > 0">Existing cards stay visible while the updated response loads.</span>
+          <span *ngIf="hasSearched && !loading && filteredActivities.length > 0">Results can be narrowed by category, price, time, sort order, and date.</span>
+          <span *ngIf="hasSearched && !loading && filteredActivities.length === 0">No events are available in this city for the current search. Try another city, remove the keyword, or clear the date filter.</span>
+        </p>
+      </div>
+
+      <div class="loading-inline" *ngIf="hasSearched && loading && activities.length > 0">
+        Refreshing activities for {{ selectedCity }}...
+      </div>
+
+      <div class="loading-grid" *ngIf="hasSearched && loading && activities.length === 0" aria-live="polite">
+        <div class="skeleton-card" *ngFor="let item of [1, 2, 3, 4]">
+          <div class="skeleton-image"></div>
+          <div class="skeleton-lines">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <section class="activities-grid" *ngIf="hasSearched && filteredActivities.length > 0">
+        <article class="activity-card" *ngFor="let activity of filteredActivities; trackBy: trackByActivityId">
+          <div class="activity-image-wrapper">
+            <img [src]="getImageUrl(activity.image)" [alt]="activity.title" class="activity-image" />
+            <div class="image-overlay"></div>
+
+            <span class="featured-badge" *ngIf="activity.featured">Featured</span>
+            <span class="rating-badge">★ {{ activity.rating }}</span>
+            <span class="gallery-badge" *ngIf="getGalleryCount(activity) > 1">{{ getGalleryCount(activity) }} photos</span>
+          </div>
+
+          <div class="activity-content">
+            <div class="activity-top-row">
+              <span class="category-badge" [ngClass]="getCategoryClass(activity.category)">
+                {{ activity.category }}
+              </span>
+              <div class="activity-top-row__chips">
+                <span class="status-badge">{{ getDisplayStatus(activity) }}</span>
                 <span class="time-badge">{{ activity.timeOfDay }}</span>
               </div>
-              <h3>{{ activity.title }}</h3>
-              <div class="location-line">
-                <span>{{ activity.city }}, {{ activity.country }}</span>
-                <span class="dot">•</span>
-                <span>{{ activity.venue }}</span>
+            </div>
+
+            <h3>{{ activity.title }}</h3>
+
+            <div class="location-line">
+              <span>{{ activity.city }}, {{ activity.country }}</span>
+              <span class="dot">•</span>
+              <span>{{ activity.venue }}</span>
+            </div>
+
+            <div class="event-line">
+              <span>{{ getDisplayStartDate(activity) }}</span>
+              <span class="dot">•</span>
+              <span>{{ getDisplayStartTime(activity) }}</span>
+              <span class="dot" *ngIf="getDisplayGenre(activity)">•</span>
+              <span *ngIf="getDisplayGenre(activity)">{{ getDisplayGenre(activity) }}</span>
+            </div>
+
+            <p>{{ getDisplayDescription(activity) }}</p>
+
+            <div class="activity-meta">
+              <div class="meta-item">
+                <span class="meta-label">Date</span>
+                <span class="meta-value">{{ getDisplayStartDate(activity) }}</span>
               </div>
-              <p>{{ activity.description }}</p>
-              <div class="activity-meta">
-                <div class="meta-item">
-                  <span class="meta-label">Duration</span>
-                  <span class="meta-value">{{ activity.duration }}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Price level</span>
-                  <span class="meta-value">{{ activity.priceLevel }}</span>
-                </div>
-                <div class="meta-item price-box">
-                  <span class="meta-label">From</span>
-                  @if (activity.price > 0) {
-                    <span class="meta-price">€{{ activity.price }}</span>
-                  }
-                  @if (activity.price === 0) {
-                    <span class="meta-price">Free</span>
-                  }
-                </div>
+
+              <div class="meta-item">
+                <span class="meta-label">Start time</span>
+                <span class="meta-value">{{ getDisplayStartTime(activity) }}</span>
               </div>
-              <div class="card-actions">
-                <a class="primary-btn details-link" [routerLink]="['/activities', activity.id]">View details</a>
-                <button class="secondary-btn" type="button">Add to trip</button>
+
+              <div class="meta-item">
+                <span class="meta-label">Venue</span>
+                <span class="meta-value">{{ activity.venue }}</span>
+              </div>
+
+              <div class="meta-item price-box">
+                <span class="meta-label">From</span>
+                <span class="meta-price">{{ getDisplayPrice(activity) }}</span>
               </div>
             </div>
-          </article>
-        }
-      </section>
-    } @else {
-      <section class="empty-state">
-        <h3>No matching activities found</h3>
-        <p>Try changing the city, category or search term.</p>
-        <button class="reset-btn large" (click)="resetFilters()">Reset Filters</button>
-      </section>
-    }
 
+            <div class="card-actions">
+              <button type="button" class="primary-btn details-link" (click)="openActivityDetails(activity)">View details</button>
+              <button type="button" class="primary-btn attend-btn" (click)="selectActivity(activity)">Attend event</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <div class="loading-inline" *ngIf="hasSearched && loadingMore">
+        Loading more activities for {{ selectedCity }}...
+      </div>
+
+      <div class="loading-inline" *ngIf="hasSearched && !loading && !loadingMore && filteredActivities.length > 0 && !hasMoreResults">
+        All available loaded activities are visible.
+      </div>
+
+      <section class="empty-state" *ngIf="hasSearched && !loading && filteredActivities.length === 0">
+        <h3>No matching activities found</h3>
+        <p>No events are available in {{ selectedCity }} for the current search. Try another city, clear the date filter, or adjust the filters from the left sidebar.</p>
+        <button class="inline-btn inline-btn--primary" type="button" (click)="resetFilters()">Clear filters</button>
+      </section>
+    </section>
   </div>
+
+  <div class="activity-modal-overlay" *ngIf="selectedActivity as activity" (click)="closeSelectedActivity()">
+    <section class="activity-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <button class="activity-modal__close" type="button" (click)="closeSelectedActivity()" aria-label="Close event summary">×</button>
+
+      <div class="activity-modal__gallery">
+        <img class="activity-modal__image" [src]="getSelectedActivityImages(activity)[0]" [alt]="activity.title" />
+      </div>
+
+      <div class="activity-modal__body">
+        <div class="activity-modal__heading">
+          <div>
+            <p class="activity-modal__city">{{ activity.city }}, {{ activity.country }}</p>
+            <h2>{{ activity.title }}</h2>
+          </div>
+          <span class="activity-modal__rating">★ {{ activity.rating }}</span>
+        </div>
+
+        <p class="activity-modal__copy">{{ getDisplayDescription(activity) }}</p>
+
+        <div class="activity-modal__details">
+          <div>
+            <span>Date</span>
+            <strong>{{ getDisplayStartDate(activity) }}</strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong>{{ getDisplayStartTime(activity) }}</strong>
+          </div>
+          <div>
+            <span>Venue</span>
+            <strong>{{ activity.venue }}</strong>
+          </div>
+        </div>
+
+        <div class="activity-modal__footer">
+          <div>
+            <span>From</span>
+            <strong>{{ getDisplayPrice(activity) }}</strong>
+            <span>{{ getDisplayGenre(activity) }}</span>
+          </div>
+
+          <button class="activity-modal__add-btn" type="button" (click)="addSelectedActivityToCalendar()">
+            {{ isAddingActivityToCalendar ? 'Adding...' : (activityCalendarMessage || 'Add this event to calendar') }}
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<app-status-toast [message]="toastMessage" [type]="toastType"></app-status-toast>

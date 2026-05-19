@@ -2,6 +2,10 @@ services:
   backend:
     build:
       context: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/sep
+      SPRING_DATASOURCE_USERNAME: sep
+      SPRING_DATASOURCE_PASSWORD: sepsep123
     restart: unless-stopped
     ports:
       - 8080:8080
