@@ -33,13 +33,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "700kB",
+                  "maximumError": "800kB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "16kB",
-                  "maximumError": "20kB"
+                  "maximumWarning": "32kB",
+                  "maximumError": "36kB"
                 }
               ],
               "outputHashing": "all"
@@ -55,6 +55,7 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
+            "proxyConfig": "proxy.conf.json",
             "allowedHosts": [
               "volitionless-unpulvinated-izaiah.ngrok-free.dev"
             ]

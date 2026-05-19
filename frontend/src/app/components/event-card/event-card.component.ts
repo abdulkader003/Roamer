@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 export interface CalendarEvent {
@@ -16,7 +16,7 @@ export interface CalendarEvent {
 
 @Component({
   selector: 'app-event-card',
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './event-card.component.html',
   styleUrl: './event-card.component.css'
 })

@@ -1,0 +1,68 @@
+<div class="card">
+  <div class="gallery" *ngIf="cardImages.length">
+    <img class="gallery-main" [src]="cardImages[currentImageIndex]" [alt]="hotel.name" />
+
+    <button
+      class="gallery-arrow previous"
+      type="button"
+      *ngIf="cardImages.length > 1"
+      (click)="previousImage($event)"
+      aria-label="Previous image"
+    >
+      ‹
+    </button>
+    <button
+      class="gallery-arrow next"
+      type="button"
+      *ngIf="cardImages.length > 1"
+      (click)="nextImage($event)"
+      aria-label="Next image"
+    >
+      ›
+    </button>
+
+    <span class="image-counter">{{ imageCounter }}</span>
+
+    <div class="thumbnails">
+      <button
+        type="button"
+        *ngFor="let image of cardImages; let index = index"
+        [class.active]="index === currentImageIndex"
+        (click)="selectImage(index, $event)"
+        [attr.aria-label]="'Show image ' + (index + 1)"
+      >
+        <img [src]="image" [alt]="hotel.name + ' thumbnail ' + (index + 1)" />
+      </button>
+    </div>
+  </div>
+
+  <div class="card-header">
+    <div>
+      <p class="detail-label">Stay details</p>
+      <h3>{{ hotel.name }}</h3>
+    </div>
+  </div>
+
+  <p class="description">{{ hotel.description }}</p>
+
+  <div class="price-block">
+    <span>Price per night: {{ hotel.pricePerNight }} EUR / night</span>
+    <strong>Total price: {{ formattedTotalPrice }}</strong>
+    <span>Stay: {{ numberOfNights ? numberOfNights + (numberOfNights === 1 ? ' night' : ' nights') : 'Select dates' }}</span>
+  </div>
+
+  <div class="dates">
+    <p>Check-in: {{ hotel.checkIn || 'Select date' }}</p>
+    <p>Check-out: {{ hotel.checkOut || 'Select date' }}</p>
+    <p>Nights: {{ numberOfNights || 'Select dates' }}</p>
+  </div>
+
+  <div class="amenities" *ngIf="visibleAmenities.length">
+    <span class="amenity" *ngFor="let amenity of visibleAmenities">{{ amenity }}</span>
+    <span class="amenity more" *ngIf="hiddenAmenitiesCount">+{{ hiddenAmenitiesCount }} more</span>
+  </div>
+
+  <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+  <button (click)="addToCalendar()">Zum Kalender hinzufügen</button>
+</div>

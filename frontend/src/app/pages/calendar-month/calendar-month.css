@@ -441,21 +441,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--calendar-accent) 12%, transparent);
 }
 
-.event-form-hint,
-.event-form-message {
-  margin: -4px 0 0;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.event-form-hint {
-  color: var(--calendar-text-muted);
-}
-
-.event-form-message {
-  color: #b42318;
-}
-
 .event-form-actions {
   display: flex;
   justify-content: flex-end;
@@ -472,16 +457,6 @@
   padding: 12px 18px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.secondary-button:disabled,
-.primary-button:disabled,
-.danger-button:disabled,
-.event-action-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
 }
 
 .secondary-button {
@@ -489,22 +464,10 @@
   color: var(--calendar-text);
 }
 
-.primary-button,
-.danger-button {
+.primary-button {
   background: var(--calendar-accent);
   color: #ffffff;
   box-shadow: 0 10px 24px color-mix(in srgb, var(--calendar-accent) 24%, transparent);
-}
-
-.danger-button {
-  border: none;
-  border-radius: 12px;
-  padding: 12px 18px;
-  font-weight: 700;
-  cursor: pointer;
-  background: linear-gradient(135deg, #c33b32, #971d16);
-  box-shadow: 0 10px 24px rgba(151, 29, 22, 0.28);
-  transition: opacity 0.2s ease;
 }
 
 .event-modal-backdrop {
@@ -558,40 +521,6 @@
   line-height: 1.15;
 }
 
-.modal-header-actions,
-.event-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.modal-header-actions {
-  flex: 0 0 auto;
-}
-
-.event-action-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--calendar-border);
-  border-radius: 10px;
-  background: var(--calendar-panel-bg);
-  color: var(--calendar-accent);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
-  font-size: 17px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-}
-
-.event-action-button:hover:not(:disabled) {
-  border-color: var(--calendar-accent);
-  background: rgba(232, 184, 75, 0.12);
-  transform: translateY(-1px) scale(1.03);
-}
-
 .modal-close-button {
   flex: 0 0 auto;
   width: 40px;
@@ -639,74 +568,6 @@
   overflow-wrap: anywhere;
 }
 
-.confirm-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(17, 24, 39, 0.36);
-  backdrop-filter: blur(6px);
-}
-
-.confirm-dialog {
-  width: min(440px, 100%);
-  border: 1px solid var(--calendar-border);
-  border-radius: 18px;
-  background: linear-gradient(180deg, var(--calendar-card-bg), color-mix(in srgb, var(--calendar-card-bg) 88%, #f5dfd8));
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
-  padding: 24px;
-}
-
-.confirm-dialog-eyebrow {
-  margin: 0 0 10px;
-  color: #b42318;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.confirm-dialog h3 {
-  margin: 0 0 12px;
-  color: var(--calendar-text);
-  font-size: 26px;
-  line-height: 1.18;
-}
-
-.confirm-dialog-copy {
-  margin: 0;
-  color: var(--calendar-text);
-  font-size: 15px;
-  line-height: 1.6;
-}
-
-.confirm-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.calendar-toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 70;
-  max-width: min(360px, calc(100vw - 32px));
-  padding: 14px 18px;
-  border: 1px solid color-mix(in srgb, var(--calendar-accent) 22%, transparent);
-  border-radius: 14px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--calendar-accent) 18%, white), var(--calendar-card-bg));
-  color: var(--calendar-text);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
-  font-size: 14px;
-  font-weight: 700;
-  animation: toast-in 0.22s ease-out;
-}
-
 @keyframes drawer-slide-in {
   from {
     transform: translateX(100%);
@@ -714,18 +575,6 @@
 
   to {
     transform: translateX(0);
-  }
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -826,20 +675,6 @@
 
   .event-detail-grid {
     grid-template-columns: 1fr;
-  }
-
-  .confirm-dialog-actions {
-    flex-direction: column-reverse;
-  }
-
-  .danger-button,
-  .confirm-dialog-actions .secondary-button {
-    width: 100%;
-  }
-
-  .calendar-toast {
-    right: 16px;
-    bottom: 16px;
   }
 }
 

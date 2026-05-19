@@ -24,7 +24,7 @@ type EventDraft = {
   startTime: string;
   endTime: string;
   category: EventCategory;
-  budget: string | number;
+  budget: string;
   notes: string;
 };
 
@@ -720,22 +720,6 @@ export class CalendarMonth {
     this.generateCalendar();
   }
 
-  private focusCalendarOnDraftDate(): void {
-    if (!this.eventDraft.date) {
-      return;
-    }
-
-    const eventDate = new Date(`${this.eventDraft.date}T12:00:00`);
-
-    if (Number.isNaN(eventDate.getTime())) {
-      return;
-    }
-
-    this.currentDate = eventDate;
-    this.selectedDay = eventDate.getDate();
-    this.generateCalendar();
-  }
-
   private upsertEvent(event: CalendarEvent): void {
     const existingIndex = this.events.findIndex((item) => item.id === event.id);
 
@@ -790,6 +774,5 @@ export class CalendarMonth {
     }, 2600);
   }
 
-constructor(private cdr: ChangeDetectorRef) {}
-
+  constructor(private cdr: ChangeDetectorRef) {}
 }
