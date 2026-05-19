@@ -264,30 +264,27 @@
           </div>
 
           <div class="modal-header-actions">
-            <div class="event-actions">
-              <button
-                type="button"
-                class="event-action-button edit-btn"
-                aria-label="Edit event"
-                title="Edit event"
-                [disabled]="!selectedEvent.id"
-                (click)="startEditingSelectedEvent()">
-                ✏️
-              </button>
-              <button
-                type="button"
-                class="event-action-button delete-btn"
-                aria-label="Delete event"
-                title="Delete event"
-                [disabled]="!selectedEvent.id || isDeleting"
-                (click)="requestDeleteSelectedEvent()">
-                🗑️
-              </button>
-            </div>
-
             <button
               type="button"
-              class="modal-close-button"
+              class="event-action-button"
+              aria-label="Edit event"
+              title="Edit event"
+              [disabled]="!selectedEvent.id"
+              (click)="startEditingSelectedEvent()">
+              ✏️
+            </button>
+            <button
+              type="button"
+              class="event-action-button event-action-button--danger"
+              aria-label="Delete event"
+              title="Delete event"
+              [disabled]="!selectedEvent.id || isDeleting"
+              (click)="deleteSelectedEvent()">
+              {{ isDeleting ? '…' : '🗑️' }}
+            </button>
+            <button
+              type="button"
+              class="event-action-button event-action-button--icon"
               aria-label="Close event details"
               (click)="selectedEvent = null">
               &times;
