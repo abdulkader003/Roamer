@@ -411,7 +411,15 @@ export class CalendarMonth {
       return;
     }
 
-    this.deleteConfirmationEvent = this.selectedEvent;
+    void this.deleteEvent(this.selectedEvent);
+  }
+
+  async deleteSelectedEvent() {
+    if (this.selectedEvent?.id === undefined || this.isDeleting) {
+      return;
+    }
+
+    await this.deleteEvent(this.selectedEvent);
   }
 
   closeDeleteConfirmation() {
@@ -423,8 +431,15 @@ export class CalendarMonth {
       return;
     }
 
-    const eventToDelete = this.deleteConfirmationEvent;
-    const eventId = eventToDelete.id!;
+    await this.deleteEvent(this.deleteConfirmationEvent);
+  }
+
+  private async deleteEvent(eventToDelete: CalendarEvent) {
+    if (eventToDelete.id === undefined || this.isDeleting) {
+      return;
+    }
+
+    const eventId = eventToDelete.id;
     const deletedEventIndex = this.events.findIndex((event) => event.id === eventId);
     this.isDeleting = true;
     this.removeEvent(eventId);
@@ -442,6 +457,7 @@ export class CalendarMonth {
 
       this.showToast('Event deleted successfully.');
     } catch (error) {
+      console.error('Failed to delete calendar event:', error);
       this.restoreEvent(eventToDelete, deletedEventIndex);
       this.showToast(this.getRequestErrorMessage(error, 'delete'));
     } finally {

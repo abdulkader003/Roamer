@@ -521,17 +521,57 @@
   line-height: 1.15;
 }
 
-.modal-close-button {
+.modal-header-actions {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.event-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 40px;
+  min-width: 40px;
   height: 40px;
+  padding: 0;
   border: 1px solid var(--calendar-border);
   border-radius: 999px;
   background: var(--calendar-panel-bg);
   color: var(--calendar-text);
-  font-size: 24px;
+  font-size: 18px;
+  font-weight: 800;
   line-height: 1;
   cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.event-action-button:hover:not(:disabled) {
+  border-color: var(--calendar-accent);
+  background: var(--calendar-accent-soft);
+  color: var(--calendar-accent);
+  transform: translateY(-1px);
+}
+
+.event-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.event-action-button--danger {
+  color: #b42318;
+}
+
+.event-action-button--danger:hover:not(:disabled) {
+  border-color: #f5b5ae;
+  background: #fff0ee;
+  color: #a61b12;
+}
+
+.event-action-button--icon {
+  font-size: 24px;
 }
 
 .event-detail-list {
