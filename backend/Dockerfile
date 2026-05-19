@@ -1,5 +1,7 @@
 # ---- Stage 1: Build the application ----
-FROM gradle:jdk21 AS build
+ARG GRADLE_IMAGE=gradle:jdk21
+ARG RUNTIME_IMAGE=eclipse-temurin:21-jre
+FROM ${GRADLE_IMAGE} AS build
 
 WORKDIR /app
 
@@ -16,7 +18,7 @@ COPY src src
 RUN ./gradlew clean bootJar -x test
 
 # ---- Stage 2: Run the application ----
-FROM eclipse-temurin:21-jre
+FROM ${RUNTIME_IMAGE}
 
 WORKDIR /app
 

@@ -1,18 +1,20 @@
 # Stage 1: Build the Angular app
-FROM node:latest AS build
+ARG NODE_IMAGE=node:22-alpine
+ARG NGINX_IMAGE=nginx:alpine
+FROM ${NODE_IMAGE} AS build
 
 WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # Copy source and build
 COPY . .
 RUN npm run build -- --configuration production
 
 # Stage 2: Serve the app with Nginx
-FROM nginx:alpine
+FROM ${NGINX_IMAGE}
 
 # Copy built Angular files from the build stage
 COPY --from=build /app/dist/sep/browser /usr/share/nginx/html
