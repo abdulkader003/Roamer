@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 export interface CalendarEvent {
+  id?: number;
   title: string;
   description?: string;
   location?: string;
