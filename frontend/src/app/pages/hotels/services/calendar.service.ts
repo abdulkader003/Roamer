@@ -46,23 +46,13 @@ export class CalendarService {
     return response.json() as Promise<BackendCalendarEvent>;
   }
 
-  async addEventOrRedirectToLogin(event: CalendarEvent, returnUrl?: string): Promise<'added' | 'queued'> {
+  async addEventOrRedirectToLogin(event: CalendarEvent, returnUrl?: string): Promise<'added'> {
     const targetReturnUrl = this.buildCalendarReturnUrl(event, returnUrl);
 
-    if (this.authService.isAuthenticated()) {
-      await this.addEvent(event);
-      void this.router.navigateByUrl(targetReturnUrl);
-      return 'added';
-    }
+    await this.addEvent(event);
+    void this.router.navigateByUrl(targetReturnUrl);
 
-    this.setPendingCalendarEvent({
-      event,
-      returnUrl: targetReturnUrl
-    });
-    void this.router.navigate(['/login'], {
-      queryParams: { returnUrl: targetReturnUrl }
-    });
-    return 'queued';
+    return 'added';
   }
 
   async completePendingEventAfterAuth(): Promise<boolean> {
@@ -157,7 +147,10 @@ export class CalendarService {
   }
 
   private getCalendarApiCandidates(path: string): string[] {
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const trimmedPath = path.trim();
+    const normalizedPath = trimmedPath
+      ? trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`
+      : '';
     const candidates = [`/api/calendar-events${normalizedPath}`];
     const hostname =
       typeof window !== 'undefined' ? window.location.hostname : 'localhost';

@@ -30,9 +30,10 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 external:
-  aviationstack:
-    access-key: ${AVIATIONSTACK_ACCESS_KEY:9c23442025c71c4f389631e73661b449}
-    base-url: ${AVIATIONSTACK_BASE_URL:http://api.aviationstack.com/v1}
+  aerodatabox:
+    rapidapi-key: e1a8c6ba89msh0224f004bb78dc1p10082bjsn8784f3131dc7
+    rapidapi-host: aerodatabox.p.rapidapi.com
+    base-url: https://aerodatabox.p.rapidapi.com
 
 agoda:
   rapidapi:

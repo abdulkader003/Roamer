@@ -161,6 +161,14 @@
           <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
         </svg>
       </button>
+
+      <label class="city-airports-toggle" [class.checked]="includeCityAirports()">
+        <input
+          type="checkbox"
+          [checked]="includeCityAirports()"
+          (change)="toggleCityAirportSearch()"/>
+        <span>Search all airports in selected cities</span>
+      </label>
     </div>
 
     <div *ngIf="tripType() === 'multi-city'" class="multi-city-builder">
@@ -602,12 +610,17 @@
                   {{ flight.airline.code }}
                 </div>
                 <div class="airline-name">{{ flight.airline.name }}</div>
+                <div class="flight-meta">
+                  <span>{{ flight.flightNumber || flight.id }}</span>
+                  <span>{{ flight.status || 'Scheduled' }}</span>
+                </div>
               </div>
 
               <div class="route">
                 <div class="endpoint">
                   <div class="time">{{ flight.departure.time }}</div>
                   <div class="code">{{ flight.departure.airport }}</div>
+                  <div class="terminal" *ngIf="flight.departure.terminal">Terminal {{ flight.departure.terminal }}</div>
                   <div class="city">{{ flight.departure.city }}</div>
                 </div>
 
@@ -624,6 +637,7 @@
                 <div class="endpoint right">
                   <div class="time">{{ flight.arrival.time }}</div>
                   <div class="code">{{ flight.arrival.airport }}</div>
+                  <div class="terminal" *ngIf="flight.arrival.terminal">Terminal {{ flight.arrival.terminal }}</div>
                   <div class="city">{{ flight.arrival.city }}</div>
                 </div>
               </div>
@@ -695,12 +709,17 @@
                   {{ flight.airline.code }}
                 </div>
                 <div class="airline-name">{{ flight.airline.name }}</div>
+                <div class="flight-meta">
+                  <span>{{ flight.flightNumber || flight.id }}</span>
+                  <span>{{ flight.status || 'Scheduled' }}</span>
+                </div>
               </div>
 
               <div class="route">
                 <div class="endpoint">
                   <div class="time">{{ flight.departure.time }}</div>
                   <div class="code">{{ flight.departure.airport }}</div>
+                  <div class="terminal" *ngIf="flight.departure.terminal">Terminal {{ flight.departure.terminal }}</div>
                   <div class="city">{{ flight.departure.city }}</div>
                 </div>
 
@@ -717,6 +736,7 @@
                 <div class="endpoint right">
                   <div class="time">{{ flight.arrival.time }}</div>
                   <div class="code">{{ flight.arrival.airport }}</div>
+                  <div class="terminal" *ngIf="flight.arrival.terminal">Terminal {{ flight.arrival.terminal }}</div>
                   <div class="city">{{ flight.arrival.city }}</div>
                 </div>
               </div>
@@ -790,12 +810,17 @@
                       {{ flight.airline.code }}
                     </div>
                     <div class="airline-name">{{ flight.airline.name }}</div>
+                    <div class="flight-meta">
+                      <span>{{ flight.flightNumber || flight.id }}</span>
+                      <span>{{ flight.status || 'Scheduled' }}</span>
+                    </div>
                   </div>
 
                   <div class="route">
                     <div class="endpoint">
                       <div class="time">{{ flight.departure.time }}</div>
                       <div class="code">{{ flight.departure.airport }}</div>
+                      <div class="terminal" *ngIf="flight.departure.terminal">Terminal {{ flight.departure.terminal }}</div>
                       <div class="city">{{ flight.departure.city }}</div>
                     </div>
 
@@ -812,6 +837,7 @@
                     <div class="endpoint right">
                       <div class="time">{{ flight.arrival.time }}</div>
                       <div class="code">{{ flight.arrival.airport }}</div>
+                      <div class="terminal" *ngIf="flight.arrival.terminal">Terminal {{ flight.arrival.terminal }}</div>
                       <div class="city">{{ flight.arrival.city }}</div>
                     </div>
                   </div>
@@ -899,6 +925,7 @@
         <div>
           <p class="modal-eyebrow">{{ selectedFlightLegLabel(flight) }}</p>
           <h2 id="selected-flight-title">{{ flight.airline.name }}</h2>
+          <span>{{ flight.flightNumber || flight.id }} · {{ flight.status || 'Scheduled' }}</span>
           <span>{{ flight.departure.airport }} → {{ flight.arrival.airport }} · {{ formatDate(selectedFlightDate(flight)) }}</span>
         </div>
 
@@ -919,6 +946,7 @@
           <span>Departure</span>
           <strong>{{ flight.departure.time }}</strong>
           <p>{{ flight.departure.city }} · {{ flight.departure.airport }}</p>
+          <p *ngIf="flight.departure.terminal">Terminal {{ flight.departure.terminal }}</p>
         </div>
 
         <div class="modal-duration">
@@ -931,10 +959,17 @@
           <span>Arrival</span>
           <strong>{{ flight.arrival.time }}</strong>
           <p>{{ flight.arrival.city }} · {{ flight.arrival.airport }}</p>
+          <p *ngIf="flight.arrival.terminal">Terminal {{ flight.arrival.terminal }}</p>
         </div>
       </div>
 
       <div class="flight-modal__details">
+        <div>
+          <span>Flight number</span>
+          <strong>{{ flight.flightNumber || flight.id }}</strong>
+          <p>{{ flight.status || 'Scheduled' }}</p>
+        </div>
+
         <div>
           <span>Travelers</span>
           <strong>{{ travelers() }}</strong>
@@ -947,11 +982,6 @@
           <p>{{ flight.checkedBagIncluded ? 'Checked baggage included' : 'Checked baggage not included' }}</p>
         </div>
 
-        <div>
-          <span>Total estimate</span>
-          <strong>€{{ selectedFlightTotalPrice(flight) }}</strong>
-          <p>€{{ flight.price }} per traveler</p>
-        </div>
       </div>
 
       <footer class="flight-modal__footer">
@@ -974,3 +1004,13 @@
     </section>
   </div>
 </section>
+
+<div
+  *ngIf="toastMessage()"
+  class="flight-toast"
+  [class.error]="toastType() === 'error'"
+  [class.success]="toastType() === 'success'"
+  [attr.role]="toastType() === 'error' ? 'alert' : 'status'"
+  [attr.aria-live]="toastType() === 'error' ? 'assertive' : 'polite'">
+  {{ toastMessage() }}
+</div>

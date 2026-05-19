@@ -22,10 +22,13 @@ export interface FlightEndpoint {
   time: string;       // '07:25'
   airport: string;    // 'DUS'
   city: string;       // 'Düsseldorf'
+  terminal?: string | null;
 }
 
 export interface Flight {
   id: string;
+  flightNumber?: string;
+  status?: string;
   airline: Airline;
   departure: FlightEndpoint;
   arrival: FlightEndpoint;
@@ -54,6 +57,7 @@ export interface SearchParams {
   departureDate: Date | null;
   returnDate: Date | null;
   multiCitySegments?: MultiCitySegment[];
+  includeCityAirports: boolean;
   travelers: number;
   adults: number;
   children: number;

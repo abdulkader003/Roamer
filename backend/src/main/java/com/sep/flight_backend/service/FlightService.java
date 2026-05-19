@@ -14,23 +14,54 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class FlightService {
-    private final AviationstackFlightService aviationstackFlightService;
+    private static final Map<String, List<FlightSearchRequest.AirportDto>> CITY_AIRPORTS = Map.ofEntries(
+            Map.entry("Milan", List.of(
+                    new FlightSearchRequest.AirportDto("MXP", "Milan", "Malpensa"),
+                    new FlightSearchRequest.AirportDto("LIN", "Milan", "Linate"),
+                    new FlightSearchRequest.AirportDto("BGY", "Milan", "Bergamo Orio al Serio")
+            )),
+            Map.entry("Paris", List.of(
+                    new FlightSearchRequest.AirportDto("CDG", "Paris", "Charles de Gaulle"),
+                    new FlightSearchRequest.AirportDto("ORY", "Paris", "Orly"),
+                    new FlightSearchRequest.AirportDto("BVA", "Paris", "Beauvais-Tille")
+            )),
+            Map.entry("London", List.of(
+                    new FlightSearchRequest.AirportDto("LHR", "London", "Heathrow"),
+                    new FlightSearchRequest.AirportDto("LGW", "London", "Gatwick"),
+                    new FlightSearchRequest.AirportDto("STN", "London", "Stansted"),
+                    new FlightSearchRequest.AirportDto("LTN", "London", "Luton"),
+                    new FlightSearchRequest.AirportDto("LCY", "London", "London City")
+            )),
+            Map.entry("New York", List.of(
+                    new FlightSearchRequest.AirportDto("JFK", "New York", "John F. Kennedy"),
+                    new FlightSearchRequest.AirportDto("LGA", "New York", "LaGuardia"),
+                    new FlightSearchRequest.AirportDto("EWR", "New York", "Newark Liberty")
+            )),
+            Map.entry("Rome", List.of(
+                    new FlightSearchRequest.AirportDto("FCO", "Rome", "Fiumicino"),
+                    new FlightSearchRequest.AirportDto("CIA", "Rome", "Ciampino")
+            ))
+    );
+
+    private final AeroDataBoxFlightService aeroDataBoxFlightService;
     private final FlightMapper flightMapper;
     private final FlightSearchRepository flightSearchRepository;
     private final ObjectMapper objectMapper;
 
     public FlightService(
-            AviationstackFlightService aviationstackFlightService,
+            AeroDataBoxFlightService aeroDataBoxFlightService,
             FlightMapper flightMapper,
             FlightSearchRepository flightSearchRepository,
             ObjectMapper objectMapper
     ) {
-        this.aviationstackFlightService = aviationstackFlightService;
+        this.aeroDataBoxFlightService = aeroDataBoxFlightService;
         this.flightMapper = flightMapper;
         this.flightSearchRepository = flightSearchRepository;
         this.objectMapper = objectMapper;
@@ -47,7 +78,7 @@ public class FlightService {
     }
 
     private Optional<FlightSearchEntity> findCachedSearch(FlightSearchRequest request) {
-        if ("multi-city".equals(request.tripType())) {
+        if ("multi-city".equals(request.tripType()) || request.includeCityAirports()) {
             return Optional.empty();
         }
 
@@ -80,15 +111,16 @@ public class FlightService {
     }
 
     private FlightResponse fetchPersistAndMap(FlightSearchRequest request) {
-        JsonNode aviationstackResponse = aviationstackFlightService.searchFlights(request);
         if ("multi-city".equals(request.tripType())) {
-            return fetchPersistAndMapMultiCity(request, aviationstackResponse);
+            return fetchPersistAndMapMultiCity(request);
         }
 
-        List<FlightOfferDto> outboundOffers = flightMapper.fromAviationstack(aviationstackResponse, request);
-        List<FlightOfferDto> returnOffers = isRoundTrip(request)
-                ? flightMapper.fromAviationstack(aviationstackResponse, returnLegRequest(request))
-                : List.of();
+        List<FlightOfferDto> outboundOffers = searchLeg(request, request.includeCityAirports());
+        List<FlightOfferDto> returnOffers = List.of();
+        if (isRoundTrip(request)) {
+            FlightSearchRequest returnRequest = returnLegRequest(request);
+            returnOffers = searchLeg(returnRequest, request.includeCityAirports());
+        }
         List<FlightOfferDto> offers = new java.util.ArrayList<>();
         offers.addAll(outboundOffers);
         offers.addAll(returnOffers);
@@ -104,7 +136,7 @@ public class FlightService {
         return flightMapper.toResponse(savedSearch, offers);
     }
 
-    private FlightResponse fetchPersistAndMapMultiCity(FlightSearchRequest request, JsonNode aviationstackResponse) {
+    private FlightResponse fetchPersistAndMapMultiCity(FlightSearchRequest request) {
         if (request.multiCitySegments() == null || request.multiCitySegments().size() < 2) {
             throw new IllegalArgumentException("Multi-city flight search requires at least two segments.");
         }
@@ -117,7 +149,7 @@ public class FlightService {
         for (int i = 0; i < request.multiCitySegments().size(); i++) {
             FlightSearchRequest.MultiCitySegmentDto segment = request.multiCitySegments().get(i);
             FlightSearchRequest segmentRequest = segmentRequest(request, segment);
-            List<FlightOfferDto> segmentOffers = flightMapper.fromAviationstack(aviationstackResponse, segmentRequest);
+            List<FlightOfferDto> segmentOffers = searchLeg(segmentRequest, false);
             String legType = "segment-" + (i + 1);
 
             segmentOffers.forEach(offer -> offerEntities.add(flightMapper.toOfferEntity(offer, searchEntity, legType)));
@@ -141,6 +173,68 @@ public class FlightService {
         return "round-trip".equals(request.tripType()) && request.returnDate() != null;
     }
 
+    private List<FlightOfferDto> searchLeg(FlightSearchRequest request, boolean includeCityAirports) {
+        if (!includeCityAirports) {
+            JsonNode response = aeroDataBoxFlightService.searchFlights(request);
+            return flightMapper.fromAeroDataBox(response, request);
+        }
+
+        List<FlightSearchRequest.AirportDto> originAirports = cityAirportsFor(request.from());
+        List<FlightSearchRequest.AirportDto> destinationAirports = cityAirportsFor(request.to());
+        List<FlightOfferDto> offers = new ArrayList<>();
+        int maxRoutePairs = 9;
+        int routePairs = 0;
+
+        for (FlightSearchRequest.AirportDto origin : originAirports) {
+            for (FlightSearchRequest.AirportDto destination : destinationAirports) {
+                if (routePairs >= maxRoutePairs) {
+                    break;
+                }
+                routePairs++;
+                FlightSearchRequest airportRequest = legRequest(request, origin, destination);
+                JsonNode response = aeroDataBoxFlightService.searchFlights(airportRequest);
+                offers.addAll(flightMapper.fromAeroDataBox(response, airportRequest, false));
+            }
+        }
+
+        if (offers.isEmpty()) {
+            JsonNode response = aeroDataBoxFlightService.searchFlights(request);
+            return flightMapper.fromAeroDataBox(response, request);
+        }
+
+        return offers.stream()
+                .sorted(Comparator.comparing(FlightOfferDto::price))
+                .toList();
+    }
+
+    private List<FlightSearchRequest.AirportDto> cityAirportsFor(FlightSearchRequest.AirportDto airport) {
+        if (airport == null || airport.city() == null || airport.city().isBlank()) {
+            return List.of(airport);
+        }
+
+        return CITY_AIRPORTS.getOrDefault(airport.city(), List.of(airport));
+    }
+
+    private FlightSearchRequest legRequest(
+            FlightSearchRequest request,
+            FlightSearchRequest.AirportDto from,
+            FlightSearchRequest.AirportDto to
+    ) {
+        return new FlightSearchRequest(
+                request.tripType(),
+                from,
+                to,
+                request.departureDate(),
+                request.returnDate(),
+                null,
+                request.includeCityAirports(),
+                request.travelers(),
+                request.adults(),
+                request.children(),
+                request.cabinClass()
+        );
+    }
+
     private FlightSearchRequest returnLegRequest(FlightSearchRequest request) {
         return new FlightSearchRequest(
                 request.tripType(),
@@ -149,6 +243,7 @@ public class FlightService {
                 request.returnDate(),
                 null,
                 null,
+                request.includeCityAirports(),
                 request.travelers(),
                 request.adults(),
                 request.children(),
@@ -164,6 +259,7 @@ public class FlightService {
                 segment.date(),
                 null,
                 null,
+                false,
                 request.travelers(),
                 request.adults(),
                 request.children(),

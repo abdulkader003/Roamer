@@ -143,7 +143,7 @@ export class CalendarMonth {
 
   async loadCalendarEvents() {
     try {
-      const response = await fetch('http://localhost:8080/api/calendar-events');
+      const response = await fetch('/api/calendar-events');
 
       if (!response.ok) {
         throw new Error(`Failed to load events: ${response.status}`);
@@ -231,7 +231,7 @@ export class CalendarMonth {
    };
 
    try {
-     const response = await fetch('http://localhost:8080/api/calendar-events', {
+     const response = await fetch('/api/calendar-events', {
        method: 'POST',
        headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify(backendPayload)

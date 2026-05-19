@@ -2,6 +2,8 @@ package com.sep.flight_backend.dto.flight;
 
 public record FlightOfferDto(
         String id,
+        String flightNumber,
+        String status,
         AirlineDto airline,
         FlightEndpointDto departure,
         FlightEndpointDto arrival,
@@ -24,9 +26,10 @@ public record FlightOfferDto(
     }
 
     public record FlightEndpointDto(
-            String time,
-            String airport,
-            String city
+        String time,
+        String airport,
+        String city,
+        String terminal
     ) {
     }
 
