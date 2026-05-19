@@ -39,7 +39,7 @@
       </div>
 
       <div class="toolbar-actions">
-        <button type="button" class="add-event-button" (click)="addEvent()">+ Add Event</button>
+        <button type="button" class="add-event-button" (click)="openAddEventDrawer()">+ Add Event</button>
 
         <div class="view-toggle">
           <button
@@ -85,7 +85,7 @@
               @for (event of getEventsForDate(getDateForDay(day)); track event) {
                 <app-event-card
                   [event]="event"
-                  (viewDetails)="selectedEvent = $event">
+                  (viewDetails)="openEventDetails($event)">
                 </app-event-card>
               }
             </div>
@@ -116,7 +116,7 @@
                 @for (event of getEventsForDate(getDateForDate(date)); track event) {
                   <app-event-card
                     [event]="event"
-                    (viewDetails)="selectedEvent = $event">
+                    (viewDetails)="openEventDetails($event)">
                   </app-event-card>
                 }
               </div>
@@ -135,7 +135,7 @@
         <div class="event-drawer-header">
           <div>
             <p class="event-drawer-eyebrow">Plan Details</p>
-            <h3>Add Event</h3>
+            <h3>{{ eventDrawerTitle }}</h3>
           </div>
           <button
             type="button"
@@ -146,7 +146,7 @@
           </button>
         </div>
 
-        <form class="event-form" (ngSubmit)="saveEvent()">
+        <form class="event-form" novalidate (ngSubmit)="saveEvent()">
           <label class="form-field">
             <span>Event title</span>
             <input
@@ -213,6 +213,10 @@
             </label>
           </div>
 
+          <p class="event-form-hint">
+            Leave both time fields empty to save it as an all-day event.
+          </p>
+
           <label class="form-field">
             <span>Budget / cost</span>
             <input
@@ -233,11 +237,17 @@
               placeholder="Reservation details, contacts, dress code, reminders..."></textarea>
           </label>
 
+          @if (visibleFormMessage) {
+            <p class="event-form-message">{{ visibleFormMessage }}</p>
+          }
+
           <div class="event-form-actions">
             <button type="button" class="secondary-button" (click)="cancelEventForm()">
               Cancel
             </button>
-            <button type="submit" class="primary-button">Save Event</button>
+            <button type="submit" class="primary-button" [disabled]="isSaveDisabled">
+              {{ saveButtonLabel }}
+            </button>
           </div>
         </form>
       </aside>
@@ -252,13 +262,37 @@
             <p class="event-modal-eyebrow">{{ selectedEvent.category || 'Travel plan' }}</p>
             <h3>{{ selectedEvent.title }}</h3>
           </div>
-          <button
-            type="button"
-            class="modal-close-button"
-            aria-label="Close event details"
-            (click)="selectedEvent = null">
-            &times;
-          </button>
+
+          <div class="modal-header-actions">
+            <div class="event-actions">
+              <button
+                type="button"
+                class="event-action-button edit-btn"
+                aria-label="Edit event"
+                title="Edit event"
+                [disabled]="!selectedEvent.id"
+                (click)="startEditingSelectedEvent()">
+                ✏️
+              </button>
+              <button
+                type="button"
+                class="event-action-button delete-btn"
+                aria-label="Delete event"
+                title="Delete event"
+                [disabled]="!selectedEvent.id || isDeleting"
+                (click)="requestDeleteSelectedEvent()">
+                🗑️
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="modal-close-button"
+              aria-label="Close event details"
+              (click)="selectedEvent = null">
+              &times;
+            </button>
+          </div>
         </div>
 
         <div class="event-detail-list">
@@ -317,6 +351,35 @@
           }
         </div>
       </div>
+    </div>
+  }
+
+  @if (deleteConfirmationEvent) {
+    <div
+      class="confirm-dialog-backdrop"
+      (click)="closeDeleteConfirmation()">
+      <div class="confirm-dialog" (click)="$event.stopPropagation()">
+        <p class="confirm-dialog-eyebrow">Delete Event</p>
+        <h3>Do you really want to delete this event?</h3>
+        <p class="confirm-dialog-copy">
+          <strong>{{ deleteConfirmationEvent.title }}</strong> will be removed from the calendar and the database.
+        </p>
+
+        <div class="confirm-dialog-actions">
+          <button type="button" class="secondary-button" (click)="closeDeleteConfirmation()">
+            Keep Event
+          </button>
+          <button type="button" class="danger-button" [disabled]="isDeleting" (click)="confirmDeleteEvent()">
+            {{ isDeleting ? 'Deleting...' : 'Delete Event' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toastMessage) {
+    <div class="calendar-toast">
+      {{ toastMessage }}
     </div>
   }
 </div>
