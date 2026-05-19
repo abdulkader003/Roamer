@@ -40,7 +40,7 @@ build_frontend:
     - FRONTEND_BUILD_ARGS=""
     - |
       if [ -n "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX" ] && [ -n "$CI_DEPENDENCY_PROXY_USER" ] && [ -n "$CI_DEPENDENCY_PROXY_PASSWORD" ]; then
-        FRONTEND_BUILD_ARGS="--build-arg NODE_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/node:22-alpine --build-arg NGINX_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/nginx:alpine"
+        FRONTEND_BUILD_ARGS="--build-arg NODE_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/library/node:22-alpine --build-arg NGINX_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/library/nginx:alpine"
       fi
  
     - docker build $FRONTEND_BUILD_ARGS -t "$IMAGE:$SHA_TAG" frontend/
@@ -71,7 +71,7 @@ build_backend:
     - BACKEND_BUILD_ARGS=""
     - |
       if [ -n "$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX" ] && [ -n "$CI_DEPENDENCY_PROXY_USER" ] && [ -n "$CI_DEPENDENCY_PROXY_PASSWORD" ]; then
-        BACKEND_BUILD_ARGS="--build-arg GRADLE_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/gradle:jdk21 --build-arg RUNTIME_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/eclipse-temurin:21-jre"
+        BACKEND_BUILD_ARGS="--build-arg GRADLE_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/library/gradle:jdk21 --build-arg RUNTIME_IMAGE=$CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/library/eclipse-temurin:21-jre"
       fi
  
     - docker build $BACKEND_BUILD_ARGS -t "$IMAGE:$SHA_TAG" backend/
