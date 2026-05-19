@@ -1,5 +1,5 @@
 # Stage 1: Build the Angular app
-ARG NODE_IMAGE=node:22-alpine
+ARG NODE_IMAGE=node:20-alpine
 ARG NGINX_IMAGE=nginx:alpine
 FROM ${NODE_IMAGE} AS build
 
