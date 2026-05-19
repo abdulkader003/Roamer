@@ -1,6 +1,6 @@
 // flights/flights.component.ts
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -16,6 +16,8 @@ import {
   TripType,
 } from './flight.model';
 import { FlightsService } from './flights.service';
+import { CalendarEvent } from '../hotels/models/hotel.model';
+import { CalendarService } from '../hotels/services/calendar.service';
 
 interface SegmentFlights {
   segmentIndex: number;
@@ -46,8 +48,10 @@ interface CalendarDay {
   templateUrl: './flights.component.html',
   styleUrls: ['./flights.component.scss'],
 })
-export class FlightsComponent {
+export class FlightsComponent implements OnDestroy {
   private readonly flightsService = inject(FlightsService);
+  private readonly calendarService = inject(CalendarService);
+  private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   // Optional: read theme from your service (for any theme-aware logic)
   // private readonly themeService = inject(ThemeService);
@@ -72,12 +76,15 @@ export class FlightsComponent {
 
   readonly departureDate = signal<Date | null>(null);
   readonly returnDate = signal<Date | null>(null);
+  readonly includeCityAirports = signal(false);
   readonly activeDatePicker = signal<'departure' | 'return' | null>(null);
   readonly activeMultiCityDatePicker = signal<number | null>(null);
   readonly datePickerMonth = signal<Date>(new Date());
   readonly manualDateText = signal('');
   readonly manualDateError = signal('');
   readonly searchError = signal('');
+  readonly toastMessage = signal('');
+  readonly toastType = signal<'success' | 'error' | 'info'>('success');
   readonly isSearching = signal(false);
   readonly hasSearched = signal(false);
   readonly selectedFlight = signal<Flight | null>(null);
@@ -237,6 +244,12 @@ export class FlightsComponent {
   ];
 
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  ngOnDestroy(): void {
+    if (this.toastTimeoutId) {
+      clearTimeout(this.toastTimeoutId);
+    }
+  }
 
   // ---------------- Filters ----------------
   readonly filters = signal<FlightFilters>({
@@ -686,10 +699,15 @@ export class FlightsComponent {
   toggleFiltersDrawer(): void { this.filtersDrawerOpen.update(v => !v); }
   closeFiltersDrawer(): void { this.filtersDrawerOpen.set(false); }
 
+  toggleCityAirportSearch(): void {
+    this.includeCityAirports.update(value => !value);
+  }
+
   onSearch(): void {
     const validationError = this.validateSearchDates();
     if (validationError) {
       this.searchError.set(validationError);
+      this.showToast(validationError, 'error');
       return;
     }
 
@@ -713,6 +731,7 @@ export class FlightsComponent {
       multiCitySegments: this.tripType() === 'multi-city'
         ? normalizedMultiCitySegments
         : undefined,
+      includeCityAirports: this.tripType() !== 'multi-city' && this.includeCityAirports(),
       travelers: this.travelers(),
       adults: this.adults(),
       children: this.children(),
@@ -733,11 +752,20 @@ export class FlightsComponent {
         }
         this.expandedFlightId.set(null);
         this.isSearching.set(false);
+        const resultCount = this.resultCount();
+        this.showToast(
+          resultCount > 0
+            ? `${resultCount} flight option${resultCount === 1 ? '' : 's'} found.`
+            : 'No matching flights found.',
+          resultCount > 0 ? 'success' : 'error'
+        );
       },
       error: error => {
         console.error('[FlightsComponent] search failed', error);
-        this.searchError.set(error?.error?.detail ?? 'Flight search failed. Please try again.');
+        const message = error?.error?.detail ?? 'Flight search failed. Please try again.';
+        this.searchError.set(message);
         this.isSearching.set(false);
+        this.showToast(message, 'error');
       },
     });
   }
@@ -769,6 +797,7 @@ export class FlightsComponent {
     const flightDate = this.selectedFlightDate(flight);
     if (!flightDate) {
       this.flightCalendarMessage.set('Choose a flight date before adding it to the calendar.');
+      this.showToast('Choose a flight date before adding it to the calendar.', 'error');
       return;
     }
 
@@ -778,36 +807,43 @@ export class FlightsComponent {
     try {
       const startDateTime = this.toCalendarDateTime(flightDate, flight.departure.time);
       const endDateTime = this.toCalendarDateTime(flightDate, flight.arrival.time, startDateTime);
-      const payload = {
-        title: `${flight.airline.name} ${flight.departure.airport} to ${flight.arrival.airport}`,
+      const event: CalendarEvent = {
+        title: `${flight.airline.name} ${flight.flightNumber || flight.id} ${flight.departure.airport} to ${flight.arrival.airport}`,
+        startDate: this.toDateInputValue(startDateTime),
+        endDate: this.toDateInputValue(endDateTime),
+        startTime: this.toTimeInputValue(startDateTime),
+        endTime: this.toTimeInputValue(endDateTime),
+        category: 'Flight',
+        location: `${flight.departure.airport} to ${flight.arrival.airport}`,
+        price: flight.price * this.travelers(),
         description: [
+          `Flight ${flight.flightNumber || flight.id}.`,
+          flight.status ? `Status: ${flight.status}.` : '',
           `${flight.airline.name} flight from ${flight.departure.city} (${flight.departure.airport}) to ${flight.arrival.city} (${flight.arrival.airport}).`,
+          flight.departure.terminal ? `Departure terminal: ${flight.departure.terminal}.` : '',
+          flight.arrival.terminal ? `Arrival terminal: ${flight.arrival.terminal}.` : '',
           `Departure ${flight.departure.time}, arrival ${flight.arrival.time}, duration ${flight.duration}.`,
           flight.stops === 0 ? 'Direct flight.' : `${flight.stopDetails || flight.stops + ' stop(s)'}.`,
           this.baggageSummary(flight),
-        ].join(' '),
-        location: `${flight.departure.airport} to ${flight.arrival.airport}`,
-        startDateTime,
-        endDateTime,
-        category: 'Flight',
-        budgetCost: flight.price * this.travelers(),
+        ].filter(Boolean).join(' '),
         notes: `Cabin: ${this.cabinClassLabel()}. Travelers: ${this.travelers()}. Price: ${flight.price} ${flight.currency} per traveler.`,
       };
-
-      const response = await fetch('http://localhost:8080/api/calendar-events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Calendar API returned ${response.status}`);
-      }
-
-      this.flightCalendarMessage.set('Added to calendar');
+      const result = await this.calendarService.addEventOrRedirectToLogin(event);
+      this.flightCalendarMessage.set(
+        result === 'added'
+          ? 'Added to calendar'
+          : 'Continue with login to save this flight to your calendar.'
+      );
+      this.showToast(
+        result === 'added'
+          ? 'Flight added to calendar.'
+          : 'Continue with login to save this flight to your calendar.',
+        result === 'added' ? 'success' : 'info'
+      );
     } catch (error) {
       console.error('[FlightsComponent] add flight to calendar failed', error);
       this.flightCalendarMessage.set('Unable to add this flight to the calendar right now.');
+      this.showToast('Unable to add this flight to the calendar right now.', 'error');
     } finally {
       this.isAddingFlightToCalendar.set(false);
     }
@@ -1286,6 +1322,14 @@ export class FlightsComponent {
     return `${year}-${month}-${day}T${hour}:${minute}:00`;
   }
 
+  private toDateInputValue(dateTime: string): string {
+    return dateTime.slice(0, 10);
+  }
+
+  private toTimeInputValue(dateTime: string): string {
+    return dateTime.slice(11, 16);
+  }
+
   private parseDateInput(value: string): Date | null {
     const trimmed = value.trim();
     if (!trimmed) return null;
@@ -1318,5 +1362,19 @@ export class FlightsComponent {
 
   private startOfDay(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  private showToast(message: string, type: 'success' | 'error' | 'info'): void {
+    this.toastMessage.set(message);
+    this.toastType.set(type);
+
+    if (this.toastTimeoutId) {
+      clearTimeout(this.toastTimeoutId);
+    }
+
+    this.toastTimeoutId = setTimeout(() => {
+      this.toastMessage.set('');
+      this.toastTimeoutId = null;
+    }, 2600);
   }
 }

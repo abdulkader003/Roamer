@@ -19,6 +19,8 @@ public class FlightOfferEntity {
     private Long id;
 
     private String externalOfferId;
+    private String flightNumber;
+    private String status;
     private String legType;
     private String airlineCode;
     private String airlineName;
@@ -26,9 +28,11 @@ public class FlightOfferEntity {
     private String departureTime;
     private String departureAirport;
     private String departureCity;
+    private String departureTerminal;
     private String arrivalTime;
     private String arrivalAirport;
     private String arrivalCity;
+    private String arrivalTerminal;
     private String duration;
     private Integer stops;
     private String stopDetails;
@@ -56,6 +60,22 @@ public class FlightOfferEntity {
 
     public void setExternalOfferId(String externalOfferId) {
         this.externalOfferId = externalOfferId;
+    }
+
+    public String getFlightNumber() {
+        return flightNumber;
+    }
+
+    public void setFlightNumber(String flightNumber) {
+        this.flightNumber = flightNumber;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getLegType() {
@@ -114,6 +134,14 @@ public class FlightOfferEntity {
         this.departureCity = departureCity;
     }
 
+    public String getDepartureTerminal() {
+        return departureTerminal;
+    }
+
+    public void setDepartureTerminal(String departureTerminal) {
+        this.departureTerminal = departureTerminal;
+    }
+
     public String getArrivalTime() {
         return arrivalTime;
     }
@@ -136,6 +164,14 @@ public class FlightOfferEntity {
 
     public void setArrivalCity(String arrivalCity) {
         this.arrivalCity = arrivalCity;
+    }
+
+    public String getArrivalTerminal() {
+        return arrivalTerminal;
+    }
+
+    public void setArrivalTerminal(String arrivalTerminal) {
+        this.arrivalTerminal = arrivalTerminal;
     }
 
     public String getDuration() {

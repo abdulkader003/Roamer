@@ -22,6 +22,8 @@ public record FlightSearchRequest(
 
         List<@Valid MultiCitySegmentDto> multiCitySegments,
 
+        Boolean includeCityAirports,
+
         @Min(1) Integer travelers,
         @Min(1) Integer adults,
         @Min(0) Integer children,
@@ -40,6 +42,10 @@ public record FlightSearchRequest(
 
     public Integer children() {
         return children == null ? 0 : children;
+    }
+
+    public Boolean includeCityAirports() {
+        return includeCityAirports != null && includeCityAirports;
     }
 
     public record AirportDto(

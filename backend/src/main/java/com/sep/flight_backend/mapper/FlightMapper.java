@@ -13,10 +13,13 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 import java.util.regex.Matcher;
@@ -30,20 +33,24 @@ public class FlightMapper {
         this.objectMapper = objectMapper;
     }
 
-    public List<FlightOfferDto> fromAviationstack(JsonNode response, FlightSearchRequest request) {
-        JsonNode data = response == null ? null : response.path("data");
+    public List<FlightOfferDto> fromAeroDataBox(JsonNode response, FlightSearchRequest request) {
+        return fromAeroDataBox(response, request, true);
+    }
+
+    public List<FlightOfferDto> fromAeroDataBox(JsonNode response, FlightSearchRequest request, boolean fallbackIfEmpty) {
+        JsonNode data = response == null ? null : response.path("departures");
         if (data == null || !data.isArray()) {
-            return fallbackFlights(request);
+            return fallbackIfEmpty ? fallbackFlights(request) : List.of();
         }
 
         List<FlightOfferDto> flights = StreamSupport.stream(data.spliterator(), false)
                 .filter(flight -> routeMatches(flight, request))
-                .map(flight -> toAviationstackDto(flight, request))
+                .map(flight -> toAeroDataBoxDto(flight, request))
                 .sorted(Comparator.comparing(FlightOfferDto::price))
                 .toList();
 
         if (flights.isEmpty()) {
-            return fallbackFlights(request);
+            return fallbackIfEmpty ? fallbackFlights(request) : List.of();
         }
 
         int cheapest = flights.stream().mapToInt(FlightOfferDto::price).min().orElse(0);
@@ -100,6 +107,8 @@ public class FlightMapper {
         FlightOfferEntity entity = new FlightOfferEntity();
         entity.setSearch(search);
         entity.setExternalOfferId(dto.id());
+        entity.setFlightNumber(dto.flightNumber());
+        entity.setStatus(dto.status());
         entity.setLegType(legType);
         entity.setAirlineCode(dto.airline().code());
         entity.setAirlineName(dto.airline().name());
@@ -107,9 +116,11 @@ public class FlightMapper {
         entity.setDepartureTime(dto.departure().time());
         entity.setDepartureAirport(dto.departure().airport());
         entity.setDepartureCity(dto.departure().city());
+        entity.setDepartureTerminal(dto.departure().terminal());
         entity.setArrivalTime(dto.arrival().time());
         entity.setArrivalAirport(dto.arrival().airport());
         entity.setArrivalCity(dto.arrival().city());
+        entity.setArrivalTerminal(dto.arrival().terminal());
         entity.setDuration(dto.duration());
         entity.setStops(dto.stops());
         entity.setStopDetails(dto.stopDetails());
@@ -228,16 +239,20 @@ public class FlightMapper {
 
         return new FlightOfferDto(
                 offer.path("id").asText(UUID.randomUUID().toString()),
+                firstSegment.path("number").asText(offer.path("id").asText("")),
+                "Offer",
                 new FlightOfferDto.AirlineDto(airlineCode, airlineName, airlineCode.toLowerCase(Locale.ROOT)),
                 new FlightOfferDto.FlightEndpointDto(
                         timeOnly(firstSegment.path("departure").path("at").asText()),
                         firstSegment.path("departure").path("iataCode").asText(request.from().code()),
-                        request.from().city()
+                        request.from().city(),
+                        firstSegment.path("departure").path("terminal").asText(null)
                 ),
                 new FlightOfferDto.FlightEndpointDto(
                         timeOnly(lastSegment.path("arrival").path("at").asText()),
                         lastSegment.path("arrival").path("iataCode").asText(request.to().code()),
-                        request.to().city()
+                        request.to().city(),
+                        lastSegment.path("arrival").path("terminal").asText(null)
                 ),
                 formatIsoDuration(firstItinerary.path("duration").asText("PT0M")),
                 stops,
@@ -252,28 +267,36 @@ public class FlightMapper {
         );
     }
 
-    private FlightOfferDto toAviationstackDto(JsonNode flight, FlightSearchRequest request) {
+    private FlightOfferDto toAeroDataBoxDto(JsonNode flight, FlightSearchRequest request) {
         JsonNode airline = flight.path("airline");
         JsonNode departure = flight.path("departure");
         JsonNode arrival = flight.path("arrival");
-        JsonNode flightDetails = flight.path("flight");
+        JsonNode departureAirportNode = departure.path("airport");
+        JsonNode arrivalAirportNode = arrival.path("airport");
 
         String airlineCode = textOrFallback(airline.path("iata"), airline.path("icao").asText(""));
         String airlineName = textOrFallback(airline.path("name"), airlineCode);
-        String departureAirport = textOrFallback(departure.path("iata"), request.from().code());
-        String arrivalAirport = textOrFallback(arrival.path("iata"), request.to().code());
-        String departureTime = timeOnly(departure.path("scheduled").asText());
-        String arrivalTime = timeOnly(arrival.path("scheduled").asText());
-        String duration = scheduledDuration(departure.path("scheduled").asText(), arrival.path("scheduled").asText());
-        String flightNumber = textOrFallback(flightDetails.path("iata"), flightDetails.path("number").asText(UUID.randomUUID().toString()));
+        String departureAirport = textOrFallback(departureAirportNode.path("iata"), request.from().code());
+        String arrivalAirport = textOrFallback(arrivalAirportNode.path("iata"), request.to().code());
+        String departureAt = movementTime(departure);
+        String arrivalAt = movementTime(arrival);
+        String departureTime = timeOnly(departureAt);
+        String arrivalTime = timeOnly(arrivalAt);
+        String duration = scheduledDuration(departureAt, arrivalAt);
+        String flightNumber = textOrFallback(flight.path("number"), UUID.randomUUID().toString());
+        String status = normalizedStatus(flight.path("status"));
+        String departureTerminal = terminalText(departure);
+        String arrivalTerminal = terminalText(arrival);
 
         int price = estimatedPrice(departureAirport, arrivalAirport, airlineCode);
 
         return new FlightOfferDto(
                 flightNumber,
+                flightNumber,
+                status,
                 new FlightOfferDto.AirlineDto(airlineCode, airlineName, airlineCode.toLowerCase(Locale.ROOT)),
-                new FlightOfferDto.FlightEndpointDto(departureTime, departureAirport, request.from().city()),
-                new FlightOfferDto.FlightEndpointDto(arrivalTime, arrivalAirport, request.to().city()),
+                new FlightOfferDto.FlightEndpointDto(departureTime, departureAirport, request.from().city(), departureTerminal),
+                new FlightOfferDto.FlightEndpointDto(arrivalTime, arrivalAirport, request.to().city(), arrivalTerminal),
                 duration,
                 0,
                 null,
@@ -288,15 +311,18 @@ public class FlightMapper {
     }
 
     private boolean routeMatches(JsonNode flight, FlightSearchRequest request) {
-        String departureAirport = flight.path("departure").path("iata").asText("");
-        String arrivalAirport = flight.path("arrival").path("iata").asText("");
+        String departureAirport = flight.path("departure").path("airport").path("iata").asText("");
+        String arrivalAirport = flight.path("arrival").path("airport").path("iata").asText("");
 
-        return request.from().code().equalsIgnoreCase(departureAirport)
+        boolean departureMatches = departureAirport.isBlank()
+                || request.from().code().equalsIgnoreCase(departureAirport);
+
+        return departureMatches
                 && request.to().code().equalsIgnoreCase(arrivalAirport);
     }
 
     private List<FlightOfferDto> fallbackFlights(FlightSearchRequest request) {
-        // TODO: Aviationstack free plans may not expose route/date search. Replace fallback when a plan/provider supports offers.
+        // TODO: AeroDataBox is schedule/status data; replace fallback with real offer data when a pricing provider is added.
         String[][] airlines = {
                 {"EW", "Eurowings"},
                 {"LH", "Lufthansa"},
@@ -370,9 +396,11 @@ public class FlightMapper {
 
         return new FlightOfferDto(
                 id,
+                id,
+                "Estimated",
                 new FlightOfferDto.AirlineDto(airlineCode, airlineName, airlineCode.toLowerCase(Locale.ROOT)),
-                new FlightOfferDto.FlightEndpointDto(departureTime, request.from().code(), request.from().city()),
-                new FlightOfferDto.FlightEndpointDto(arrivalTime, request.to().code(), request.to().city()),
+                new FlightOfferDto.FlightEndpointDto(departureTime, request.from().code(), request.from().city(), null),
+                new FlightOfferDto.FlightEndpointDto(arrivalTime, request.to().code(), request.to().city(), null),
                 duration,
                 stops,
                 stops == 0 ? null : stops + " stop" + (stops == 1 ? "" : "s"),
@@ -393,9 +421,11 @@ public class FlightMapper {
 
         return new FlightOfferDto(
                 entity.getExternalOfferId(),
+                entity.getFlightNumber() == null ? entity.getExternalOfferId() : entity.getFlightNumber(),
+                entity.getStatus() == null ? "Scheduled" : entity.getStatus(),
                 new FlightOfferDto.AirlineDto(entity.getAirlineCode(), entity.getAirlineName(), entity.getAirlineColorClass()),
-                new FlightOfferDto.FlightEndpointDto(entity.getDepartureTime(), entity.getDepartureAirport(), entity.getDepartureCity()),
-                new FlightOfferDto.FlightEndpointDto(entity.getArrivalTime(), entity.getArrivalAirport(), entity.getArrivalCity()),
+                new FlightOfferDto.FlightEndpointDto(entity.getDepartureTime(), entity.getDepartureAirport(), entity.getDepartureCity(), entity.getDepartureTerminal()),
+                new FlightOfferDto.FlightEndpointDto(entity.getArrivalTime(), entity.getArrivalAirport(), entity.getArrivalCity(), entity.getArrivalTerminal()),
                 entity.getDuration(),
                 entity.getStops(),
                 entity.getStopDetails(),
@@ -424,6 +454,8 @@ public class FlightMapper {
     private FlightOfferDto copyWithBadge(FlightOfferDto offer, FlightOfferDto.BadgeDto badge) {
         return new FlightOfferDto(
                 offer.id(),
+                offer.flightNumber(),
+                offer.status(),
                 offer.airline(),
                 offer.departure(),
                 offer.arrival(),
@@ -448,27 +480,81 @@ public class FlightMapper {
         return stopAirports.size() + " stop" + (stopAirports.size() == 1 ? "" : "s") + " · " + String.join(", ", stopAirports);
     }
 
+    private String movementTime(JsonNode movement) {
+        return timeObjectValue(movement.path("scheduledTime"))
+                .or(() -> timeObjectValue(movement.path("revisedTime")))
+                .or(() -> timeObjectValue(movement.path("runwayTime")))
+                .orElse("");
+    }
+
+    private String normalizedStatus(JsonNode statusNode) {
+        String status = statusNode.path("text").asText("");
+        if (status.isBlank()) {
+            status = statusNode.asText("");
+        }
+        return status.isBlank() ? "Scheduled" : status;
+    }
+
+    private String terminalText(JsonNode movement) {
+        String terminal = movement.path("terminal").asText("");
+        return terminal.isBlank() ? null : terminal;
+    }
+
+    private Optional<String> timeObjectValue(JsonNode timeNode) {
+        String local = timeNode.path("local").asText("");
+        if (!local.isBlank()) {
+            return Optional.of(local);
+        }
+
+        String utc = timeNode.path("utc").asText("");
+        if (!utc.isBlank()) {
+            return Optional.of(utc);
+        }
+
+        String text = timeNode.asText("");
+        return text.isBlank() ? Optional.empty() : Optional.of(text);
+    }
+
     private String timeOnly(String dateTime) {
-        return dateTime == null || dateTime.length() < 16 ? "" : dateTime.substring(11, 16);
+        return parseDateTime(dateTime)
+                .map(date -> "%02d:%02d".formatted(date.getHour(), date.getMinute()))
+                .orElse("");
     }
 
     private String scheduledDuration(String departureAt, String arrivalAt) {
-        try {
-            LocalDateTime departure = LocalDateTime.parse(departureAt.replace("Z", ""));
-            LocalDateTime arrival = LocalDateTime.parse(arrivalAt.replace("Z", ""));
-            Duration duration = Duration.between(departure, arrival);
-            if (duration.isNegative() || duration.isZero()) {
-                return "0h 0m";
-            }
-            return duration.toHours() + "h " + duration.toMinutesPart() + "m";
-        } catch (Exception ex) {
-            // TODO: Aviationstack free data may omit schedules; replace with route duration data when available.
+        Optional<LocalDateTime> departure = parseDateTime(departureAt);
+        Optional<LocalDateTime> arrival = parseDateTime(arrivalAt);
+        if (departure.isEmpty() || arrival.isEmpty()) {
             return "0h 0m";
+        }
+
+        Duration duration = Duration.between(departure.get(), arrival.get());
+        if (duration.isNegative() || duration.isZero()) {
+            return "0h 0m";
+        }
+        return duration.toHours() + "h " + duration.toMinutesPart() + "m";
+    }
+
+    private Optional<LocalDateTime> parseDateTime(String dateTime) {
+        if (dateTime == null || dateTime.isBlank()) {
+            return Optional.empty();
+        }
+
+        String normalizedDateTime = dateTime.trim().replace(' ', 'T');
+
+        try {
+            return Optional.of(OffsetDateTime.parse(normalizedDateTime).toLocalDateTime());
+        } catch (DateTimeParseException ignored) {
+            try {
+                return Optional.of(LocalDateTime.parse(normalizedDateTime.replace("Z", "")));
+            } catch (DateTimeParseException ex) {
+                return Optional.empty();
+            }
         }
     }
 
     private int estimatedPrice(String departureAirport, String arrivalAirport, String airlineCode) {
-        // TODO: Aviationstack is not a pricing API. Replace this estimate when a pricing/offers provider is added.
+        // TODO: AeroDataBox is not a pricing API. Replace this estimate when a pricing/offers provider is added.
         int seed = Math.abs((departureAirport + arrivalAirport + airlineCode).hashCode());
         return 80 + (seed % 220);
     }

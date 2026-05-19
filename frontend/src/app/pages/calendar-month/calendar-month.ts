@@ -47,7 +47,7 @@ type BackendCalendarEvent = {
   styleUrl: './calendar-month.css'
 })
 export class CalendarMonth {
-  private readonly calendarApiBaseUrl = 'http://localhost:8080/api/calendar-events';
+  private readonly calendarApiBaseUrl = '/api/calendar-events';
   private readonly requestTimeoutMs = 5000;
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
 

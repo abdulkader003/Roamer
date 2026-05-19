@@ -35,7 +35,7 @@ export interface FlightResponse {
   providedIn: 'root',
 })
 export class FlightsService {
-  private readonly apiUrl = 'http://localhost:8080/api/flights';
+  private readonly apiUrl = '/api/flights';
 
   constructor(private readonly http: HttpClient) {}
 

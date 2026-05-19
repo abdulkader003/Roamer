@@ -24,16 +24,16 @@ public class ActivitiesController {
 
     @GetMapping
     public ActivitySearchResponse getActivities(
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size
+            @RequestParam(value = "city", required = false) String city,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "size", required = false) Integer size
     ) {
         return activitiesService.getActivities(city, keyword, page, size);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ActivityDto> getActivityById(@PathVariable String id) {
+    public ResponseEntity<ActivityDto> getActivityById(@PathVariable("id") String id) {
         Optional<ActivityDto> activity = activitiesService.getActivityById(id);
 
         return activity
