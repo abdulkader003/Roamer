@@ -1,5 +1,5 @@
 # ---- Stage 1: Build the application ----
-ARG GRADLE_IMAGE=gradle:jdk21
+ARG GRADLE_IMAGE=gradle:jdk21-alpine
 ARG RUNTIME_IMAGE=eclipse-temurin:21-jre
 FROM ${GRADLE_IMAGE} AS build
 
