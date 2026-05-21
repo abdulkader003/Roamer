@@ -1,0 +1,52 @@
+<section class="auth-page">
+  <div class="auth-card">
+    <div class="auth-header">
+      <p class="auth-eyebrow">Welcome back</p>
+      <h1>Log in to Roamer</h1>
+      <p class="auth-copy">
+        Enter your password first, then confirm the one-time code sent to your email.
+      </p>
+    </div>
+
+    <form class="auth-form" #loginForm="ngForm" (ngSubmit)="submit(loginForm)" novalidate>
+      <label class="auth-field">
+        <span>Email or username</span>
+        <input
+          type="text"
+          name="identifier"
+          autocomplete="username"
+          placeholder="you@example.com or username"
+          required
+          [(ngModel)]="identifier" />
+      </label>
+
+      <label class="auth-field">
+        <span>Password</span>
+        <input
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          placeholder="Enter password"
+          required
+          [(ngModel)]="password" />
+      </label>
+
+      <div class="auth-meta">
+        <a [routerLink]="['/forgot-password']" [queryParams]="{ returnUrl: returnUrl }">Forgot password?</a>
+      </div>
+
+      @if (message) {
+        <div [class.success-message]="isSuccess" [class.error-message]="!isSuccess">{{ message }}</div>
+      }
+
+      <button class="auth-button" type="submit" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Sending code...' : 'Continue to verification' }}
+      </button>
+    </form>
+
+    <p class="auth-switch">
+      No account yet?
+      <a [routerLink]="['/signup']" [queryParams]="{ returnUrl: returnUrl }">Create one</a>
+    </p>
+  </div>
+</section>

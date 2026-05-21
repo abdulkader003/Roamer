@@ -1,0 +1,58 @@
+<section class="auth-page">
+  <div class="auth-card">
+    <div class="auth-hero">
+      <p class="auth-eyebrow">Two-factor verification</p>
+      <h1>{{ title }}</h1>
+      <p class="auth-copy">{{ description }}</p>
+    </div>
+
+    <div class="auth-context">
+      <span class="context-label">Code destination</span>
+      <strong>{{ maskedEmail }}</strong>
+      <small>{{ flow === 'LOGIN' ? 'Use the latest code from your inbox.' : 'This step activates your account and signs you in.' }}</small>
+    </div>
+
+    <form class="auth-form" #verifyForm="ngForm" (ngSubmit)="submit(verifyForm)" novalidate>
+      <label class="auth-field auth-field--compact">
+        <span>Email</span>
+        <input
+          type="email"
+          name="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+          required
+          email
+          [(ngModel)]="email" />
+      </label>
+
+      <label class="auth-field">
+        <span>Verification code</span>
+        <input
+          class="code-input"
+          type="text"
+          name="code"
+          autocomplete="one-time-code"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="123456"
+          required
+          [(ngModel)]="code" />
+      </label>
+
+      @if (message) {
+        <div [class.success-message]="isSuccess" [class.error-message]="!isSuccess">{{ message }}</div>
+      }
+
+      <button class="auth-button" type="submit" [disabled]="isSubmitting || isResending">
+        {{ submitLabel }}
+      </button>
+    </form>
+
+    <div class="auth-actions">
+      <button class="auth-secondary" type="button" (click)="resendCode()" [disabled]="isSubmitting || isResending">
+        {{ isResending ? 'Sending a new code...' : 'Resend code' }}
+      </button>
+      <a [routerLink]="[alternateLink]" [queryParams]="{ returnUrl: returnUrl }">{{ alternateLinkLabel }}</a>
+    </div>
+  </div>
+</section>

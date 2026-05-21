@@ -1,0 +1,79 @@
+<div class="signup-container">
+  <div class="signup-card">
+    <div class="signup-header">
+      <p class="signup-eyebrow">Create account</p>
+      <h1>Create Account</h1>
+      <p>Pick a username, confirm your email, and continue straight into your trip planner.</p>
+    </div>
+
+    <form #signupForm="ngForm" (ngSubmit)="onSignup(signupForm)" novalidate>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          name="email"
+          [(ngModel)]="email"
+          placeholder="Enter your email"
+          required
+          email
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          name="username"
+          [(ngModel)]="username"
+          placeholder="Choose a username"
+          required
+          minlength="3"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          placeholder="Enter your password"
+          required
+          minlength="8"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          name="confirmPassword"
+          [(ngModel)]="confirmPassword"
+          placeholder="Confirm your password"
+          required
+        />
+      </div>
+
+      @if (errorMessage) {
+        <div class="error-message">{{ errorMessage }}</div>
+      }
+
+      @if (successMessage) {
+        <div class="success-message">{{ successMessage }}</div>
+      }
+
+      <button class="signup-btn" type="submit" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Sending verification code...' : 'Create Account' }}
+      </button>
+    </form>
+
+    <p class="login-link">
+      Already have an account?
+      <a [routerLink]="['/login']" [queryParams]="{ returnUrl: returnUrl }">Sign in</a>
+    </p>
+  </div>
+</div>
