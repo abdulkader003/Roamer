@@ -77,23 +77,41 @@
 
 .new-booking-btn {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.logout-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 10px;
   width: 100%;
-  padding: 11px;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  border: 1px solid var(--btn-border);
+  padding: 10px 14px;
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid #b91c1c;
+  outline: 2px solid rgba(220, 38, 38, 0.22);
+  outline-offset: 2px;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-  letter-spacing: 0.2px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
 
-  &:hover { background: var(--btn-hover); }
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: #b91c1c;
+    border-color: #991b1b;
+    color: #fff;
+  }
 }
 
 @media (max-width: 900px) {

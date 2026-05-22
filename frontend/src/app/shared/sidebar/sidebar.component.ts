@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../../services/auth';
 
 export interface NavItem {
   label: string;
@@ -18,9 +19,14 @@ export interface NavItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarComponent {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
   @Input() isMobile = false;
   @Input() isOpen = true;
   @Output() closed = new EventEmitter<void>();
+
+  readonly isAuthenticated = computed(() => this.authService.isAuthenticated());
 
   navItems = signal<NavItem[]>([
     {
@@ -84,5 +90,15 @@ export class SidebarComponent {
 
   requestClose(): void {
     this.closed.emit();
+  }
+
+  logout(): void {
+    this.authService.logout();
+
+    if (this.isMobile) {
+      this.closed.emit();
+    }
+
+    void this.router.navigate(['/login']);
   }
 }
