@@ -32,6 +32,11 @@ interface ExploreItem {
   icon: string;
 }
 
+interface CalendarDay {
+  day: number;
+  type: 'prev' | 'curr' | 'today';
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -43,6 +48,12 @@ interface ExploreItem {
 export class DashboardComponent {
   // ThemeService is injected so the effect() in the service runs and sets data-theme on <html>
   private themeService = inject(ThemeService);
+  private readonly today = new Date();
+
+  readonly currentMonthLabel = this.today.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   trips = signal<Trip[]>([
     {
@@ -77,18 +88,7 @@ export class DashboardComponent {
     { label: 'Parties', bgColor: 'var(--explore-parties-bg)', strokeColor: 'var(--explore-parties-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>` },
   ]);
 
-  calDays = signal<{ day: number; type: 'prev' | 'curr' | 'today' }[]>([
-    { day: 27, type: 'prev' }, { day: 28, type: 'prev' }, { day: 29, type: 'prev' }, { day: 30, type: 'prev' },
-    { day: 1, type: 'curr' }, { day: 2, type: 'curr' }, { day: 3, type: 'curr' },
-    { day: 4, type: 'curr' }, { day: 5, type: 'curr' }, { day: 6, type: 'curr' }, { day: 7, type: 'today' },
-    { day: 8, type: 'curr' }, { day: 9, type: 'curr' }, { day: 10, type: 'curr' },
-    { day: 11, type: 'curr' }, { day: 12, type: 'curr' }, { day: 13, type: 'curr' }, { day: 14, type: 'curr' },
-    { day: 15, type: 'curr' }, { day: 16, type: 'curr' }, { day: 17, type: 'curr' },
-    { day: 18, type: 'curr' }, { day: 19, type: 'curr' }, { day: 20, type: 'curr' }, { day: 21, type: 'curr' },
-    { day: 22, type: 'curr' }, { day: 23, type: 'curr' }, { day: 24, type: 'curr' },
-    { day: 25, type: 'curr' }, { day: 26, type: 'curr' }, { day: 27, type: 'curr' }, { day: 28, type: 'curr' },
-    { day: 29, type: 'curr' }, { day: 30, type: 'curr' }, { day: 31, type: 'curr' },
-  ]);
+  calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.today));
 
   budgetItems = signal<BudgetItem[]>([
     { label: 'Flights',       amount: '€850', color: '#1A56DB', dashArray: '117.5 209', dashOffset: '0' },
@@ -99,4 +99,25 @@ export class DashboardComponent {
     { label: 'Beaches',       amount: '€150', color: '#10B981', dashArray: '20.7 306',  dashOffset: '-338.8' },
     { label: 'Parties',       amount: '€100', color: '#EC4899', dashArray: '13.8 313',  dashOffset: '-359.5' },
   ]);
+
+  private buildCurrentMonthCalendarDays(date: Date): CalendarDay[] {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const currentDay = date.getDate();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPreviousMonth = new Date(year, month, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const leadingDays = (firstDay + 6) % 7;
+    const days: CalendarDay[] = [];
+
+    for (let index = leadingDays - 1; index >= 0; index--) {
+      days.push({ day: daysInPreviousMonth - index, type: 'prev' });
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push({ day, type: day === currentDay ? 'today' : 'curr' });
+    }
+
+    return days;
+  }
 }
