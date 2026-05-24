@@ -6,6 +6,7 @@ import {
   CalendarEvent,
   EventCardComponent
 } from '../../components/event-card/event-card.component';
+import { AuthService } from '../../services/auth';
 
 type EventCategory =
   | 'Flight'
@@ -685,6 +686,10 @@ export class CalendarMonth {
     try {
       return await fetch(input, {
         ...init,
+        headers: {
+          ...this.authService.authHeader(),
+          ...(init?.headers ?? {})
+        },
         signal: controller.signal
       });
     } finally {
@@ -790,5 +795,8 @@ export class CalendarMonth {
     }, 2600);
   }
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  constructor(
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
+  ) {}
 }
