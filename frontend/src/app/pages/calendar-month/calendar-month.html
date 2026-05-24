@@ -279,7 +279,7 @@
               aria-label="Delete event"
               title="Delete event"
               [disabled]="!selectedEvent.id || isDeleting"
-              (click)="deleteSelectedEvent()">
+              (click)="requestDeleteSelectedEvent()">
               {{ isDeleting ? '…' : '🗑️' }}
             </button>
             <button
@@ -357,14 +357,14 @@
       (click)="closeDeleteConfirmation()">
       <div class="confirm-dialog" (click)="$event.stopPropagation()">
         <p class="confirm-dialog-eyebrow">Delete Event</p>
-        <h3>Do you really want to delete this event?</h3>
+        <h3>Are you sure you want to delete this event?</h3>
         <p class="confirm-dialog-copy">
-          <strong>{{ deleteConfirmationEvent.title }}</strong> will be removed from the calendar and the database.
+          <strong>{{ deleteConfirmationEvent.title }}</strong> will be removed from the calendar.
         </p>
 
         <div class="confirm-dialog-actions">
           <button type="button" class="secondary-button" (click)="closeDeleteConfirmation()">
-            Keep Event
+            Cancel
           </button>
           <button type="button" class="danger-button" [disabled]="isDeleting" (click)="confirmDeleteEvent()">
             {{ isDeleting ? 'Deleting...' : 'Delete Event' }}

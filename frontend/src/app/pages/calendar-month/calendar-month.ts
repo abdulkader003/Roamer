@@ -412,15 +412,7 @@ export class CalendarMonth {
       return;
     }
 
-    void this.deleteEvent(this.selectedEvent);
-  }
-
-  async deleteSelectedEvent() {
-    if (this.selectedEvent?.id === undefined || this.isDeleting) {
-      return;
-    }
-
-    await this.deleteEvent(this.selectedEvent);
+    this.deleteConfirmationEvent = this.selectedEvent;
   }
 
   closeDeleteConfirmation() {

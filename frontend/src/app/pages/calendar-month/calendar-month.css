@@ -470,6 +470,21 @@
   box-shadow: 0 10px 24px color-mix(in srgb, var(--calendar-accent) 24%, transparent);
 }
 
+.danger-button {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: #b42318;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .event-modal-backdrop {
   position: fixed;
   top: 64px;
@@ -606,6 +621,60 @@
   font-size: 15px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.confirm-dialog-backdrop {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--calendar-overlay);
+  backdrop-filter: blur(5px);
+}
+
+.confirm-dialog {
+  width: min(420px, 100%);
+  border: 1px solid var(--calendar-border);
+  border-radius: 14px;
+  background: var(--calendar-card-bg);
+  box-shadow: 0 28px 80px var(--calendar-shadow);
+  padding: 24px;
+}
+
+.confirm-dialog-eyebrow {
+  margin: 0 0 8px;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.confirm-dialog h3 {
+  margin: 0;
+  color: var(--calendar-text);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.confirm-dialog-copy {
+  margin: 14px 0 0;
+  color: var(--calendar-text-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
 }
 
 @keyframes drawer-slide-in {
