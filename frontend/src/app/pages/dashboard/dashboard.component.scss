@@ -204,38 +204,47 @@
 .trip-budget     { font-size: 13px; font-weight: 700; color: var(--text-primary); }
 .trip-budget-sub { font-size: 10.5px; color: var(--text-dim); }
 
-/* ── Explore ── */
-.explore-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+/* ── World Weather ── */
+.world-weather-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-.explore-item {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 8px;
-  padding: 12px 6px;
-  border-radius: 10px;
-  border: 1.5px solid var(--border);
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: center;
+.world-weather-row {
+  display: grid;
+  grid-template-columns: 1fr 34px auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.3s;
 
-  &:hover {
-    border-color: var(--accent-border);
-    background: var(--accent-bg);
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
   }
 }
 
-.explore-icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.3s;
+.world-weather-city {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.explore-svg {
-  display: flex; align-items: center; justify-content: center;
-  ::ng-deep svg { stroke: currentColor; }
+.world-weather-icon {
+  text-align: center;
+  font-size: 18px;
+  line-height: 1;
 }
 
-.explore-label { font-size: 11.5px; font-weight: 500; color: var(--text-muted); transition: color 0.3s; }
+.world-weather-temp {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
 
 /* ── Calendar ── */
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }

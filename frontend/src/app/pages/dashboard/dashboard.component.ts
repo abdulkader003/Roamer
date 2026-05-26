@@ -25,16 +25,15 @@ interface BudgetItem {
   dashOffset: string;
 }
 
-interface ExploreItem {
-  label: string;
-  bgColor: string;
-  strokeColor: string;
-  icon: string;
-}
-
 interface CalendarDay {
   day: number;
   type: 'prev' | 'curr' | 'today';
+}
+
+interface WorldWeatherItem {
+  city: string;
+  icon: string;
+  temperature: string;
 }
 
 @Component({
@@ -79,13 +78,12 @@ export class DashboardComponent {
     { name: 'Mixology Masterclass', location: 'London, UK', price: '€45.00', image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80' },
   ]);
 
-  exploreItems = signal<ExploreItem[]>([
-    { label: 'Flights', bgColor: 'var(--explore-flights-bg)', strokeColor: 'var(--explore-flights-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>` },
-    { label: 'Events', bgColor: 'var(--explore-events-bg)', strokeColor: 'var(--explore-events-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/></svg>` },
-    { label: 'Activities', bgColor: 'var(--explore-activities-bg)', strokeColor: 'var(--explore-activities-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72"/></svg>` },
-    { label: 'Attractions', bgColor: 'var(--explore-attractions-bg)', strokeColor: 'var(--explore-attractions-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
-    { label: 'Beaches', bgColor: 'var(--explore-beaches-bg)', strokeColor: 'var(--explore-beaches-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M2 22s4-5 10-5 10 5 10 5"/><path d="M12 17c-2.76 0-5-1.34-5-3 0-2.21 2.24-4 5-4s5 1.79 5 4c0 1.66-2.24 3-5 3z"/></svg>` },
-    { label: 'Parties', bgColor: 'var(--explore-parties-bg)', strokeColor: 'var(--explore-parties-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>` },
+  worldWeather = signal<WorldWeatherItem[]>([
+    { city: 'Paris', icon: '☀️', temperature: '24°C' },
+    { city: 'Dubai', icon: '🌤️', temperature: '38°C' },
+    { city: 'London', icon: '🌧️', temperature: '17°C' },
+    { city: 'Tokyo', icon: '☁️', temperature: '22°C' },
+    { city: 'New York', icon: '🌦️', temperature: '19°C' },
   ]);
 
   calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.today));
