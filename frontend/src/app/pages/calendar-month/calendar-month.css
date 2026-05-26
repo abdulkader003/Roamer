@@ -85,19 +85,26 @@
 }
 
 .nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 36px;
   background: transparent;
   color: var(--calendar-accent);
-  font-size: 22px;
-  transition: transform 0.2s ease;
+  font-size: 24px;
+  line-height: 1;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .nav-button:hover {
-  transform: scale(1.2);
+  background: var(--calendar-accent-soft);
+  transform: translateY(-1px);
 }
 
 .today-button {
   border: none;
-  background: var(--calendar-panel-bg);
+  background: transparent;
   color: var(--calendar-text);
   padding: 10px 16px;
   border-radius: 10px;
@@ -105,9 +112,9 @@
   cursor: pointer;
 }
 
-.today-button:hover,
-.nav-button:hover {
+.today-button:hover {
   background: var(--calendar-accent-soft);
+  color: var(--calendar-accent);
 }
 
 /* View toggle buttons */
@@ -422,6 +429,37 @@
   font: inherit;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.select-field {
+  position: relative;
+  display: block;
+}
+
+.select-field select {
+  height: 45px;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 42px;
+  cursor: pointer;
+}
+
+.select-field::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--calendar-text-muted);
+  border-bottom: 2px solid var(--calendar-text-muted);
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+  transition: border-color 0.2s ease;
+}
+
+.select-field:focus-within::after {
+  border-color: var(--calendar-accent);
 }
 
 .form-field textarea {

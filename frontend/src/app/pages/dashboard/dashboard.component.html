@@ -105,7 +105,7 @@
       <!-- World Weather -->
       <div class="section-card">
         <div class="section-header">
-          <span class="section-title">World Weather</span>
+          <span class="section-title">World Weather · 28.05</span>
           <a href="#" class="view-all">View More</a>
         </div>
         <div class="world-weather-list">
@@ -126,18 +126,22 @@
           <a href="/calendar" class="view-all">View Full Calendar</a>
         </div>
         <div class="cal-nav">
-          <button class="cal-nav-btn">&#8249;</button>
-          <span class="cal-month">{{ currentMonthLabel }}</span>
-          <button class="cal-nav-btn">&#8250;</button>
+          <button class="cal-nav-btn" type="button" (click)="goToPreviousCalendarMonth()">&#8249;</button>
+          <span class="cal-month">{{ currentMonthLabel() }}</span>
+          <button class="cal-nav-btn" type="button" (click)="goToNextCalendarMonth()">&#8250;</button>
         </div>
         <div class="cal-grid">
           @for (h of ['MON','TUE','WED','THU','FRI','SAT','SUN']; track h) {
             <div class="cal-header">{{ h }}</div>
           }
-          @for (d of calDays(); track d.day + d.type) {
-            <div [class]="d.type === 'today' ? 'cal-day today' : d.type === 'prev' ? 'cal-day prev' : 'cal-day'">
-              {{ d.day }}
-            </div>
+          @for (d of calDays(); track d.date + d.type) {
+            <button
+              type="button"
+              [class]="d.type === 'today' ? 'cal-day today' : d.type === 'prev' ? 'cal-day prev' : 'cal-day'"
+              (click)="openCalendarDate(d.date)">
+              <span class="cal-day-number">{{ d.day }}</span>
+              <span class="cal-event-indicator" [class.is-visible]="hasEventOnDate(d.date)"></span>
+            </button>
           }
         </div>
       </div>

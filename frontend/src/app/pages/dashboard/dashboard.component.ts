@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, signal, inject } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
+import { AuthService } from '../../services/auth';
 
 interface Trip {
   name: string;
@@ -28,12 +29,17 @@ interface BudgetItem {
 interface CalendarDay {
   day: number;
   type: 'prev' | 'curr' | 'today';
+  date: string;
 }
 
 interface WorldWeatherItem {
   city: string;
   icon: string;
   temperature: string;
+}
+
+interface BackendCalendarEvent {
+  startDateTime?: string | null;
 }
 
 @Component({
@@ -47,12 +53,18 @@ interface WorldWeatherItem {
 export class DashboardComponent {
   // ThemeService is injected so the effect() in the service runs and sets data-theme on <html>
   private themeService = inject(ThemeService);
+  private readonly authService = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly router = inject(Router);
   private readonly today = new Date();
 
-  readonly currentMonthLabel = this.today.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  visibleCalendarMonth = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
+  readonly currentMonthLabel = computed(() =>
+    this.visibleCalendarMonth().toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    })
+  );
 
   trips = signal<Trip[]>([
     {
@@ -86,7 +98,8 @@ export class DashboardComponent {
     { city: 'New York', icon: '🌦️', temperature: '19°C' },
   ]);
 
-  calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.today));
+  calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.visibleCalendarMonth()));
+  eventDates = signal<Set<string>>(new Set());
 
   budgetItems = signal<BudgetItem[]>([
     { label: 'Flights',       amount: '€850', color: '#1A56DB', dashArray: '117.5 209', dashOffset: '0' },
@@ -98,10 +111,42 @@ export class DashboardComponent {
     { label: 'Parties',       amount: '€100', color: '#EC4899', dashArray: '13.8 313',  dashOffset: '-359.5' },
   ]);
 
+  ngOnInit(): void {
+    void this.loadCalendarEventDates();
+  }
+
+  hasEventOnDate(date: string): boolean {
+    return this.eventDates().has(date);
+  }
+
+  openCalendarDate(date: string): void {
+    void this.router.navigate(['/calendar'], {
+      queryParams: { date },
+    });
+  }
+
+  goToPreviousCalendarMonth(): void {
+    this.changeCalendarMonth(-1);
+  }
+
+  goToNextCalendarMonth(): void {
+    this.changeCalendarMonth(1);
+  }
+
+  private changeCalendarMonth(offset: number): void {
+    const currentMonth = this.visibleCalendarMonth();
+    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1);
+
+    this.visibleCalendarMonth.set(nextMonth);
+    this.calDays.set(this.buildCurrentMonthCalendarDays(nextMonth));
+  }
+
   private buildCurrentMonthCalendarDays(date: Date): CalendarDay[] {
     const year = date.getFullYear();
     const month = date.getMonth();
-    const currentDay = date.getDate();
+    const currentDay = this.today.getDate();
+    const isCurrentMonth =
+      year === this.today.getFullYear() && month === this.today.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPreviousMonth = new Date(year, month, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
@@ -109,13 +154,53 @@ export class DashboardComponent {
     const days: CalendarDay[] = [];
 
     for (let index = leadingDays - 1; index >= 0; index--) {
-      days.push({ day: daysInPreviousMonth - index, type: 'prev' });
+      const day = daysInPreviousMonth - index;
+      days.push({
+        day,
+        type: 'prev',
+        date: this.formatDate(new Date(year, month - 1, day)),
+      });
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push({ day, type: day === currentDay ? 'today' : 'curr' });
+      days.push({
+        day,
+        type: isCurrentMonth && day === currentDay ? 'today' : 'curr',
+        date: this.formatDate(new Date(year, month, day)),
+      });
     }
 
     return days;
+  }
+
+  private async loadCalendarEventDates(): Promise<void> {
+    try {
+      const response = await fetch('/api/calendar-events', {
+        headers: this.authService.authHeader(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load calendar events: ${response.status}`);
+      }
+
+      const events = (await response.json()) as BackendCalendarEvent[];
+      const dates = new Set(
+        events
+          .map((event) => event.startDateTime?.split('T')[0] ?? '')
+          .filter(Boolean)
+      );
+
+      this.eventDates.set(dates);
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('Failed to load dashboard calendar event indicators:', error);
+    }
+  }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }
