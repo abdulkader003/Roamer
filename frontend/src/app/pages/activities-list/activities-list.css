@@ -1042,8 +1042,7 @@
 }
 
 .featured-badge,
-.rating-badge,
-.gallery-badge {
+.rating-badge {
   position: absolute;
   top: 16px;
   z-index: 1;
@@ -1064,14 +1063,6 @@
 
 .rating-badge {
   right: 16px;
-  background: rgba(15, 23, 42, 0.72);
-  color: #f8fafc;
-}
-
-.gallery-badge {
-  top: auto;
-  right: 16px;
-  bottom: 16px;
   background: rgba(15, 23, 42, 0.72);
   color: #f8fafc;
 }
