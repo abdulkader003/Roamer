@@ -29,15 +29,32 @@
 .back-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 44px;
   margin-bottom: 20px;
+  padding: 0 16px;
+  border: 1px solid var(--details-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--details-surface) 92%, transparent);
   color: var(--details-accent);
   text-decoration: none;
+  font: inherit;
+  font-size: 14px;
   font-weight: 700;
-  transition: opacity 0.2s ease;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .back-link:hover {
-  opacity: 0.85;
+  border-color: color-mix(in srgb, var(--details-accent) 36%, var(--details-border));
+  background: color-mix(in srgb, var(--details-accent) 10%, var(--details-surface));
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.back-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--details-accent) 18%, transparent);
 }
 
 .loading-state,
@@ -76,56 +93,38 @@
 }
 
 .hero-media {
-  display: grid;
-  gap: 14px;
+  display: flex;
+  min-width: 0;
 }
 
 .hero-image-wrapper {
   position: relative;
-  min-height: 420px;
+  width: 100%;
+  min-height: clamp(340px, 36vw, 520px);
+  aspect-ratio: 16 / 10;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--details-accent) 16%, var(--details-border));
   border-radius: 24px;
-  background: var(--details-surface-soft);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--details-accent) 10%, transparent), transparent 48%),
+    var(--details-surface-soft);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--card-shadow) 78%, transparent);
 }
 
 .hero-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   display: block;
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.38));
-}
-
-.gallery-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 10px;
-}
-
-.gallery-thumb {
-  padding: 0;
-  border: 1px solid var(--details-border);
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--details-surface);
-  cursor: pointer;
-}
-
-.gallery-thumb.active {
-  border-color: var(--details-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--details-accent) 18%, transparent);
-}
-
-.gallery-thumb img {
-  width: 100%;
-  height: 74px;
-  object-fit: cover;
-  display: block;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.32)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 42%);
 }
 
 .featured-badge,
@@ -470,6 +469,7 @@
 
   .hero-image-wrapper {
     min-height: 260px;
+    aspect-ratio: 16 / 11;
     border-radius: 18px;
   }
 

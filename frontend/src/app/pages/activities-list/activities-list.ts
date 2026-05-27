@@ -139,7 +139,7 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
       <text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle"
             font-family="Arial, sans-serif" font-size="42" fill="%23d4a017">No image available</text>
       <text x="50%" y="57%" dominant-baseline="middle" text-anchor="middle"
-            font-family="Arial, sans-serif" font-size="24" fill="%23dddddd">Roamer Activities</text>
+            font-family="Arial, sans-serif" font-size="24" fill="%23dddddd">R🌐amer Activities</text>
     </svg>`;
 
   activities: Activity[] = [];
@@ -208,6 +208,7 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     this.currentPage = 0;
     this.hasMoreResults = false;
     this.errorMessage = '';
+    this.scrollToPageTop();
 
     if (cachedActivities.length > 0) {
       this.activities = cachedActivities;
@@ -631,16 +632,6 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     }
 
     let filtered = uniqueActivities.filter((activity) => {
-      const search = this.searchTerm.trim().toLowerCase();
-
-      const matchesSearch =
-        !search ||
-        activity.title.toLowerCase().includes(search) ||
-        activity.city.toLowerCase().includes(search) ||
-        activity.category.toLowerCase().includes(search) ||
-        activity.venue.toLowerCase().includes(search) ||
-        activity.description.toLowerCase().includes(search);
-
       const matchesCategory =
         this.selectedCategory === 'All Categories' || activity.category === this.selectedCategory;
 
@@ -653,7 +644,7 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
 
       const matchesDate = !this.selectedDate || this.activityMatchesSelectedDate(activity);
 
-      return matchesSearch && matchesCategory && matchesPrice && matchesTime && matchesDate;
+      return matchesCategory && matchesPrice && matchesTime && matchesDate;
     });
 
     switch (this.selectedSort) {
@@ -844,10 +835,6 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
 
   getDisplayGenre(activity: Activity): string {
     return activity.genre || activity.subGenre || activity.segment || activity.category;
-  }
-
-  getGalleryCount(activity: Activity): number {
-    return Array.isArray(activity.images) ? activity.images.length : 0;
   }
 
   hasTicketLink(activity: Activity): boolean {
@@ -1068,8 +1055,16 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     this.flushView();
 
     if (typeof window !== 'undefined') {
-      setTimeout(() => window.scrollTo({ top: Number(state.scrollY) || 0, left: 0, behavior: 'auto' }));
+      this.scrollToPageTop();
     }
+  }
+
+  private scrollToPageTop(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   }
 
   private normalizePricing(activity: Activity | undefined, index: number): {

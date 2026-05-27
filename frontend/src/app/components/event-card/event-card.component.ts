@@ -1,5 +1,6 @@
 
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { NgClass } from '@angular/common';
 
 export interface CalendarEvent {
   id?: number;
@@ -16,13 +17,31 @@ export interface CalendarEvent {
 
 @Component({
   selector: 'app-event-card',
-  imports: [],
+  imports: [NgClass],
   templateUrl: './event-card.component.html',
   styleUrl: './event-card.component.css'
 })
 export class EventCardComponent {
   @Input({ required: true }) event!: CalendarEvent;
   @Output() viewDetails = new EventEmitter<CalendarEvent>();
+
+  get toneClass(): string {
+    const category = (this.event.category ?? '').trim().toLowerCase();
+
+    if (category === 'flight') {
+      return 'event-card--flight';
+    }
+
+    if (category === 'hotel') {
+      return 'event-card--hotel';
+    }
+
+    if (category === 'activity') {
+      return 'event-card--activity';
+    }
+
+    return 'event-card--custom';
+  }
 
   openDetails(clickEvent: MouseEvent): void {
     clickEvent.stopPropagation();

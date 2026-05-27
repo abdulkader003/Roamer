@@ -187,11 +187,13 @@
 
             <label class="form-field">
               <span>Category</span>
-              <select name="category" [(ngModel)]="eventDraft.category">
-                @for (category of eventCategories; track category) {
-                  <option [value]="category">{{ category }}</option>
-                }
-              </select>
+              <span class="select-field">
+                <select name="category" [(ngModel)]="eventDraft.category">
+                  @for (category of eventCategories; track category) {
+                    <option [value]="category">{{ category }}</option>
+                  }
+                </select>
+              </span>
             </label>
           </div>
 

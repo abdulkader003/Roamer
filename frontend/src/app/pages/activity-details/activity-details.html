@@ -26,17 +26,6 @@
             <span class="featured-badge" *ngIf="activity.featured">Featured</span>
             <span class="rating-badge">★ {{ activity.rating }}</span>
           </div>
-
-          <div class="gallery-strip" *ngIf="getGalleryImages(activity).length > 1">
-            <button
-              type="button"
-              class="gallery-thumb"
-              *ngFor="let image of getGalleryImages(activity)"
-              [class.active]="image.url === selectedImageUrl"
-              (click)="selectImage(image)">
-              <img [src]="getImageUrl(image.url)" [alt]="activity.title" />
-            </button>
-          </div>
         </div>
 
         <div class="hero-info">

@@ -1,4 +1,4 @@
-<button class="event-card" type="button" (click)="openDetails($event)">
+<button class="event-card" [ngClass]="toneClass" type="button" (click)="openDetails($event)">
   <span class="event-title">{{ event.title }}</span>
 
   @if (event.startTime || event.location) {

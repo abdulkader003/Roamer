@@ -102,19 +102,18 @@
         }
       </div>
 
-      <!-- Explore -->
+      <!-- World Weather -->
       <div class="section-card">
         <div class="section-header">
-          <span class="section-title">Explore</span>
-          <a href="#" class="view-all">View All</a>
+          <span class="section-title">World Weather</span>
+          <a href="#" class="view-all">View More</a>
         </div>
-        <div class="explore-grid">
-          @for (item of exploreItems(); track item.label) {
-            <div class="explore-item">
-              <div class="explore-icon" [style.background]="item.bgColor">
-                <span class="explore-svg" [style.color]="item.strokeColor" [innerHTML]="item.icon"></span>
-              </div>
-              <span class="explore-label">{{ item.label }}</span>
+        <div class="world-weather-list">
+          @for (weather of worldWeather(); track weather.city) {
+            <div class="world-weather-row">
+              <span class="world-weather-city">{{ weather.city }}</span>
+              <span class="world-weather-icon">{{ weather.icon }}</span>
+              <span class="world-weather-temp">{{ weather.temperature }}</span>
             </div>
           }
         </div>
@@ -127,18 +126,22 @@
           <a href="/calendar" class="view-all">View Full Calendar</a>
         </div>
         <div class="cal-nav">
-          <button class="cal-nav-btn">&#8249;</button>
-          <span class="cal-month">{{ currentMonthLabel }}</span>
-          <button class="cal-nav-btn">&#8250;</button>
+          <button class="cal-nav-btn" type="button" (click)="goToPreviousCalendarMonth()">&#8249;</button>
+          <span class="cal-month">{{ currentMonthLabel() }}</span>
+          <button class="cal-nav-btn" type="button" (click)="goToNextCalendarMonth()">&#8250;</button>
         </div>
         <div class="cal-grid">
           @for (h of ['MON','TUE','WED','THU','FRI','SAT','SUN']; track h) {
             <div class="cal-header">{{ h }}</div>
           }
-          @for (d of calDays(); track d.day + d.type) {
-            <div [class]="d.type === 'today' ? 'cal-day today' : d.type === 'prev' ? 'cal-day prev' : 'cal-day'">
-              {{ d.day }}
-            </div>
+          @for (d of calDays(); track d.date + d.type) {
+            <button
+              type="button"
+              [class]="d.type === 'today' ? 'cal-day today' : d.type === 'prev' ? 'cal-day prev' : 'cal-day'"
+              (click)="openCalendarDate(d.date)">
+              <span class="cal-day-number">{{ d.day }}</span>
+              <span class="cal-event-indicator" [class.is-visible]="hasEventOnDate(d.date)"></span>
+            </button>
           }
         </div>
       </div>

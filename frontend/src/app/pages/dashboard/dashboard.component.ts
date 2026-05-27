@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, signal, inject } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
+import { AuthService } from '../../services/auth';
 
 interface Trip {
   name: string;
@@ -25,16 +26,20 @@ interface BudgetItem {
   dashOffset: string;
 }
 
-interface ExploreItem {
-  label: string;
-  bgColor: string;
-  strokeColor: string;
-  icon: string;
-}
-
 interface CalendarDay {
   day: number;
   type: 'prev' | 'curr' | 'today';
+  date: string;
+}
+
+interface WorldWeatherItem {
+  city: string;
+  icon: string;
+  temperature: string;
+}
+
+interface BackendCalendarEvent {
+  startDateTime?: string | null;
 }
 
 @Component({
@@ -48,12 +53,18 @@ interface CalendarDay {
 export class DashboardComponent {
   // ThemeService is injected so the effect() in the service runs and sets data-theme on <html>
   private themeService = inject(ThemeService);
+  private readonly authService = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly router = inject(Router);
   private readonly today = new Date();
 
-  readonly currentMonthLabel = this.today.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  visibleCalendarMonth = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
+  readonly currentMonthLabel = computed(() =>
+    this.visibleCalendarMonth().toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    })
+  );
 
   trips = signal<Trip[]>([
     {
@@ -79,16 +90,16 @@ export class DashboardComponent {
     { name: 'Mixology Masterclass', location: 'London, UK', price: '€45.00', image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80' },
   ]);
 
-  exploreItems = signal<ExploreItem[]>([
-    { label: 'Flights', bgColor: 'var(--explore-flights-bg)', strokeColor: 'var(--explore-flights-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>` },
-    { label: 'Events', bgColor: 'var(--explore-events-bg)', strokeColor: 'var(--explore-events-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/></svg>` },
-    { label: 'Activities', bgColor: 'var(--explore-activities-bg)', strokeColor: 'var(--explore-activities-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72"/></svg>` },
-    { label: 'Attractions', bgColor: 'var(--explore-attractions-bg)', strokeColor: 'var(--explore-attractions-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
-    { label: 'Beaches', bgColor: 'var(--explore-beaches-bg)', strokeColor: 'var(--explore-beaches-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M2 22s4-5 10-5 10 5 10 5"/><path d="M12 17c-2.76 0-5-1.34-5-3 0-2.21 2.24-4 5-4s5 1.79 5 4c0 1.66-2.24 3-5 3z"/></svg>` },
-    { label: 'Parties', bgColor: 'var(--explore-parties-bg)', strokeColor: 'var(--explore-parties-stroke)', icon: `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="22" height="22"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>` },
+  worldWeather = signal<WorldWeatherItem[]>([
+    { city: 'Paris', icon: '☀️', temperature: '24°C' },
+    { city: 'Dubai', icon: '🌤️', temperature: '38°C' },
+    { city: 'London', icon: '🌧️', temperature: '17°C' },
+    { city: 'Tokyo', icon: '☁️', temperature: '22°C' },
+    { city: 'New York', icon: '🌦️', temperature: '19°C' },
   ]);
 
-  calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.today));
+  calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.visibleCalendarMonth()));
+  eventDates = signal<Set<string>>(new Set());
 
   budgetItems = signal<BudgetItem[]>([
     { label: 'Flights',       amount: '€850', color: '#1A56DB', dashArray: '117.5 209', dashOffset: '0' },
@@ -100,10 +111,42 @@ export class DashboardComponent {
     { label: 'Parties',       amount: '€100', color: '#EC4899', dashArray: '13.8 313',  dashOffset: '-359.5' },
   ]);
 
+  ngOnInit(): void {
+    void this.loadCalendarEventDates();
+  }
+
+  hasEventOnDate(date: string): boolean {
+    return this.eventDates().has(date);
+  }
+
+  openCalendarDate(date: string): void {
+    void this.router.navigate(['/calendar'], {
+      queryParams: { date },
+    });
+  }
+
+  goToPreviousCalendarMonth(): void {
+    this.changeCalendarMonth(-1);
+  }
+
+  goToNextCalendarMonth(): void {
+    this.changeCalendarMonth(1);
+  }
+
+  private changeCalendarMonth(offset: number): void {
+    const currentMonth = this.visibleCalendarMonth();
+    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1);
+
+    this.visibleCalendarMonth.set(nextMonth);
+    this.calDays.set(this.buildCurrentMonthCalendarDays(nextMonth));
+  }
+
   private buildCurrentMonthCalendarDays(date: Date): CalendarDay[] {
     const year = date.getFullYear();
     const month = date.getMonth();
-    const currentDay = date.getDate();
+    const currentDay = this.today.getDate();
+    const isCurrentMonth =
+      year === this.today.getFullYear() && month === this.today.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPreviousMonth = new Date(year, month, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
@@ -111,13 +154,53 @@ export class DashboardComponent {
     const days: CalendarDay[] = [];
 
     for (let index = leadingDays - 1; index >= 0; index--) {
-      days.push({ day: daysInPreviousMonth - index, type: 'prev' });
+      const day = daysInPreviousMonth - index;
+      days.push({
+        day,
+        type: 'prev',
+        date: this.formatDate(new Date(year, month - 1, day)),
+      });
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push({ day, type: day === currentDay ? 'today' : 'curr' });
+      days.push({
+        day,
+        type: isCurrentMonth && day === currentDay ? 'today' : 'curr',
+        date: this.formatDate(new Date(year, month, day)),
+      });
     }
 
     return days;
+  }
+
+  private async loadCalendarEventDates(): Promise<void> {
+    try {
+      const response = await fetch('/api/calendar-events', {
+        headers: this.authService.authHeader(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load calendar events: ${response.status}`);
+      }
+
+      const events = (await response.json()) as BackendCalendarEvent[];
+      const dates = new Set(
+        events
+          .map((event) => event.startDateTime?.split('T')[0] ?? '')
+          .filter(Boolean)
+      );
+
+      this.eventDates.set(dates);
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('Failed to load dashboard calendar event indicators:', error);
+    }
+  }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }
