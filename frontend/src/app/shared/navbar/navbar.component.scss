@@ -40,12 +40,56 @@
 }
 
 .logo-icon {
-  width: 32px; height: 32px;
-  background: var(--accent);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  width: 34px;
+  height: 34px;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.42), transparent 28%),
+    linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 68%, #0f9d58));
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 12px;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 24%, transparent);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  transition: background 0.3s;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+  }
+
+  [data-theme='dark'] & {
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.2), transparent 28%),
+      linear-gradient(135deg, color-mix(in srgb, var(--gold) 78%, #ffffff), #0f172a);
+    border-color: color-mix(in srgb, var(--gold) 44%, transparent);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--gold) 22%, transparent);
+    color: var(--gold-light);
+  }
+}
+
+.logo-globe,
+.logo-line,
+.logo-orbit {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.logo-globe {
+  stroke-width: 1.8;
+}
+
+.logo-line {
+  stroke-width: 1.35;
+  opacity: 0.92;
+}
+
+.logo-orbit {
+  stroke-width: 1.7;
 }
 
 .logo-text-wrap { display: flex; flex-direction: column; }
@@ -66,7 +110,16 @@
   }
 }
 
-.logo-accent { color: var(--accent); }
+.logo-earth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95em;
+  margin: 0 0.02em;
+  font-size: 0.86em;
+  line-height: 1;
+  vertical-align: -0.03em;
+}
 
 .logo-sub {
   font-size: 10.5px;

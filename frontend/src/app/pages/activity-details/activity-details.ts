@@ -28,7 +28,7 @@ export class ActivityDetailsComponent implements OnInit, OnDestroy {
       <text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle"
             font-family="Arial, sans-serif" font-size="42" fill="%23d4a017">No image available</text>
       <text x="50%" y="57%" dominant-baseline="middle" text-anchor="middle"
-            font-family="Arial, sans-serif" font-size="24" fill="%23dddddd">Roamer Activities</text>
+            font-family="Arial, sans-serif" font-size="24" fill="%23dddddd">R🌐amer Activities</text>
     </svg>`;
 
   constructor(
