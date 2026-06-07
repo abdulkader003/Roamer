@@ -143,9 +143,15 @@ h3 {
 }
 
 .description,
+.location,
 .dates {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.location {
+  margin-top: 4px;
+  font-size: 0.9rem;
 }
 
 .price-block {
