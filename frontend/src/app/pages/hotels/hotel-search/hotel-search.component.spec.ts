@@ -4,7 +4,11 @@ import { of } from 'rxjs';
 
 import { HotelSearchComponent } from './hotel-search.component';
 import { Hotel } from '../models/hotel.model';
+import { CalendarService } from '../services/calendar.service';
 import { HotelService } from '../services/hotel.service';
+
+const validCheckIn = '2099-06-03';
+const validCheckOut = '2099-06-06';
 
 const hotelFixture: Hotel = {
   id: 1,
@@ -36,6 +40,12 @@ describe('HotelSearch', () => {
       providers: [
         provideRouter([]),
         { provide: HotelService, useValue: hotelService },
+        {
+          provide: CalendarService,
+          useValue: jasmine.createSpyObj<CalendarService>('CalendarService', [
+            'addEventOrRedirectToLogin',
+          ]),
+        },
       ],
     })
     .compileComponents();
@@ -49,13 +59,85 @@ describe('HotelSearch', () => {
     expect(component).toBeTruthy();
   });
 
+  it('renders the destination input', () => {
+    const destinationInput: HTMLInputElement =
+      fixture.nativeElement.querySelector('input[name="location"]');
+
+    expect(destinationInput).toBeTruthy();
+    expect(destinationInput.placeholder).toBe('Where are you traveling to?');
+  });
+
+  it('renders the check-in input', () => {
+    const checkInInput: HTMLButtonElement =
+      fixture.nativeElement.querySelector('[aria-label="Choose check-in date"]');
+
+    expect(checkInInput).toBeTruthy();
+    expect(checkInInput.textContent).toContain('Check-in');
+  });
+
+  it('renders the check-out input', () => {
+    const checkOutInput: HTMLButtonElement =
+      fixture.nativeElement.querySelector('[aria-label="Choose check-out date"]');
+
+    expect(checkOutInput).toBeTruthy();
+    expect(checkOutInput.textContent).toContain('Check-out');
+  });
+
+  it('renders the search button', () => {
+    const searchButton: HTMLButtonElement = fixture.nativeElement.querySelector('.search-btn');
+
+    expect(searchButton).toBeTruthy();
+    expect(searchButton.type).toBe('submit');
+    expect(searchButton.textContent).toContain('Search stays');
+  });
+
+  it('triggers the search action when the search button is clicked', () => {
+    const searchSpy = spyOn(component, 'search');
+    const searchButton: HTMLButtonElement = fixture.nativeElement.querySelector('.search-btn');
+
+    searchButton.click();
+
+    expect(searchSpy).toHaveBeenCalled();
+  });
+
+  it('executes hotel search logic for a valid form', () => {
+    spyOn(window, 'requestAnimationFrame').and.returnValue(0);
+    component.location = 'Berlin';
+    component.checkIn = validCheckIn;
+    component.checkOut = validCheckOut;
+
+    component.search();
+
+    expect(hotelService.searchHotels).toHaveBeenCalledWith(
+      'Berlin',
+      validCheckIn,
+      validCheckOut,
+      component.adults,
+      component.children
+    );
+    expect(component.hasSearched).toBeTrue();
+    expect(component.hotels).toEqual([jasmine.objectContaining({ name: hotelFixture.name })]);
+  });
+
+  it('prevents hotel search execution for an invalid form', () => {
+    component.location = '';
+    component.checkIn = '';
+    component.checkOut = '';
+
+    component.search();
+
+    expect(hotelService.searchHotels).not.toHaveBeenCalled();
+    expect(component.dateError).toBe('Please fill all required fields');
+    expect(component.hasSearched).toBeFalse();
+  });
+
   it('renders hotel cards after searching Berlin stays', () => {
     spyOn(console, 'log');
     spyOn(window, 'requestAnimationFrame').and.returnValue(0);
 
     component.location = 'Berlin';
-    component.checkIn = '2026-06-03';
-    component.checkOut = '2026-06-06';
+    component.checkIn = validCheckIn;
+    component.checkOut = validCheckOut;
 
     component.search();
     fixture.detectChanges();

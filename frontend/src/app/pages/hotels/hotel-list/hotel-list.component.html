@@ -48,6 +48,10 @@
     </div>
   </div>
 
+  <div class="empty-state" *ngIf="displayedHotels.length === 0">
+    <p>No hotels available.</p>
+  </div>
+
   <article
     class="hotel-card"
     *ngFor="let hotel of displayedHotels; trackBy: trackByHotelId"

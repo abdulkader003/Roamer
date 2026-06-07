@@ -113,6 +113,20 @@
   box-shadow: var(--gold-glow);
 }
 
+.empty-state {
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-glass);
+  color: var(--muted);
+  text-align: center;
+  box-shadow: var(--shadow-soft);
+}
+
+.empty-state p {
+  margin: 0;
+}
+
 .hotel-card {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) 190px;

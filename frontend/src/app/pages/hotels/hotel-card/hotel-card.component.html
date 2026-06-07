@@ -40,6 +40,13 @@
     <div>
       <p class="detail-label">Stay details</p>
       <h3>{{ hotel.name }}</h3>
+      <p class="location" *ngIf="hotel.city || hotel.distanceFromCenter || hotel.distance">
+        <span *ngIf="hotel.city">{{ hotel.city }}</span>
+        <span *ngIf="hotel.city && (hotel.distanceFromCenter || hotel.distance)"> · </span>
+        <span *ngIf="hotel.distanceFromCenter || hotel.distance">
+          {{ hotel.distanceFromCenter || hotel.distance }}
+        </span>
+      </p>
     </div>
   </div>
 
