@@ -12,6 +12,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 
+/**
+ * Creates and validates JWTs used by authenticated API requests and password reset flows.
+ *
+ * <p>A purpose claim separates long-lived application auth tokens from short-lived
+ * password reset tokens so a reset token cannot authenticate normal API calls.</p>
+ */
 @Service
 public class JwtService {
 
@@ -31,10 +37,22 @@ public class JwtService {
         this.expiration = Duration.ofMinutes(expirationMinutes);
     }
 
+    /**
+     * Generates an application authentication token for a verified user email.
+     *
+     * @param email subject stored in the JWT
+     * @return signed JWT for normal authenticated requests
+     */
     public String generateToken(String email) {
         return generateToken(email, AUTH_PURPOSE, expiration);
     }
 
+    /**
+     * Generates a short-lived token scoped to password reset completion.
+     *
+     * @param email account email that passed reset-code verification
+     * @return signed JWT with the password-reset purpose claim
+     */
     public String generatePasswordResetToken(String email) {
         return generateToken(email, PASSWORD_RESET_PURPOSE, PASSWORD_RESET_EXPIRATION);
     }
@@ -49,6 +67,9 @@ public class JwtService {
         return expirationDate != null && expirationDate.after(new Date());
     }
 
+    /**
+     * Validates that a token is not expired and is usable for normal authentication.
+     */
     public boolean isAuthTokenValid(String token) {
         Claims claims = parseClaims(token);
         Date expirationDate = claims.getExpiration();
@@ -59,6 +80,9 @@ public class JwtService {
                 && (purpose == null || AUTH_PURPOSE.equals(purpose));
     }
 
+    /**
+     * Validates that a token is not expired and was issued specifically for password reset.
+     */
     public boolean isPasswordResetTokenValid(String token) {
         Claims claims = parseClaims(token);
         Date expirationDate = claims.getExpiration();

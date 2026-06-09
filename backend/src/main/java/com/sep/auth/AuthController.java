@@ -19,6 +19,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Public authentication API for registration, login challenges, email
+ * verification, and password reset flows.
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -79,6 +83,9 @@ public class AuthController {
         return ResponseEntity.badRequest().body(Map.of("message", message));
     }
 
+    /**
+     * Converts unique-constraint failures into a client-safe duplicate account message.
+     */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException exception) {
         String details = exception.getMostSpecificCause() != null

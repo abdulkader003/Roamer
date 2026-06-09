@@ -13,6 +13,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Reads bearer tokens from incoming requests and populates Spring Security with
+ * the authenticated user email when the token is valid and the account still exists.
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -24,6 +28,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.appUserRepository = appUserRepository;
     }
 
+    /**
+     * Authenticates requests opportunistically and lets unauthenticated requests
+     * continue so endpoint authorization rules decide whether access is allowed.
+     */
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,

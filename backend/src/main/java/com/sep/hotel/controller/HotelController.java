@@ -15,6 +15,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
+/**
+ * Validates hotel search requests and exposes normalized hotel results to the frontend.
+ */
 @RestController
 @RequestMapping("/api/hotels")
 public class HotelController {
@@ -28,6 +31,10 @@ public class HotelController {
         this.hotelService = hotelService;
     }
 
+    /**
+     * Accepts ISO or European date input, validates stay constraints, and returns
+     * an empty result set instead of surfacing provider failures to the client.
+     */
     @GetMapping
     public ResponseEntity<?> searchHotels(
             @RequestParam("location") String location,
@@ -52,6 +59,9 @@ public class HotelController {
         }
     }
 
+    /**
+     * Performs request-level validation before the service calls external providers.
+     */
     private String validate(String location, String checkIn, String checkOut, Integer adults, Integer children) {
         if (location == null || location.isBlank()) {
             return "location must not be empty";
@@ -93,6 +103,9 @@ public class HotelController {
         return null;
     }
 
+    /**
+     * Parses supported client date formats into the backend's canonical date type.
+     */
     private LocalDate parseDate(String value) {
         try {
             return LocalDate.parse(value);

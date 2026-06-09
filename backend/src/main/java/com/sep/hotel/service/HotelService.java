@@ -17,6 +17,13 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Provides hotel search results by combining cached hotel inventory with Agoda RapidAPI data.
+ *
+ * <p>The service normalizes supported city names, fills missing provider data with
+ * deterministic display values, and falls back to generated hotel responses when no
+ * cached or provider results are available.</p>
+ */
 @Service
 public class HotelService {
 
@@ -252,6 +259,16 @@ public class HotelService {
         this.cityNameMapper = cityNameMapper;
     }
 
+    /**
+     * Searches hotels for a known city and requested stay details.
+     *
+     * @param location user-entered destination
+     * @param checkIn normalized check-in date
+     * @param checkOut normalized check-out date
+     * @param adults optional adult guest count, defaults to 2
+     * @param children optional child guest count, defaults to 0
+     * @return hotel cards enriched with pricing, amenities, imagery, and stay dates
+     */
     public List<HotelResponse> searchHotels(String location, String checkIn, String checkOut, Integer adults, Integer children) {
         int resolvedAdults = adults == null ? 2 : adults;
         int resolvedChildren = children == null ? 0 : children;
@@ -301,6 +318,9 @@ public class HotelService {
                 .toList();
     }
 
+    /**
+     * Builds deterministic hotel cards when neither cache nor provider data is usable.
+     */
     private List<HotelResponse> fallbackHotelResponses(String city, String checkIn, String checkOut, int adults, int children) {
         log.info("Returning generated fallback hotels for '{}'", city);
         return java.util.stream.IntStream.range(0, MAX_HOTELS_PER_CITY)
@@ -366,6 +386,9 @@ public class HotelService {
         log.info("Cached {} new Agoda hotels for '{}'", saved, city);
     }
 
+    /**
+     * Imports only enough provider hotels to fill the city cache target.
+     */
     private int cacheAgodaHotels(String city, List<AgodaHotel> externalHotels, int missingHotelCount) {
         int saved = 0;
         for (int index = 0; index < externalHotels.size(); index++) {
@@ -385,6 +408,10 @@ public class HotelService {
         return saved;
     }
 
+    /**
+     * Maps provider hotel data into the local hotel entity while filling missing
+     * display fields with stable, city-specific values.
+     */
     private Hotel createHotelEntity(AgodaHotel externalHotel, String city, int position) {
         Hotel hotel = new Hotel();
         hotel.setExternalId(externalHotel.externalId());

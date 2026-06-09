@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Flight search API for one-way, round-trip, and multi-city requests.
+ */
 @RestController
 @RequestMapping("/api/flights")
 public class FlightController {

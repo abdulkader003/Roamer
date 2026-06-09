@@ -5,6 +5,12 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+/**
+ * REST API for storing travel calendar items such as flights, hotel stays, and activities.
+ *
+ * <p>Events are stored with start and end timestamps so the frontend can render
+ * both single-day plans and multi-day reservations.</p>
+ */
 @RestController
 @RequestMapping("/api/calendar-events")
 @CrossOrigin(origins = "*")
@@ -21,12 +27,20 @@ public class CalendarEventController {
         return calendarEventRepository.findAll();
     }
 
+    /**
+     * Persists a new calendar event after applying server-side defaults.
+     */
     @PostMapping
     public CalendarEvent createCalendarEvent(@RequestBody CalendarEvent calendarEvent) {
         applyDefaults(calendarEvent);
         return calendarEventRepository.save(calendarEvent);
     }
 
+    /**
+     * Replaces editable event fields while preserving the existing database identity.
+     *
+     * @throws ResponseStatusException when the event id does not exist
+     */
     @PutMapping("/{id}")
     public CalendarEvent updateCalendarEvent(
             @PathVariable Long id,
@@ -58,6 +72,9 @@ public class CalendarEventController {
         calendarEventRepository.deleteById(id);
     }
 
+    /**
+     * Applies fallback values that older clients may omit.
+     */
     private void applyDefaults(CalendarEvent calendarEvent) {
         if (calendarEvent.getCategory() == null || calendarEvent.getCategory().isBlank()) {
             calendarEvent.setCategory("EVENT");

@@ -8,6 +8,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Serves activity search and detail requests using a cache-first Ticketmaster import strategy.
+ *
+ * <p>Fresh cached data is preferred for responsiveness. When cache data is missing
+ * or stale, the service imports from Ticketmaster and upserts local entities.</p>
+ */
 @Service
 public class ActivitiesService {
     private static final int CACHE_HOURS = 12;
@@ -30,6 +36,15 @@ public class ActivitiesService {
         this.activityMapper = activityMapper;
     }
 
+    /**
+     * Returns a paged activity search result for a city or recent global activity cache.
+     *
+     * @param city optional city filter; blank or "All Cities" searches recent cached items
+     * @param keyword optional keyword matched against core event and venue fields
+     * @param page zero-based page index, clamped to non-negative values
+     * @param size requested page size, clamped to service limits
+     * @return DTO page with a has-more indicator
+     */
     @Transactional
     public ActivitySearchResponse getActivities(String city, String keyword, Integer page, Integer size) {
         int safePage = Math.max(page == null ? 0 : page, 0);
@@ -47,6 +62,13 @@ public class ActivitiesService {
         return new ActivitySearchResponse(items, safePage, safeSize, pageResult.hasMore());
     }
 
+    /**
+     * Loads a single activity detail, refreshing from Ticketmaster when cached
+     * detail data is absent or stale.
+     *
+     * @param id Ticketmaster external event id
+     * @return activity details if found locally or remotely
+     */
     @Transactional
     public Optional<ActivityDto> getActivityById(String id) {
         Optional<ActivityEntity> existingOptional = activityRepository.findByExternalId(id);
@@ -65,6 +87,9 @@ public class ActivitiesService {
         return Optional.of(activityMapper.toDto(saved));
     }
 
+    /**
+     * Retrieves the latest stored activities and bootstraps the default city cache when empty.
+     */
     private ActivityEntityPage getLatestActivities(String keyword, int page, int size) {
         List<ActivityEntity> latestActivities = activityRepository.findTop80ByOrderByFetchedAtDesc();
         List<ActivityEntity> latestMatches = filterByKeyword(latestActivities, keyword);
@@ -83,6 +108,9 @@ public class ActivitiesService {
         return new ActivityEntityPage(Collections.emptyList(), false);
     }
 
+    /**
+     * Uses fresh city cache when possible, then imports, then falls back to older stored data.
+     */
     private ActivityEntityPage getActivitiesForCity(String city, String keyword, int page, int size) {
         LocalDateTime freshAfter = LocalDateTime.now().minusHours(CACHE_HOURS);
 
@@ -136,6 +164,9 @@ public class ActivitiesService {
         }
     }
 
+    /**
+     * Upserts imported activities so repeat imports refresh provider data instead of duplicating rows.
+     */
     private ActivityEntity saveOrUpdate(ActivityEntity incoming) {
         Optional<ActivityEntity> existingOptional = activityRepository.findByExternalId(incoming.getExternalId());
 
@@ -217,6 +248,9 @@ public class ActivitiesService {
                 .toList();
     }
 
+    /**
+     * Applies keyword matching across the main searchable activity fields.
+     */
     private boolean matchesKeyword(ActivityEntity activity, String keyword) {
         if (!hasSearchKeyword(keyword)) {
             return true;

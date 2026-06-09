@@ -16,6 +16,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+/**
+ * Configures stateless API security and the public authentication endpoints.
+ */
 @Configuration
 public class SecurityConfig {
 
@@ -30,6 +33,10 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Builds the stateless security chain and registers JWT authentication before
+     * Spring's username/password filter.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 

@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Coordinates flight search, short-lived result caching, city-airport expansion, and persistence.
+ */
 @Service
 public class FlightService {
     private static final Map<String, List<FlightSearchRequest.AirportDto>> CITY_AIRPORTS = Map.ofEntries(
@@ -67,6 +70,13 @@ public class FlightService {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Searches for flights using cached results when eligible, otherwise imports
+     * fresh offers from AeroDataBox and stores the search for later reuse.
+     *
+     * @param request requested route, dates, travelers, and cabin options
+     * @return normalized flight response for one-way, round-trip, or multi-city searches
+     */
     @Transactional
     public FlightResponse searchFlights(FlightSearchRequest request) {
         validateSearchRequest(request);
@@ -77,6 +87,12 @@ public class FlightService {
                 .orElseGet(() -> fetchPersistAndMap(request));
     }
 
+    /**
+     * Finds a reusable direct-route search created within the cache window.
+     *
+     * <p>Multi-city and city-airport expansion searches are intentionally excluded
+     * because they depend on broader dynamic route combinations.</p>
+     */
     private Optional<FlightSearchEntity> findCachedSearch(FlightSearchRequest request) {
         if ("multi-city".equals(request.tripType()) || request.includeCityAirports()) {
             return Optional.empty();
@@ -110,6 +126,9 @@ public class FlightService {
         );
     }
 
+    /**
+     * Fetches outbound and optional return offers, persists them, and maps the saved search.
+     */
     private FlightResponse fetchPersistAndMap(FlightSearchRequest request) {
         if ("multi-city".equals(request.tripType())) {
             return fetchPersistAndMapMultiCity(request);
@@ -136,6 +155,9 @@ public class FlightService {
         return flightMapper.toResponse(savedSearch, offers);
     }
 
+    /**
+     * Fetches each multi-city segment independently and returns segment-grouped results.
+     */
     private FlightResponse fetchPersistAndMapMultiCity(FlightSearchRequest request) {
         if (request.multiCitySegments() == null || request.multiCitySegments().size() < 2) {
             throw new IllegalArgumentException("Multi-city flight search requires at least two segments.");
@@ -173,6 +195,9 @@ public class FlightService {
         return "round-trip".equals(request.tripType()) && request.returnDate() != null;
     }
 
+    /**
+     * Searches either the exact airport pair or a bounded set of airport pairs for supported cities.
+     */
     private List<FlightOfferDto> searchLeg(FlightSearchRequest request, boolean includeCityAirports) {
         if (!includeCityAirports) {
             JsonNode response = aeroDataBoxFlightService.searchFlights(request);
@@ -275,6 +300,9 @@ public class FlightService {
         }
     }
 
+    /**
+     * Validates the route shape required by the selected trip type before external calls are made.
+     */
     private void validateSearchRequest(FlightSearchRequest request) {
         if (!"multi-city".equals(request.tripType())) {
             if (request.departureDate() == null) {
