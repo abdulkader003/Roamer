@@ -137,7 +137,9 @@
           @for (d of calDays(); track d.date + d.type) {
             <button
               type="button"
-              [class]="d.type === 'today' ? 'cal-day today' : d.type === 'prev' ? 'cal-day prev' : 'cal-day'"
+              class="cal-day"
+              [class.today]="d.type === 'today'"
+              [class.prev]="d.type === 'prev'"
               (click)="openCalendarDate(d.date)">
               <span class="cal-day-number">{{ d.day }}</span>
               <span class="cal-event-indicator" [class.is-visible]="hasEventOnDate(d.date)"></span>

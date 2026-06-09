@@ -40,6 +40,7 @@ interface WorldWeatherItem {
 
 interface BackendCalendarEvent {
   startDateTime?: string | null;
+  endDateTime?: string | null;
 }
 
 @Component({
@@ -184,11 +185,20 @@ export class DashboardComponent {
       }
 
       const events = (await response.json()) as BackendCalendarEvent[];
-      const dates = new Set(
-        events
-          .map((event) => event.startDateTime?.split('T')[0] ?? '')
-          .filter(Boolean)
-      );
+      const dates = new Set<string>();
+
+      for (const event of events) {
+        const startDate = event.startDateTime?.split('T')[0] ?? '';
+        const endDate = event.endDateTime?.split('T')[0] ?? '';
+
+        if (startDate) {
+          dates.add(startDate);
+        }
+
+        if (endDate && endDate !== startDate) {
+          dates.add(endDate);
+        }
+      }
 
       this.eventDates.set(dates);
       this.cdr.detectChanges();
@@ -203,4 +213,5 @@ export class DashboardComponent {
     const day = `${date.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
+
 }
