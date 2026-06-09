@@ -13,18 +13,6 @@
     </div>
 
     <form class="auth-form" #verifyForm="ngForm" (ngSubmit)="submit(verifyForm)" novalidate>
-      <label class="auth-field auth-field--compact">
-        <span>Email</span>
-        <input
-          type="email"
-          name="email"
-          autocomplete="email"
-          placeholder="you@example.com"
-          required
-          email
-          [(ngModel)]="email" />
-      </label>
-
       <label class="auth-field">
         <span>Verification code</span>
         <input
