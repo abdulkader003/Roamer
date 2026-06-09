@@ -172,10 +172,23 @@
 }
 
 /* Month grid */
-.calendar-grid {
+.calendar-grid,
+.month-weekdays,
+.month-week {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+}
+
+.month-view {
+  display: grid;
+  gap: 6px;
+}
+
+.month-week {
+  position: relative;
+  isolation: isolate;
+  --hotel-lane-count: 0;
 }
 
 .weekday {
@@ -197,6 +210,11 @@
   overflow: hidden;
   border: 1px solid var(--calendar-border);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.month-day {
+  grid-row: 1;
+  min-height: calc(118px + var(--hotel-lane-count) * 30px);
 }
 
 .day:hover {
@@ -254,6 +272,130 @@
   scrollbar-width: thin;
 }
 
+.events-container app-event-card {
+  display: block;
+}
+
+.month-events-container {
+  margin-top: calc(12px + var(--hotel-lane-count) * 30px);
+}
+
+.hotel-stay-bar {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(7, 130, 99, 0.36);
+  border-left: 5px solid #078263;
+  border-radius: 8px;
+  padding: 0 9px;
+  background: linear-gradient(135deg, rgba(223, 247, 239, 0.98), rgba(242, 255, 250, 0.98));
+  color: #064f3e;
+  box-shadow: 0 7px 16px color-mix(in srgb, #078263 14%, transparent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transform: translateX(3px);
+  max-width: calc(100% - 6px);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.hotel-stay-bar:hover,
+.hotel-stay-bar:focus-visible {
+  border-color: #078263;
+  box-shadow: 0 10px 20px color-mix(in srgb, #078263 22%, transparent);
+  outline: none;
+  transform: translateX(3px) translateY(-1px);
+}
+
+.hotel-stay-bar--start {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.hotel-stay-bar--middle {
+  border-left-width: 1px;
+  border-radius: 4px;
+}
+
+.hotel-stay-bar--end {
+  border-left-width: 1px;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.hotel-stay-bar--complete {
+  border-radius: 8px;
+}
+
+.hotel-stay-bar__title,
+.hotel-stay-bar__meta,
+.hotel-stay-bar__marker {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotel-stay-bar__title {
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hotel-stay-bar__meta {
+  flex: 0 1 auto;
+  color: #08745a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hotel-stay-bar__marker {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: rgba(7, 130, 99, 0.13);
+  color: #05624b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.hotel-stay-bar__marker--end {
+  margin-left: auto;
+}
+
+:host-context([data-theme='dark']) .hotel-stay-bar {
+  border-color: rgba(94, 227, 176, 0.34);
+  border-left-color: #5ee3b0;
+  background: linear-gradient(135deg, rgba(12, 55, 42, 0.96), rgba(17, 24, 22, 0.98));
+  color: #e9fff7;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+}
+
+:host-context([data-theme='dark']) .hotel-stay-bar__meta {
+  color: #92f0cc;
+}
+
+:host-context([data-theme='dark']) .hotel-stay-bar__marker {
+  background: rgba(94, 227, 176, 0.15);
+  color: #b7f7de;
+}
+
+.empty-day-message {
+  padding: 18px 10px;
+  color: var(--calendar-text-muted);
+  text-align: center;
+  font-size: 14px;
+  border: 1px dashed var(--calendar-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--calendar-panel-bg) 62%, transparent);
+}
+
 .event-item {
   flex: 0 0 auto;
   display: block;
@@ -280,6 +422,11 @@
   gap: 6px;
 }
 
+.day-view {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
 .week-day-name {
   text-align: center;
   font-size: 13px;
@@ -298,6 +445,10 @@
   box-sizing: border-box;
   overflow: hidden;
   border: 1px solid var(--calendar-border);
+}
+
+.day-view-box {
+  min-height: 460px;
 }
 
 .week-date-number {
@@ -746,6 +897,8 @@
   }
 
   .calendar-grid,
+  .month-weekdays,
+  .month-week,
   .week-view {
     gap: 4px;
   }
@@ -753,6 +906,26 @@
   .day,
   .week-day-box {
     min-height: 96px;
+  }
+
+  .month-day {
+    min-height: calc(108px + var(--hotel-lane-count) * 28px);
+    padding: 8px;
+  }
+
+  .month-events-container {
+    margin-top: calc(10px + var(--hotel-lane-count) * 28px);
+  }
+
+  .hotel-stay-bar {
+    height: 24px;
+    gap: 5px;
+    padding: 0 7px;
+  }
+
+  .hotel-stay-bar__meta,
+  .hotel-stay-bar__marker {
+    display: none;
   }
 }
 
@@ -790,13 +963,27 @@
 
   .view-toggle {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .calendar-grid {
+  .calendar-grid,
+  .month-weekdays,
+  .month-week {
     grid-template-columns: repeat(7, minmax(40px, 1fr));
     overflow-x: auto;
     padding-bottom: 6px;
+  }
+
+  .month-week {
+    overflow: visible;
+  }
+
+  .month-day {
+    min-height: calc(100px + var(--hotel-lane-count) * 26px);
+  }
+
+  .month-events-container {
+    margin-top: calc(8px + var(--hotel-lane-count) * 26px);
   }
 
   .week-view {

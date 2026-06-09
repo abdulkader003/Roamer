@@ -1,23 +1,15 @@
-<button class="event-card" [ngClass]="toneClass" type="button" (click)="openDetails($event)">
+<button class="event-card" [ngClass]="[toneClass, durationClass]" type="button" (click)="openDetails($event)">
   <span class="event-title">{{ event.title }}</span>
 
-  @if (event.startTime || event.location) {
+  @if (metaLabel) {
     <span class="event-meta">
-      @if (event.startTime) {
-        <span>{{ event.startTime }}</span>
-      }
-      @if (event.startTime && event.location) {
-        <span> &middot; </span>
-      }
-      @if (event.location) {
-        <span>{{ event.location }}</span>
-      }
+      {{ metaLabel }}
     </span>
   }
 
-  @if (event.category) {
+  @if (categoryLabel) {
     <span class="event-category">
-      {{ event.category }}
+      {{ categoryLabel }}
     </span>
   }
 </button>

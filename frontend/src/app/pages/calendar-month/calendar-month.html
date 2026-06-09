@@ -45,6 +45,14 @@
           <button
             type="button"
             class="view-btn"
+            [class.active]="viewMode === 'day'"
+            (click)="setViewMode('day')">
+            Day
+          </button>
+
+          <button
+            type="button"
+            class="view-btn"
             [class.active]="viewMode === 'week'"
             (click)="setViewMode('week')">
             Week
@@ -62,40 +70,54 @@
     </div>
 
     @if (viewMode === 'month') {
-      <div class="calendar-grid">
-        @for (day of weekdays; track day) {
-          <div class="weekday">{{ day }}</div>
-        }
+      <div class="month-view">
+        <div class="month-weekdays">
+          @for (day of weekdays; track day) {
+            <div class="weekday">{{ day }}</div>
+          }
+        </div>
 
-        @for (day of prevMonthDays; track day) {
-          <div class="day other-month">
-            <div class="day-number">{{ day }}</div>
-            <div class="events-container" aria-hidden="true"></div>
-          </div>
-        }
+        @for (week of monthWeeks; track week[0].date) {
+          <div class="month-week" [style.--hotel-lane-count]="getMonthHotelLaneCount(week)">
+            @for (cell of week; track cell.date) {
+              <div
+                class="day month-day"
+                [class.other-month]="!cell.isCurrentMonth"
+                [class.selected-day]="cell.isCurrentMonth && cell.day === selectedDay"
+                [class.today-day]="cell.isToday"
+                (click)="selectMonthCell(cell)">
+                <div class="day-number">{{ cell.day }}</div>
+                <div class="events-container month-events-container">
+                  @for (event of getMonthEventsForDate(cell.date); track event) {
+                    <app-event-card
+                      [event]="event"
+                      [occurrenceDate]="cell.date"
+                      (viewDetails)="openEventDetails($event)">
+                    </app-event-card>
+                  }
+                </div>
+              </div>
+            }
 
-        @for (day of days; track day) {
-          <div
-            class="day"
-            [class.selected-day]="day === selectedDay"
-            [class.today-day]="isToday(day)"
-            (click)="selectDay(day)">
-            <div class="day-number">{{ day }}</div>
-            <div class="events-container">
-              @for (event of getEventsForDate(getDateForDay(day)); track event) {
-                <app-event-card
-                  [event]="event"
-                  (viewDetails)="openEventDetails($event)">
-                </app-event-card>
-              }
-            </div>
-          </div>
-        }
-
-        @for (day of nextMonthDays; track day) {
-          <div class="day other-month">
-            <div class="day-number">{{ day }}</div>
-            <div class="events-container" aria-hidden="true"></div>
+            @for (segment of getMonthHotelSegments(week); track segment.key) {
+              <button
+                type="button"
+                class="hotel-stay-bar"
+                [ngClass]="getHotelStaySegmentClass(segment)"
+                [style.left.%]="segment.leftPercent"
+                [style.top.px]="segment.top"
+                [style.width.%]="segment.widthPercent"
+                (click)="openEventDetails(segment.event); $event.stopPropagation()">
+                <span class="hotel-stay-bar__title">{{ segment.event.title }}</span>
+                <span class="hotel-stay-bar__meta">{{ getHotelStayBarLabel(segment.event) }}</span>
+                @if (segment.startsInWeek) {
+                  <span class="hotel-stay-bar__marker">Check-in</span>
+                }
+                @if (segment.endsInWeek) {
+                  <span class="hotel-stay-bar__marker hotel-stay-bar__marker--end">Check-out</span>
+                }
+              </button>
+            }
           </div>
         }
       </div>
@@ -116,6 +138,7 @@
                 @for (event of getEventsForDate(getDateForDate(date)); track event) {
                   <app-event-card
                     [event]="event"
+                    [occurrenceDate]="getDateForDate(date)"
                     (viewDetails)="openEventDetails($event)">
                   </app-event-card>
                 }
@@ -123,6 +146,32 @@
             </div>
           </div>
         }
+      </div>
+    }
+
+    @if (viewMode === 'day') {
+      <div class="day-view">
+        <div class="week-day">
+          <div class="week-day-name">{{ currentDate | date: 'EEEE' }}</div>
+          <div
+            class="week-day-box day-view-box"
+            [class.today-week-day]="isTodayDate(currentDate)"
+            [class.selected-week-day]="currentDate.getDate() === selectedDay"
+            (click)="selectDay(currentDate.getDate())">
+            <div class="week-date-number">{{ currentDate.getDate() }}</div>
+            <div class="events-container">
+              @for (event of getEventsForDate(getDateForDate(currentDate)); track event) {
+                <app-event-card
+                  [event]="event"
+                  [occurrenceDate]="getDateForDate(currentDate)"
+                  (viewDetails)="openEventDetails($event)">
+                </app-event-card>
+              } @empty {
+                <div class="empty-day-message">No plans for this day.</div>
+              }
+            </div>
+          </div>
+        </div>
       </div>
     }
   </div>
@@ -177,7 +226,7 @@
 
           <div class="form-row form-row--double">
             <label class="form-field">
-              <span>Date</span>
+              <span>{{ isHotelDraft ? 'Check-in date' : 'Date' }}</span>
               <input
                 type="date"
                 name="date"
@@ -197,9 +246,21 @@
             </label>
           </div>
 
+          @if (isHotelDraft) {
+            <label class="form-field">
+              <span>Check-out date</span>
+              <input
+                type="date"
+                name="endDate"
+                [min]="eventDraft.date"
+                [(ngModel)]="eventDraft.endDate"
+                required />
+            </label>
+          }
+
           <div class="form-row form-row--double">
             <label class="form-field">
-              <span>Start time</span>
+              <span>{{ isHotelDraft ? 'Check-in time' : 'Start time' }}</span>
               <input
                 type="time"
                 name="startTime"
@@ -207,7 +268,7 @@
             </label>
 
             <label class="form-field">
-              <span>End time</span>
+              <span>{{ isHotelDraft ? 'Check-out time' : 'End time' }}</span>
               <input
                 type="time"
                 name="endTime"
@@ -216,7 +277,7 @@
           </div>
 
           <p class="event-form-hint">
-            Leave both time fields empty to save it as an all-day event.
+            {{ isHotelDraft ? 'Leave times empty to use 15:00 check-in and 11:00 check-out.' : 'Leave both time fields empty to save it as an all-day event.' }}
           </p>
 
           <label class="form-field">
@@ -311,19 +372,19 @@
 
           <div class="event-detail-grid">
             <div class="event-detail-row">
-              <span>Date</span>
-              <p>{{ selectedEvent.date | date: 'mediumDate' }}</p>
+              <span>{{ selectedEvent.endDate && selectedEvent.endDate !== selectedEvent.date ? 'Dates' : 'Date' }}</span>
+              <p>{{ getEventDateLabel(selectedEvent) }}</p>
             </div>
 
-            @if (selectedEvent.startTime || selectedEvent.endTime) {
+            <div class="event-detail-row">
+              <span>Time</span>
+              <p>{{ getEventTimeLabel(selectedEvent) }}</p>
+            </div>
+
+            @if (getEventDurationLabel(selectedEvent)) {
               <div class="event-detail-row">
-                <span>Time</span>
-                <p>
-                  {{ selectedEvent.startTime || 'TBD' }}
-                  @if (selectedEvent.endTime) {
-                    - {{ selectedEvent.endTime }}
-                  }
-                </p>
+                <span>Duration</span>
+                <p>{{ getEventDurationLabel(selectedEvent) }}</p>
               </div>
             }
 

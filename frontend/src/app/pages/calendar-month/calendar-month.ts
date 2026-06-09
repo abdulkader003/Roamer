@@ -22,6 +22,7 @@ type EventDraft = {
   description: string;
   location: string;
   date: string;
+  endDate: string;
   startTime: string;
   endTime: string;
   category: EventCategory;
@@ -41,6 +42,24 @@ type BackendCalendarEvent = {
   notes?: string | null;
 };
 
+type MonthCell = {
+  date: string;
+  day: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+};
+
+type MonthHotelSegment = {
+  key: string;
+  event: CalendarEvent;
+  startsInWeek: boolean;
+  endsInWeek: boolean;
+  leftPercent: number;
+  widthPercent: number;
+  top: number;
+  lane: number;
+};
+
 @Component({
   selector: 'app-calendar-month',
   imports: [CommonModule, FormsModule, EventCardComponent],
@@ -54,7 +73,7 @@ export class CalendarMonth {
 
   weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  viewMode: 'month' | 'week' = 'month';
+  viewMode: 'month' | 'week' | 'day' = 'month';
   selectedDay: number | null = null;
 
   today = new Date();
@@ -142,6 +161,29 @@ export class CalendarMonth {
     return this.isSaving || this.isDeleting;
   }
 
+  get isHotelDraft(): boolean {
+    return this.eventDraft.category === 'Hotel';
+  }
+
+  get monthWeeks(): MonthCell[][] {
+    const weeks: MonthCell[][] = [];
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth();
+    const previousMonth = new Date(year, month, 0);
+    const nextMonth = new Date(year, month + 1, 1);
+    const cells: MonthCell[] = [
+      ...this.prevMonthDays.map((day) => this.createMonthCell(previousMonth.getFullYear(), previousMonth.getMonth(), day, false)),
+      ...this.days.map((day) => this.createMonthCell(year, month, day, true)),
+      ...this.nextMonthDays.map((day) => this.createMonthCell(nextMonth.getFullYear(), nextMonth.getMonth(), day, false))
+    ];
+
+    for (let index = 0; index < cells.length; index += 7) {
+      weeks.push(cells.slice(index, index + 7));
+    }
+
+    return weeks;
+  }
+
   generateCalendar() {
     this.buildCalendar();
     this.generateWeekDays();
@@ -208,7 +250,7 @@ export class CalendarMonth {
     }
   }
 
-  setViewMode(mode: 'month' | 'week') {
+  setViewMode(mode: 'month' | 'week' | 'day') {
     this.viewMode = mode;
     this.generateCalendar();
   }
@@ -220,6 +262,9 @@ export class CalendarMonth {
   goToPreviousMonth() {
     if (this.viewMode === 'week') {
       this.currentDate.setDate(this.currentDate.getDate() - 7);
+    } else if (this.viewMode === 'day') {
+      this.currentDate.setDate(this.currentDate.getDate() - 1);
+      this.selectedDay = this.currentDate.getDate();
     } else {
       this.currentDate.setMonth(this.currentDate.getMonth() - 1);
     }
@@ -230,6 +275,9 @@ export class CalendarMonth {
   goToNextMonth() {
     if (this.viewMode === 'week') {
       this.currentDate.setDate(this.currentDate.getDate() + 7);
+    } else if (this.viewMode === 'day') {
+      this.currentDate.setDate(this.currentDate.getDate() + 1);
+      this.selectedDay = this.currentDate.getDate();
     } else {
       this.currentDate.setMonth(this.currentDate.getMonth() + 1);
     }
@@ -459,7 +507,118 @@ export class CalendarMonth {
   }
 
   getEventsForDate(date: string): CalendarEvent[] {
-    return this.events.filter((event) => event.date === date);
+    return this.events
+      .filter((event) => this.isDateWithinEvent(date, event))
+      .sort((first, second) => this.compareEventsForDate(first, second, date));
+  }
+
+  getMonthEventsForDate(date: string): CalendarEvent[] {
+    return this.getEventsForDate(date).filter((event) => !this.isMultiDayHotelEvent(event));
+  }
+
+  getMonthHotelSegments(week: MonthCell[]): MonthHotelSegment[] {
+    const weekStart = this.parseDateInput(week[0]?.date ?? '');
+    const weekEnd = this.parseDateInput(week[week.length - 1]?.date ?? '');
+
+    if (!weekStart || !weekEnd) {
+      return [];
+    }
+
+    const segments = this.events
+      .filter((event) => this.isMultiDayHotelEvent(event))
+      .map((event) => {
+        const start = this.parseDateInput(event.date);
+        const checkout = this.parseDateInput(event.endDate ?? event.date);
+
+        if (!start || !checkout || checkout <= start) {
+          return null;
+        }
+
+        const lastBookedNight = this.addDays(checkout, -1);
+
+        if (lastBookedNight < weekStart || start > weekEnd) {
+          return null;
+        }
+
+        const segmentStart = start < weekStart ? weekStart : start;
+        const segmentEnd = lastBookedNight > weekEnd ? weekEnd : lastBookedNight;
+        const startIndex = week.findIndex((cell) => cell.date === this.formatDateForInput(segmentStart));
+        const endIndex = week.findIndex((cell) => cell.date === this.formatDateForInput(segmentEnd));
+
+        if (startIndex < 0 || endIndex < 0) {
+          return null;
+        }
+
+        return {
+          event,
+          startIndex,
+          endIndex,
+          startsInWeek: start >= weekStart,
+          endsInWeek: lastBookedNight <= weekEnd
+        };
+      })
+      .filter((segment): segment is {
+        event: CalendarEvent;
+        startIndex: number;
+        endIndex: number;
+        startsInWeek: boolean;
+        endsInWeek: boolean;
+      } => segment !== null)
+      .sort((first, second) => first.startIndex - second.startIndex || second.endIndex - first.endIndex);
+
+    const laneEndColumns: number[] = [];
+
+    return segments.map((segment) => {
+      let lane = laneEndColumns.findIndex((endColumn) => segment.startIndex > endColumn);
+
+      if (lane < 0) {
+        lane = laneEndColumns.length;
+      }
+
+      laneEndColumns[lane] = segment.endIndex;
+
+      return {
+        key: `${segment.event.id ?? segment.event.title}-${week[0].date}-${segment.startIndex}-${segment.endIndex}`,
+        event: segment.event,
+        startsInWeek: segment.startsInWeek,
+        endsInWeek: segment.endsInWeek,
+        leftPercent: (segment.startIndex / 7) * 100,
+        widthPercent: ((segment.endIndex - segment.startIndex + 1) / 7) * 100,
+        top: 40 + lane * 30,
+        lane
+      };
+    });
+  }
+
+  getMonthHotelLaneCount(week: MonthCell[]): number {
+    const segments = this.getMonthHotelSegments(week);
+
+    if (!segments.length) {
+      return 0;
+    }
+
+    return Math.max(...segments.map((segment) => segment.lane)) + 1;
+  }
+
+  getHotelStayBarLabel(event: CalendarEvent): string {
+    const duration = this.getEventDurationLabel(event);
+    return duration ? `Hotel stay · ${duration}` : 'Hotel stay';
+  }
+
+  getHotelStaySegmentClass(segment: MonthHotelSegment): string {
+    if (segment.startsInWeek && segment.endsInWeek) {
+      return 'hotel-stay-bar--complete';
+    }
+
+    if (segment.startsInWeek) {
+      return 'hotel-stay-bar--start';
+    }
+
+    if (segment.endsInWeek) {
+      return 'hotel-stay-bar--end';
+    }
+
+    return 'hotel-stay-bar--middle';
   }
 
   isToday(day: number): boolean {
@@ -478,12 +637,18 @@ export class CalendarMonth {
     );
   }
 
+  selectMonthCell(cell: MonthCell): void {
+    this.currentDate = this.parseDateInput(cell.date) ?? this.currentDate;
+    this.selectedDay = this.selectedDay === cell.day ? null : cell.day;
+  }
+
   private createEmptyEventDraft(): EventDraft {
     return {
       title: '',
       description: '',
       location: '',
       date: this.formatDateForInput(this.currentDate),
+      endDate: '',
       startTime: '',
       endTime: '',
       category: 'Event',
@@ -499,6 +664,17 @@ export class CalendarMonth {
     return `${year}-${month}-${day}`;
   }
 
+  private createMonthCell(year: number, month: number, day: number, isCurrentMonth: boolean): MonthCell {
+    const date = new Date(year, month, day);
+
+    return {
+      date: this.formatDateForInput(date),
+      day,
+      isCurrentMonth,
+      isToday: this.isTodayDate(date)
+    };
+  }
+
   getDateForDay(day: number): string {
     return this.formatDateForInput(
       new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), day)
@@ -507,6 +683,40 @@ export class CalendarMonth {
 
   getDateForDate(date: Date): string {
     return this.formatDateForInput(date);
+  }
+
+  getEventDateLabel(event: CalendarEvent): string {
+    if (!event.endDate || event.endDate === event.date) {
+      return this.formatDisplayDate(event.date);
+    }
+
+    return `${this.formatDisplayDate(event.date)} - ${this.formatDisplayDate(event.endDate)}`;
+  }
+
+  getEventTimeLabel(event: CalendarEvent): string {
+    if (event.startTime || event.endTime) {
+      return `${event.startTime || 'TBD'}${event.endTime ? ` - ${event.endTime}` : ''}`;
+    }
+
+    return 'All day';
+  }
+
+  getEventDurationLabel(event: CalendarEvent): string {
+    const start = this.parseDateInput(event.date);
+    const end = this.parseDateInput(event.endDate ?? event.date);
+
+    if (!start || !end || end <= start) {
+      return '';
+    }
+
+    const days = Math.round((end.getTime() - start.getTime()) / 86400000);
+
+    if (this.isHotelEvent(event)) {
+      return `${days} ${days === 1 ? 'night' : 'nights'}`;
+    }
+
+    const inclusiveDays = days + 1;
+    return `${inclusiveDays} ${inclusiveDays === 1 ? 'day' : 'days'}`;
   }
 
   private mapBackendCategory(category: string | null): EventCategory {
@@ -549,6 +759,7 @@ export class CalendarMonth {
       description: event.description ?? '',
       location: event.location ?? '',
       date: event.startDateTime?.split('T')[0] ?? '',
+      endDate: event.endDateTime?.split('T')[0] ?? event.startDateTime?.split('T')[0] ?? '',
       startTime: event.startDateTime?.split('T')[1]?.slice(0, 5) ?? '',
       endTime: event.endDateTime?.split('T')[1]?.slice(0, 5) ?? '',
       category: this.mapBackendCategory(event.category ?? null),
@@ -563,6 +774,7 @@ export class CalendarMonth {
       description: event.description ?? '',
       location: event.location ?? '',
       date: event.date || this.formatDateForInput(this.currentDate),
+      endDate: this.isHotelEvent(event) ? event.endDate ?? '' : '',
       startTime: event.startTime ?? '',
       endTime: event.endTime ?? '',
       category: this.mapBackendCategory(event.category ?? null),
@@ -580,11 +792,22 @@ export class CalendarMonth {
       return 'Event date is required.';
     }
 
+    if (this.isHotelDraft) {
+      if (!this.eventDraft.endDate) {
+        return 'Hotel stays need a check-out date.';
+      }
+
+      if (this.eventDraft.endDate <= this.eventDraft.date) {
+        return 'Check-out date must be after the check-in date.';
+      }
+    }
+
     if ((this.eventDraft.startTime && !this.eventDraft.endTime) || (!this.eventDraft.startTime && this.eventDraft.endTime)) {
       return 'Provide both start and end times, or leave both empty for an all-day event.';
     }
 
     if (
+      !this.isHotelDraft &&
       this.eventDraft.startTime &&
       this.eventDraft.endTime &&
       this.eventDraft.startTime > this.eventDraft.endTime
@@ -607,13 +830,16 @@ export class CalendarMonth {
 
   private buildBackendPayload() {
     const budgetValue = this.getBudgetValue();
+    const endDate = this.isHotelDraft ? this.eventDraft.endDate : this.eventDraft.date;
+    const startTime = this.eventDraft.startTime || (this.isHotelDraft ? '15:00' : '00:00');
+    const endTime = this.eventDraft.endTime || (this.isHotelDraft ? '11:00' : '23:59');
 
     return {
       title: this.eventDraft.title.trim(),
       description: this.eventDraft.description.trim(),
       location: this.eventDraft.location.trim(),
-      startDateTime: `${this.eventDraft.date}T${this.eventDraft.startTime || '00:00'}:00`,
-      endDateTime: `${this.eventDraft.date}T${this.eventDraft.endTime || '23:59'}:00`,
+      startDateTime: `${this.eventDraft.date}T${startTime}:00`,
+      endDateTime: `${endDate}T${endTime}:00`,
       category: this.eventDraft.category,
       budgetCost: budgetValue !== '' ? Number(budgetValue) : null,
       notes: this.eventDraft.notes.trim()
@@ -637,8 +863,9 @@ export class CalendarMonth {
       description: this.eventDraft.description.trim(),
       location: this.eventDraft.location.trim(),
       date: this.eventDraft.date,
-      startTime: this.eventDraft.startTime || '',
-      endTime: this.eventDraft.endTime || '',
+      endDate: this.isHotelDraft ? this.eventDraft.endDate : this.eventDraft.date,
+      startTime: this.eventDraft.startTime || (this.isHotelDraft ? '15:00' : ''),
+      endTime: this.eventDraft.endTime || (this.isHotelDraft ? '11:00' : ''),
       category: this.eventDraft.category,
       cost: this.getBudgetValue() !== '' ? Number(this.getBudgetValue()) : undefined,
       notes: this.eventDraft.notes.trim()
@@ -731,6 +958,91 @@ export class CalendarMonth {
     this.currentDate = eventDate;
     this.selectedDay = eventDate.getDate();
     this.generateCalendar();
+  }
+
+  private isDateWithinEvent(date: string, event: CalendarEvent): boolean {
+    if (!event.date) {
+      return false;
+    }
+
+    const target = this.parseDateInput(date);
+    const start = this.parseDateInput(event.date);
+    const end = this.parseDateInput(event.endDate ?? event.date);
+
+    if (!target || !start || !end) {
+      return event.date === date;
+    }
+
+    const normalizedEnd = end < start ? start : end;
+    return target >= start && target <= normalizedEnd;
+  }
+
+  private compareEventsForDate(first: CalendarEvent, second: CalendarEvent, date: string): number {
+    const firstHotel = this.isHotelEvent(first);
+    const secondHotel = this.isHotelEvent(second);
+
+    if (firstHotel !== secondHotel) {
+      return firstHotel ? -1 : 1;
+    }
+
+    const firstStartsToday = first.date === date;
+    const secondStartsToday = second.date === date;
+
+    if (firstStartsToday !== secondStartsToday) {
+      return firstStartsToday ? -1 : 1;
+    }
+
+    return (first.startTime ?? '').localeCompare(second.startTime ?? '')
+      || first.title.localeCompare(second.title);
+  }
+
+  private isHotelEvent(event: CalendarEvent): boolean {
+    return (event.category ?? '').trim().toLowerCase() === 'hotel';
+  }
+
+  private isMultiDayHotelEvent(event: CalendarEvent): boolean {
+    return this.isHotelEvent(event) && !!event.endDate && event.endDate !== event.date;
+  }
+
+  private formatDisplayDate(value: string): string {
+    const date = this.parseDateInput(value);
+
+    if (!date) {
+      return value;
+    }
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
+
+  private parseDateInput(value: string): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const [year, month, day] = value.split('-').map(Number);
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    const date = new Date(year, month - 1, day);
+
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      return null;
+    }
+
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const nextDate = new Date(date);
+    nextDate.setDate(date.getDate() + days);
+    return nextDate;
   }
 
   private upsertEvent(event: CalendarEvent): void {
