@@ -7,6 +7,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Normalizes user-entered hotel destinations to supported city names.
+ *
+ * <p>Aliases and accent-insensitive keys allow the frontend to accept common
+ * local spellings while keeping provider/cache lookups stable.</p>
+ */
 @Component
 public class CityNameMapper {
 
@@ -21,6 +27,9 @@ public class CityNameMapper {
     );
     private static final Set<String> KNOWN_CITY_KEYS = knownCityKeys();
 
+    /**
+     * Converts a user-entered destination to the canonical city name used by hotel search.
+     */
     public String normalize(String location) {
         String trimmed = location == null ? "" : location.trim();
         if (trimmed.isBlank()) {
@@ -29,6 +38,9 @@ public class CityNameMapper {
         return CITY_ALIASES.getOrDefault(trimmed.toLowerCase(), capitalize(trimmed));
     }
 
+    /**
+     * Checks whether a destination can be served by the hotel search experience.
+     */
     public boolean isKnownCity(String location) {
         String normalized = normalize(location);
         if (normalized.isBlank()) {

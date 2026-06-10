@@ -3,6 +3,12 @@ package com.sep.event;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+/**
+ * Persisted travel calendar item shared by imported bookings and manually added plans.
+ *
+ * <p>The start and end timestamps are intentionally generic so different frontend
+ * event types can represent point-in-time activities or multi-day stays.</p>
+ */
 @Entity
 public class CalendarEvent {
 

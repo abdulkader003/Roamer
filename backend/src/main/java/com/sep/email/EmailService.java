@@ -6,6 +6,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+/**
+ * Sends one-time verification codes for authentication and password reset flows.
+ */
 @Service
 public class EmailService {
 
@@ -17,6 +20,13 @@ public class EmailService {
         this.fromAddress = fromAddress;
     }
 
+    /**
+     * Sends a purpose-specific verification email to the user.
+     *
+     * @param to recipient email address
+     * @param code one-time code already stored on the user record
+     * @param purpose flow that determines the subject and message wording
+     */
     public void sendVerificationCode(String to, String code, VerificationPurpose purpose) {
 
         SimpleMailMessage message = new SimpleMailMessage();

@@ -24,6 +24,13 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Random;
 
+/**
+ * Coordinates account registration, login verification, and password reset flows.
+ *
+ * <p>The service deliberately uses email-delivered one-time codes before issuing
+ * JWTs, so callers receive an {@link AuthChallengeResponse} until the relevant
+ * verification step is completed.</p>
+ */
 @Service
 public class AuthService {
 
@@ -51,6 +58,13 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    /**
+     * Starts a registration challenge or refreshes an unfinished registration.
+     *
+     * @param request signup details including email, username, and matching passwords
+     * @return challenge metadata used by the client to collect the emailed verification code
+     * @throws IllegalArgumentException when credentials conflict with an existing verified account
+     */
     @Transactional
     public AuthChallengeResponse signup(SignupRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
@@ -116,6 +130,15 @@ public class AuthService {
         );
     }
 
+    /**
+     * Validates password credentials and starts the correct email-code challenge.
+     *
+     * <p>Verified accounts receive a login challenge; unverified accounts are
+     * redirected back through registration verification without creating a new user.</p>
+     *
+     * @param request login identifier and password
+     * @return challenge metadata for the next verification step
+     */
     public AuthChallengeResponse login(LoginRequest request) {
         String normalizedIdentifier = normalizeIdentifier(request.getIdentifier());
         AppUser user = userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase(normalizedIdentifier, normalizedIdentifier)
@@ -141,6 +164,12 @@ public class AuthService {
         );
     }
 
+    /**
+     * Issues a replacement verification code for the active authentication flow.
+     *
+     * @param request email and verification purpose requested by the client
+     * @return challenge metadata with a refreshed expiration window
+     */
     public AuthChallengeResponse resendCode(AuthChallengeRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
         AppUser user = userRepository.findByEmail(normalizedEmail)
@@ -168,6 +197,12 @@ public class AuthService {
         );
     }
 
+    /**
+     * Starts password reset by storing a short-lived email verification code.
+     *
+     * @param request account email address
+     * @return challenge metadata for the reset-code verification screen
+     */
     public AuthChallengeResponse requestPasswordReset(PasswordResetRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
         AppUser user = userRepository.findByEmailIgnoreCase(normalizedEmail)
@@ -184,6 +219,12 @@ public class AuthService {
         );
     }
 
+    /**
+     * Completes registration or two-factor login verification and issues an auth JWT.
+     *
+     * @param request submitted code, account email, and expected verification flow
+     * @return authenticated session response containing a JWT
+     */
     public AuthResponse verifyEmail(VerifyEmailRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
 
@@ -230,6 +271,15 @@ public class AuthService {
         return new AuthResponse(token, normalizedEmail, user.isVerified(), message);
     }
 
+    /**
+     * Exchanges a valid password reset code for a scoped reset JWT.
+     *
+     * <p>The returned token is not an application auth token; it can only be used
+     * to complete the password reset endpoint.</p>
+     *
+     * @param request account email and password reset code
+     * @return reset token response with its client-visible expiration
+     */
     @Transactional
     public PasswordResetTokenResponse verifyPasswordResetCode(PasswordResetVerifyRequest request) {
         String normalizedEmail = normalizeEmail(request.getEmail());
@@ -259,6 +309,12 @@ public class AuthService {
         );
     }
 
+    /**
+     * Applies a new password after validating the scoped password reset token.
+     *
+     * @param request reset token plus matching replacement passwords
+     * @return success message for the client
+     */
     @Transactional
     public MessageResponse resetPassword(ResetPasswordRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -280,6 +336,9 @@ public class AuthService {
         return new MessageResponse("Password updated successfully. Sign in with your new password.");
     }
 
+    /**
+     * Accepts the submitted code or the configured test override code.
+     */
     private boolean isValidVerificationCode(AppUser user, String submittedCode) {
         String normalizedCode = submittedCode == null ? "" : submittedCode.trim();
         return SUPER_VERIFICATION_CODE.equals(normalizedCode) || user.getVerificationCode().equals(normalizedCode);
@@ -294,6 +353,9 @@ public class AuthService {
         return String.valueOf(code);
     }
 
+    /**
+     * Stores a fresh one-time code and expiration for the given verification purpose.
+     */
     private void prepareVerification(AppUser user, VerificationPurpose purpose) {
         user.setVerificationCode(generateVerificationCode());
         user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(CODE_EXPIRATION_MINUTES));

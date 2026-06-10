@@ -20,6 +20,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Imports activity data from Ticketmaster Discovery API into local entities.
+ *
+ * <p>The importer intentionally tolerates provider failures by returning empty
+ * batches, leaving the service layer free to use cached data when available.</p>
+ */
 @Service
 public class TicketmasterImportService {
     private static final String EVENTS_URL = "https://app.ticketmaster.com/discovery/v2/events.json";
@@ -57,6 +63,11 @@ public class TicketmasterImportService {
         return importByCity(city, keyword, 0, 40).getActivities();
     }
 
+    /**
+     * Imports a page of Ticketmaster events for a city and optional keyword.
+     *
+     * @return normalized activity batch plus a provider-backed has-more flag
+     */
     public ActivityImportBatch importByCity(String city, String keyword, int page, int size) {
         if (!isConfigured()) {
             return new ActivityImportBatch(List.of(), false);
@@ -109,6 +120,12 @@ public class TicketmasterImportService {
         }
     }
 
+    /**
+     * Imports a full detail view for a specific Ticketmaster event id.
+     *
+     * <p>The detail endpoint is combined with the image endpoint to produce a
+     * richer local record.</p>
+     */
     public ActivityEntity importByExternalId(String externalId) {
         if (!isConfigured() || externalId == null || externalId.isBlank()) {
             return null;
@@ -175,6 +192,10 @@ public class TicketmasterImportService {
         return null;
     }
 
+    /**
+     * Maps a Ticketmaster event payload into the local activity model, including
+     * venue, classification, pricing, image, sales, and raw JSON metadata.
+     */
     private ActivityEntity mapEvent(JsonNode event, String requestedCity, boolean detailFetched) {
         String externalId = text(event, "id");
         String title = text(event, "name");

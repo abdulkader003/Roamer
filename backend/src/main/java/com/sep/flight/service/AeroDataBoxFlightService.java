@@ -5,6 +5,12 @@ import com.sep.flight.client.AeroDataBoxClient;
 import com.sep.flight.dto.flight.FlightSearchRequest;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service boundary for flight-provider access.
+ *
+ * <p>Keeping this adapter separate from {@link FlightService} makes the search
+ * orchestration testable without depending directly on the WebClient-based client.</p>
+ */
 @Service
 public class AeroDataBoxFlightService {
     private final AeroDataBoxClient aeroDataBoxClient;

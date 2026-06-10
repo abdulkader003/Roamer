@@ -14,6 +14,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+/**
+ * Adapter for AeroDataBox flight departures.
+ *
+ * <p>The client splits a day into two provider calls, merges the departures, and
+ * enforces a small local delay to reduce RapidAPI rate-limit responses.</p>
+ */
 @Component
 public class AeroDataBoxClient {
     private static final long MIN_REQUEST_INTERVAL_MILLIS = 1_200L;
@@ -37,6 +43,11 @@ public class AeroDataBoxClient {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Fetches all departure offers for the requested origin and date.
+     *
+     * @throws ExternalApiException when the provider response fails or is invalid
+     */
     public JsonNode searchFlights(FlightSearchRequest request) {
         try {
             LocalDateTime dayStart = request.departureDate().atStartOfDay();
@@ -55,6 +66,9 @@ public class AeroDataBoxClient {
         }
     }
 
+    /**
+     * Performs one provider request for a time window and retries once for 429 rate limits.
+     */
     private JsonNode fetchFlightsWindow(FlightSearchRequest request, LocalDateTime fromLocal, LocalDateTime toLocal) {
         ExternalApiException lastException = null;
 
@@ -96,6 +110,9 @@ public class AeroDataBoxClient {
                 : lastException;
     }
 
+    /**
+     * Serializes outbound provider requests to keep minimum spacing between calls.
+     */
     private void waitForRateLimitSlot() {
         synchronized (rateLimitLock) {
             long now = System.currentTimeMillis();

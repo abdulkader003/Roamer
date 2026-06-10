@@ -14,6 +14,13 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.*;
 
+/**
+ * Thin adapter around Agoda's RapidAPI endpoints.
+ *
+ * <p>The response payload is provider-controlled and nested inconsistently, so
+ * this client extracts candidate property nodes and normalizes them into
+ * {@link AgodaHotel} records for the hotel service.</p>
+ */
 @Component
 public class AgodaRapidApiClient {
 
@@ -50,6 +57,11 @@ public class AgodaRapidApiClient {
                 .build();
     }
 
+    /**
+     * Searches Agoda for overnight stays in a city and returns normalized provider hotels.
+     *
+     * @return at most {@value #MAX_HOTELS_PER_CITY} unique property records; empty when unconfigured or unavailable
+     */
     public List<AgodaHotel> searchHotels(String city, String checkIn, String checkOut, int adults, int children) {
         log.info("USING AGODA RAPIDAPI for city '{}'", city);
         if (apiKey == null || apiKey.isBlank()) {
@@ -106,6 +118,10 @@ public class AgodaRapidApiClient {
         return objectMapper.readTree(response.getBody());
     }
 
+    /**
+     * Resolves the best Agoda location string from autocomplete results before
+     * the overnight search endpoint is called.
+     */
     private String locationFromAutocomplete(String city, JsonNode autocomplete) {
         JsonNode data = autocomplete.path("data");
         if (!data.isArray() || data.isEmpty()) {
@@ -298,6 +314,9 @@ public class AgodaRapidApiClient {
         return nodes;
     }
 
+    /**
+     * Recursively finds hotel-like property objects in variable provider payloads.
+     */
     private void collectPropertyNodes(JsonNode node, List<JsonNode> nodes) {
         if (node == null || node.isMissingNode() || nodes.size() >= MAX_HOTELS_PER_CITY * 3) {
             return;
@@ -339,6 +358,9 @@ public class AgodaRapidApiClient {
         return images.stream().limit(7).toList();
     }
 
+    /**
+     * Recursively collects usable image URLs from nested response structures.
+     */
     private void collectImages(JsonNode node, Set<String> images) {
         if (node == null || node.isMissingNode() || images.size() >= 7) {
             return;
@@ -380,6 +402,9 @@ public class AgodaRapidApiClient {
         return amenities.stream().limit(12).toList();
     }
 
+    /**
+     * Recursively extracts amenity labels from provider fields that vary by response shape.
+     */
     private void collectAmenities(JsonNode node, Set<String> amenities) {
         if (node == null || node.isMissingNode() || amenities.size() >= 12) {
             return;

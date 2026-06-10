@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Activity search API backed by cached Ticketmaster imports.
+ */
 @RestController
 @RequestMapping("/api/activities")
 public class ActivitiesController {
