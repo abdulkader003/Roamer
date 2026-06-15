@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, signal
 import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
+import { WeatherDto, WeatherService } from '../../services/weather.service';
 
 interface Trip {
   name: string;
@@ -32,12 +33,6 @@ interface CalendarDay {
   date: string;
 }
 
-interface WorldWeatherItem {
-  city: string;
-  icon: string;
-  temperature: string;
-}
-
 interface BackendCalendarEvent {
   startDateTime?: string | null;
   endDateTime?: string | null;
@@ -55,6 +50,7 @@ export class DashboardComponent {
   // ThemeService is injected so the effect() in the service runs and sets data-theme on <html>
   private themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
+  private readonly weatherService = inject(WeatherService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
   private readonly today = new Date();
@@ -91,13 +87,9 @@ export class DashboardComponent {
     { name: 'Mixology Masterclass', location: 'London, UK', price: '€45.00', image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80' },
   ]);
 
-  worldWeather = signal<WorldWeatherItem[]>([
-    { city: 'Paris', icon: '☀️', temperature: '24°C' },
-    { city: 'Dubai', icon: '🌤️', temperature: '38°C' },
-    { city: 'London', icon: '🌧️', temperature: '17°C' },
-    { city: 'Tokyo', icon: '☁️', temperature: '22°C' },
-    { city: 'New York', icon: '🌦️', temperature: '19°C' },
-  ]);
+  weather = signal<WeatherDto[]>([]);
+  isWeatherLoading = signal(false);
+  weatherError = signal('');
 
   calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.visibleCalendarMonth()));
   eventDates = signal<Set<string>>(new Set());
@@ -114,6 +106,53 @@ export class DashboardComponent {
 
   ngOnInit(): void {
     void this.loadCalendarEventDates();
+    this.loadWeather();
+  }
+
+  loadWeather(): void {
+    this.isWeatherLoading.set(true);
+    this.weatherError.set('');
+
+    this.weatherService.getWeather().subscribe({
+      next: (weather) => {
+        this.weather.set(weather);
+        this.isWeatherLoading.set(false);
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Failed to load dashboard weather:', error);
+        this.weather.set([]);
+        this.weatherError.set('Weather is unavailable right now.');
+        this.isWeatherLoading.set(false);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  getWeatherIcon(weather: WeatherDto | null): string {
+    const condition = weather?.condition?.toLowerCase() ?? '';
+
+    if (condition.includes('rain') || condition.includes('drizzle')) {
+      return '☔';
+    }
+
+    if (condition.includes('cloud')) {
+      return '☁';
+    }
+
+    if (condition.includes('storm') || condition.includes('thunder')) {
+      return '⚡';
+    }
+
+    if (condition.includes('snow')) {
+      return '❄';
+    }
+
+    return '☀';
+  }
+
+  formatTemperature(value: number | null): string {
+    return value === null ? '--' : `${Math.round(value)}°C`;
   }
 
   hasEventOnDate(date: string): boolean {
