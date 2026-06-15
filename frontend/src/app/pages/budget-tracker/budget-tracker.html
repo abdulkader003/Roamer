@@ -1,0 +1,156 @@
+<div class="main-content">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <h1 class="page-title">Budget Tracker</h1>
+    <p class="page-subtitle">Keep track of your travel spending at a glance</p>
+  </div>
+
+  <!-- ═══ User Story #1 — Budget Summary ═══ -->
+  <section class="section-card">
+    <div class="summary-grid">
+
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <line x1="2" y1="10" x2="22" y2="10"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-label">Total Budget</div>
+          <div class="stat-value">€{{ totalBudget | number:'1.0-0' }}</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1v22"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-label">Total Spent</div>
+          <div class="stat-value">€{{ totalSpent | number:'1.0-0' }}</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/>
+            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/>
+            <path d="M18 12a2 2 0 0 0 0 4h2a2 2 0 0 0 0-4h-2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-label">Remaining Balance</div>
+          <div class="stat-value">€{{ remainingBalance | number:'1.0-0' }}</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Budget usage progress -->
+    <div class="usage-block">
+      <div class="usage-header">
+        <span class="usage-label">Budget Usage</span>
+        <span class="usage-percentage">{{ usagePercentage }}%</span>
+      </div>
+      <div class="usage-track">
+        <div class="usage-fill" [style.width.%]="usagePercentage"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══ User Story #2 — Spending Overview Chart ═══ -->
+  <section class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">Spending Overview</h2>
+      <div class="toggle-group">
+        <button
+          type="button"
+          class="toggle-button"
+          [class.active]="chartView === 'monthly'"
+          (click)="setChartView('monthly')">
+          Monthly
+        </button>
+        <button
+          type="button"
+          class="toggle-button"
+          [class.active]="chartView === 'yearly'"
+          (click)="setChartView('yearly')">
+          Yearly
+        </button>
+      </div>
+    </div>
+
+    <div class="chart-wrapper">
+      <div class="chart-svg-wrapper">
+        <svg [attr.viewBox]="chartViewBox" class="line-chart">
+          <!-- Baseline -->
+          <line x1="0" y1="196" x2="600" y2="196" class="chart-axis" />
+
+          <!-- Area fill -->
+          <path [attr.d]="areaPathD" class="chart-area" />
+
+          <!-- Line -->
+          <path [attr.d]="linePathD" class="chart-line" />
+
+          <!-- Points -->
+          @for (point of chartPoints; track point.label) {
+            <circle [attr.cx]="point.x" [attr.cy]="point.y" r="3.5" class="chart-point" />
+          }
+        </svg>
+      </div>
+
+      <!-- X-axis labels -->
+      <div class="chart-labels">
+        @for (point of chartPoints; track point.label) {
+          <span class="chart-label">{{ point.label }}</span>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ User Story #3 — Spending Distribution ═══ -->
+  <section class="section-card">
+    <h2 class="section-title">Spending Distribution</h2>
+
+    <div class="donut-layout">
+      <div class="donut-wrapper">
+        <svg viewBox="0 0 200 200" class="donut-chart">
+          <g transform="rotate(-90 100 100)">
+            <circle cx="100" cy="100" r="70" fill="none" class="donut-track" [attr.stroke-width]="donutStrokeWidth" />
+            @for (segment of donutSegments; track segment.name) {
+              <circle
+                cx="100" cy="100" r="70" fill="none"
+                [attr.stroke]="segment.color"
+                [attr.stroke-width]="donutStrokeWidth"
+                [attr.stroke-dasharray]="segment.dasharray"
+                [attr.stroke-dashoffset]="segment.dashoffset"
+                class="donut-segment" />
+            }
+          </g>
+        </svg>
+        <div class="donut-center">
+          <span class="donut-center-value">€{{ categoryTotal | number:'1.0-0' }}</span>
+          <span class="donut-center-label">Total Spent</span>
+        </div>
+      </div>
+
+      <div class="donut-legend">
+        @for (segment of donutSegments; track segment.name) {
+          <div class="legend-row">
+            <span class="legend-dot" [style.background]="segment.color"></span>
+            <span class="legend-name">{{ segment.name }}</span>
+            <span class="legend-percentage">{{ segment.percentage }}%</span>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+</div>
