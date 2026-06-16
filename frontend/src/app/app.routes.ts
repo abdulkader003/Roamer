@@ -12,6 +12,7 @@ import { Login } from './pages/login/login';
 import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './pages/reset-password/reset-password.component';
 import { SignupComponent } from './pages/signup/signup.component';
+import { BudgetComponent } from './pages/trips/create/budget/budget.component';
 import { BudgetTracker } from './pages/budget-tracker/budget-tracker';
 
 export const routes: Routes = [
@@ -19,6 +20,7 @@ export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'calendar', component: CalendarMonth, canActivate: [authGuard] },
+  { path: 'trips/create/budget', component: BudgetComponent, canActivate: [authGuard] },
   { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
   { path: 'flights', component: FlightsComponent },
   { path: 'activities', component: ActivitiesListComponent },
