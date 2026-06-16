@@ -12,12 +12,14 @@ import { Login } from './pages/login/login';
 import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './pages/reset-password/reset-password.component';
 import { SignupComponent } from './pages/signup/signup.component';
+import { BudgetComponent } from './pages/trips/create/budget/budget.component';
 
 export const routes: Routes = [
 
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'calendar', component: CalendarMonth, canActivate: [authGuard] },
+  { path: 'trips/create/budget', component: BudgetComponent, canActivate: [authGuard] },
   { path: 'flights', component: FlightsComponent },
   { path: 'activities', component: ActivitiesListComponent },
   { path: 'activities/:id', component: ActivityDetailsComponent },
