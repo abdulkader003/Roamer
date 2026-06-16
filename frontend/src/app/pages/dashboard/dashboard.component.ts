@@ -54,6 +54,7 @@ export class DashboardComponent {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
   private readonly today = new Date();
+  readonly isPlanningTrip = signal(false);
 
   visibleCalendarMonth = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
   readonly currentMonthLabel = computed(() =>
@@ -163,6 +164,15 @@ export class DashboardComponent {
     void this.router.navigate(['/calendar'], {
       queryParams: { date },
     });
+  }
+
+  planNextAdventure(): void {
+    if (this.isPlanningTrip()) {
+      return;
+    }
+
+    this.isPlanningTrip.set(true);
+    setTimeout(() => void this.router.navigate(['/trips/create/budget']), 260);
   }
 
   goToPreviousCalendarMonth(): void {

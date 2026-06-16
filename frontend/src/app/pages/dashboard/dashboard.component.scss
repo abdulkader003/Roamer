@@ -92,6 +92,32 @@
   font-weight: 800;
   cursor: pointer;
   transition: background 0.2s, transform 0.15s, border-color 0.3s;
+
+  letter-spacing: 0.3px;
+  &:hover {
+    background: var(--hero-btn-hover);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    cursor: wait;
+  }
+}
+
+.hero-btn--departing {
+  animation: plan-departure 0.28s ease-in forwards;
+}
+
+@keyframes plan-departure {
+  50% {
+    transform: translateY(-3px) scale(1.02);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+
 }
 
 .hero-btn:hover {
