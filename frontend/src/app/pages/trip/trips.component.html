@@ -1,0 +1,68 @@
+<main class="trips-page">
+  <div class="trips-container">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span aria-hidden="true">›</span>
+      <strong aria-current="page">Trips</strong>
+    </nav>
+
+    <header class="page-header">
+      <div>
+        <h1>Your <em>trips</em>.</h1>
+        <p>Manage and track all your travel plans in one place.</p>
+      </div>
+
+      <a class="primary-button" routerLink="/trips/create/destination">
+        <span aria-hidden="true">+</span>
+        Create New Trip
+      </a>
+    </header>
+
+    <section class="trip-list" aria-label="Your trips" aria-live="polite">
+      @if (isLoading()) {
+        <div class="state-card">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <p>Loading your trips...</p>
+        </div>
+      } @else if (errorMessage()) {
+        <div class="state-card state-card--error">
+          <strong>Trips could not be loaded</strong>
+          <p>{{ errorMessage() }}</p>
+        </div>
+      } @else if (!trips().length) {
+        <div class="state-card">
+          <strong>No trips yet</strong>
+          <p>Create your first trip and it will appear here.</p>
+        </div>
+      }
+
+      @for (trip of trips(); track trip.id) {
+        <button class="trip-card" type="button">
+          <span class="trip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"></path>
+            </svg>
+          </span>
+
+          <span class="trip-details">
+            <strong>{{ trip.name }}</strong>
+            <span>{{ trip.destination }} · {{ formatDateRange(trip) }}</span>
+          </span>
+
+          <span class="trip-summary">
+            <strong>{{ formatBudget(trip.budget) }}</strong>
+            <span [class.trip-status--planning]="trip.status === 'PLANNING'">{{ statusLabel(trip.status) }}</span>
+          </span>
+
+          <span class="trip-chevron" aria-hidden="true">›</span>
+        </button>
+      }
+
+      <a class="plan-trip-button" routerLink="/trips/create/destination">
+        <span aria-hidden="true">+</span>
+        Plan a new trip
+      </a>
+    </section>
+  </div>
+</main>
