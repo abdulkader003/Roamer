@@ -22,6 +22,8 @@ export const routes: Routes = [
   { path: 'trips', component: TripsComponent, canActivate: [authGuard] },
   { path: 'trips/create/destination', component: TripDestinationComponent, canActivate: [authGuard] },
   { path: 'calendar', component: CalendarMonth, canActivate: [authGuard] },
+  { path: 'trips/create/budget', component: BudgetComponent, canActivate: [authGuard] },
+  { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
   { path: 'flights', component: FlightsComponent },
   { path: 'activities', component: ActivitiesListComponent },
   { path: 'activities/:id', component: ActivityDetailsComponent },

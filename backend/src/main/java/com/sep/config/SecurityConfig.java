@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/trips/**").authenticated()
                         .requestMatchers("/api/calendar-events/**").authenticated()
                         .requestMatchers("/api/travel-documents/**").authenticated()
+                        .requestMatchers("/api/trip-planning/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

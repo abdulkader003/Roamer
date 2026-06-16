@@ -73,7 +73,7 @@ export class CalendarMonth {
 
   weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  viewMode: 'month' | 'week' | 'day' = 'month';
+  viewMode: 'month' | 'week' = 'month';
   selectedDay: number | null = null;
 
   today = new Date();
@@ -250,7 +250,7 @@ export class CalendarMonth {
     }
   }
 
-  setViewMode(mode: 'month' | 'week' | 'day') {
+  setViewMode(mode: 'month' | 'week') {
     this.viewMode = mode;
     this.generateCalendar();
   }
@@ -262,9 +262,6 @@ export class CalendarMonth {
   goToPreviousMonth() {
     if (this.viewMode === 'week') {
       this.currentDate.setDate(this.currentDate.getDate() - 7);
-    } else if (this.viewMode === 'day') {
-      this.currentDate.setDate(this.currentDate.getDate() - 1);
-      this.selectedDay = this.currentDate.getDate();
     } else {
       this.currentDate.setMonth(this.currentDate.getMonth() - 1);
     }
@@ -275,9 +272,6 @@ export class CalendarMonth {
   goToNextMonth() {
     if (this.viewMode === 'week') {
       this.currentDate.setDate(this.currentDate.getDate() + 7);
-    } else if (this.viewMode === 'day') {
-      this.currentDate.setDate(this.currentDate.getDate() + 1);
-      this.selectedDay = this.currentDate.getDate();
     } else {
       this.currentDate.setMonth(this.currentDate.getMonth() + 1);
     }
@@ -534,14 +528,12 @@ export class CalendarMonth {
           return null;
         }
 
-        const lastBookedNight = this.addDays(checkout, -1);
-
-        if (lastBookedNight < weekStart || start > weekEnd) {
+        if (checkout < weekStart || start > weekEnd) {
           return null;
         }
 
         const segmentStart = start < weekStart ? weekStart : start;
-        const segmentEnd = lastBookedNight > weekEnd ? weekEnd : lastBookedNight;
+        const segmentEnd = checkout > weekEnd ? weekEnd : checkout;
         const startIndex = week.findIndex((cell) => cell.date === this.formatDateForInput(segmentStart));
         const endIndex = week.findIndex((cell) => cell.date === this.formatDateForInput(segmentEnd));
 
@@ -554,7 +546,7 @@ export class CalendarMonth {
           startIndex,
           endIndex,
           startsInWeek: start >= weekStart,
-          endsInWeek: lastBookedNight <= weekEnd
+          endsInWeek: checkout <= weekEnd
         };
       })
       .filter((segment): segment is {
@@ -1037,12 +1029,6 @@ export class CalendarMonth {
 
     date.setHours(0, 0, 0, 0);
     return date;
-  }
-
-  private addDays(date: Date, days: number): Date {
-    const nextDate = new Date(date);
-    nextDate.setDate(date.getDate() + days);
-    return nextDate;
   }
 
   private upsertEvent(event: CalendarEvent): void {

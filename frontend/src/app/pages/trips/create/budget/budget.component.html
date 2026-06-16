@@ -1,0 +1,163 @@
+<main class="budget-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/dashboard">Dashboard</a>
+    <span>/</span>
+    <span>Trips</span>
+    <span>/</span>
+    <span>Create Trip</span>
+  </nav>
+
+  <ol class="stepper" aria-label="Create trip progress">
+    @for (step of steps; track step; let index = $index) {
+      <li class="step" [class.step--active]="index === 0">
+        <span class="step-number">{{ index + 1 }}</span>
+        <span class="step-label">{{ step }}</span>
+      </li>
+    }
+  </ol>
+
+  <section class="budget-card">
+    <div class="page-heading">
+      <span class="eyebrow">Create your trip</span>
+      <h1>Set your budget.</h1>
+      <p>Give your adventure a name and choose how you want to travel.</p>
+    </div>
+
+    <form [formGroup]="budgetForm">
+      <div class="form-section trip-name-section">
+        <label for="trip-name">Trip name</label>
+        <input
+          id="trip-name"
+          type="text"
+          formControlName="tripName"
+          placeholder="e.g. Summer in Italy"
+          autocomplete="off" />
+      </div>
+
+      <section class="form-block recommendation-section">
+        <div class="section-heading">
+          <h2>Recommended Budget</h2>
+          <p>Select your travel style and duration to see a suggested total.</p>
+        </div>
+
+        <fieldset class="travel-style">
+          <legend class="sr-only">Travel style</legend>
+        <div class="style-grid">
+          @for (style of travelStyles; track style.id) {
+            <button
+              type="button"
+              class="style-card"
+              [class.style-card--selected]="selectedTravelStyle() === style.id"
+              [attr.aria-pressed]="selectedTravelStyle() === style.id"
+              (click)="selectTravelStyle(style.id)">
+              <span class="style-icon">{{ style.icon }}</span>
+              <strong>{{ style.title }}</strong>
+              <span>{{ style.description }}</span>
+            </button>
+          }
+        </div>
+        </fieldset>
+
+        <div class="recommendation-grid">
+          <div class="form-section duration-section">
+            <label for="nights">Duration</label>
+            <div class="night-selector">
+              <button type="button" aria-label="Remove one night" (click)="adjustNights(-1)">−</button>
+              <div>
+                <input
+                  id="nights"
+                  type="number"
+                  min="1"
+                  formControlName="nights"
+                  aria-label="Number of nights"
+                  (input)="updateDuration($event)" />
+                <span>{{ budgetForm.controls.nights.value === 1 ? 'night' : 'nights' }}</span>
+              </div>
+              <button type="button" aria-label="Add one night" (click)="adjustNights(1)">+</button>
+            </div>
+          </div>
+
+          <div
+            class="recommendation-box"
+            [class.recommendation-box--updated]="recommendationUpdated()"
+            aria-live="polite">
+            <span>Recommended for {{ selectedTravelStyleTitle() }}</span>
+            <strong>{{ formatRecommendedBudget() }} total</strong>
+            <small>Based on {{ budgetForm.controls.nights.value }} nights</small>
+          </div>
+        </div>
+
+        <div class="section-action">
+          <span>Use the suggested total based on your selected travel style.</span>
+          <button
+            type="button"
+            class="continue-button recommended-continue-button"
+            [disabled]="recommendedFlowInvalid() || isSaving()"
+            (click)="continueWithRecommendedBudget()">
+            @if (isSaving()) {
+              Saving...
+            } @else {
+              Continue with Recommended Budget
+              <span aria-hidden="true">→</span>
+            }
+          </button>
+        </div>
+      </section>
+
+      <section class="form-block manual-budget-section">
+        <div class="section-heading">
+          <h2>Your Budget</h2>
+          <p>Enter the budget that works for you. It stays independent from the recommendation.</p>
+        </div>
+
+        <div class="form-section">
+          <label for="total-budget">Total budget</label>
+          <div class="budget-input">
+            <span class="currency-display" aria-label="Currency Euro">
+              <strong>€</strong>
+              <small>EUR</small>
+            </span>
+            <input
+              id="total-budget"
+              type="number"
+              min="1"
+              formControlName="totalBudget"
+              (keydown)="preventInvalidBudgetKey($event)"
+              (input)="validateBudgetInput($event)" />
+          </div>
+          @if (budgetForm.controls.totalBudget.invalid && (budgetForm.controls.totalBudget.dirty || budgetForm.controls.totalBudget.touched)) {
+            <span class="validation-message">Budget must be greater than 0.</span>
+          } @else {
+            <span class="field-hint">
+              Your budget is about {{ budgetPerNight() }} {{ budgetForm.controls.currency.value }} per night
+            </span>
+          }
+        </div>
+
+        <div class="section-action">
+          <span>Continue with the budget amount you entered.</span>
+          <button
+            type="button"
+            class="continue-button manual-continue-button"
+            [disabled]="manualFlowInvalid() || isSaving()"
+            (click)="continueWithManualBudget()">
+            @if (isSaving()) {
+              Saving...
+            } @else {
+              Continue with Manual Budget
+              <span aria-hidden="true">→</span>
+            }
+          </button>
+        </div>
+      </section>
+
+      <div class="save-status" aria-live="polite">
+        @if (saveError()) {
+          <span class="save-error">{{ saveError() }}</span>
+        } @else {
+          <span>Your choices stay local until the trip is saved.</span>
+        }
+      </div>
+    </form>
+  </section>
+</main>
