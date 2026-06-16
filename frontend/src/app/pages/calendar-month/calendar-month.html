@@ -2,11 +2,32 @@
   <div class="calendar-card">
     <div class="calendar-toolbar">
       <div class="month-navigation">
-        <h2>{{ currentMonth }}</h2>
-        <div class="month-buttons">
-          <button type="button" class="nav-button" (click)="goToPreviousMonth()">‹</button>
-          <button type="button" class="today-button" (click)="goToToday()">Today</button>
-          <button type="button" class="nav-button" (click)="goToNextMonth()">›</button>
+        <div class="month-navigation__top">
+          <h2>{{ currentMonth }}</h2>
+          <div class="month-buttons">
+            <button type="button" class="nav-button" (click)="goToPreviousMonth()">‹</button>
+            <button type="button" class="today-button" (click)="goToToday()">Today</button>
+            <button type="button" class="nav-button" (click)="goToNextMonth()">›</button>
+          </div>
+        </div>
+
+        <div class="calendar-legend" aria-label="Calendar event color legend">
+          <span class="legend-item legend-item--hotel">
+            <span class="legend-swatch legend-swatch--hotel" aria-hidden="true"></span>
+            Hotel
+          </span>
+          <span class="legend-item legend-item--flight">
+            <span class="legend-swatch legend-swatch--flight" aria-hidden="true"></span>
+            Flight
+          </span>
+          <span class="legend-item legend-item--activity">
+            <span class="legend-swatch legend-swatch--activity" aria-hidden="true"></span>
+            Activity
+          </span>
+          <span class="legend-item legend-item--other">
+            <span class="legend-swatch legend-swatch--other" aria-hidden="true"></span>
+            Other
+          </span>
         </div>
       </div>
 
@@ -36,20 +57,13 @@
             </div>
           }
         </div>
+
       </div>
 
       <div class="toolbar-actions">
         <button type="button" class="add-event-button" (click)="openAddEventDrawer()">+ Add Event</button>
 
         <div class="view-toggle">
-          <button
-            type="button"
-            class="view-btn"
-            [class.active]="viewMode === 'day'"
-            (click)="setViewMode('day')">
-            Day
-          </button>
-
           <button
             type="button"
             class="view-btn"
@@ -146,32 +160,6 @@
             </div>
           </div>
         }
-      </div>
-    }
-
-    @if (viewMode === 'day') {
-      <div class="day-view">
-        <div class="week-day">
-          <div class="week-day-name">{{ currentDate | date: 'EEEE' }}</div>
-          <div
-            class="week-day-box day-view-box"
-            [class.today-week-day]="isTodayDate(currentDate)"
-            [class.selected-week-day]="currentDate.getDate() === selectedDay"
-            (click)="selectDay(currentDate.getDate())">
-            <div class="week-date-number">{{ currentDate.getDate() }}</div>
-            <div class="events-container">
-              @for (event of getEventsForDate(getDateForDate(currentDate)); track event) {
-                <app-event-card
-                  [event]="event"
-                  [occurrenceDate]="getDateForDate(currentDate)"
-                  (viewDetails)="openEventDetails($event)">
-                </app-event-card>
-              } @empty {
-                <div class="empty-day-message">No plans for this day.</div>
-              }
-            </div>
-          </div>
-        </div>
       </div>
     }
   </div>
