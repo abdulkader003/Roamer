@@ -14,6 +14,8 @@ import { ResetPasswordComponent } from './pages/reset-password/reset-password.co
 import { SignupComponent } from './pages/signup/signup.component';
 import { TripsComponent } from './pages/trip/trips.component';
 import { TripDestinationComponent } from './pages/trip/create-trip/destination/trip-destination.component';
+import { BudgetComponent } from './pages/trips/create/budget/budget.component';
+import { BudgetTracker } from './pages/budget-tracker/budget-tracker';
 
 export const routes: Routes = [
 
