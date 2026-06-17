@@ -12,13 +12,15 @@ import { Login } from './pages/login/login';
 import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './pages/reset-password/reset-password.component';
 import { SignupComponent } from './pages/signup/signup.component';
-import { BudgetComponent } from './pages/trips/create/budget/budget.component';
-import { BudgetTracker } from './pages/budget-tracker/budget-tracker';
+import { TripsComponent } from './pages/trip/trips.component';
+import { TripDestinationComponent } from './pages/trip/create-trip/destination/trip-destination.component';
 
 export const routes: Routes = [
 
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
+  { path: 'trips', component: TripsComponent, canActivate: [authGuard] },
+  { path: 'trips/create/destination', component: TripDestinationComponent, canActivate: [authGuard] },
   { path: 'calendar', component: CalendarMonth, canActivate: [authGuard] },
   { path: 'trips/create/budget', component: BudgetComponent, canActivate: [authGuard] },
   { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
