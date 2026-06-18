@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -18,6 +20,7 @@ import java.util.List;
 /**
  * Validates hotel search requests and exposes normalized hotel results to the frontend.
  */
+@Tag(name = "Hotels", description = "Endpoints for hotel search and hotel planning.")
 @RestController
 @RequestMapping("/api/hotels")
 public class HotelController {
@@ -35,6 +38,7 @@ public class HotelController {
      * Accepts ISO or European date input, validates stay constraints, and returns
      * an empty result set instead of surfacing provider failures to the client.
      */
+    @Operation(summary = "Search hotels")
     @GetMapping
     public ResponseEntity<?> searchHotels(
             @RequestParam("location") String location,

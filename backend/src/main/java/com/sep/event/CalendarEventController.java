@@ -4,6 +4,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * REST API for storing travel calendar items such as flights, hotel stays, and activities.
@@ -11,6 +13,7 @@ import java.util.List;
  * <p>Events are stored with start and end timestamps so the frontend can render
  * both single-day plans and multi-day reservations.</p>
  */
+@Tag(name = "Calendar Events", description = "Endpoints for creating, reading, updating, and deleting calendar events.")
 @RestController
 @RequestMapping("/api/calendar-events")
 @CrossOrigin(origins = "*")
@@ -22,6 +25,7 @@ public class CalendarEventController {
         this.calendarEventRepository = calendarEventRepository;
     }
 
+    @Operation(summary = "Get calendar events")
     @GetMapping
     public List<CalendarEvent> getAllCalendarEvents() {
         return calendarEventRepository.findAll();
@@ -30,6 +34,7 @@ public class CalendarEventController {
     /**
      * Persists a new calendar event after applying server-side defaults.
      */
+    @Operation(summary = "Create a calendar event")
     @PostMapping
     public CalendarEvent createCalendarEvent(@RequestBody CalendarEvent calendarEvent) {
         applyDefaults(calendarEvent);
@@ -41,6 +46,7 @@ public class CalendarEventController {
      *
      * @throws ResponseStatusException when the event id does not exist
      */
+    @Operation(summary = "Update a calendar event")
     @PutMapping("/{id}")
     public CalendarEvent updateCalendarEvent(
             @PathVariable Long id,
@@ -62,6 +68,7 @@ public class CalendarEventController {
         return calendarEventRepository.save(existingEvent);
     }
 
+    @Operation(summary = "Delete a calendar event")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCalendarEvent(@PathVariable Long id) {

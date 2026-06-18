@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +17,7 @@ import java.util.Optional;
 /**
  * Activity search API backed by cached Ticketmaster imports.
  */
+@Tag(name = "Activities", description = "Endpoints for activities and event recommendations.")
 @RestController
 @RequestMapping("/api/activities")
 public class ActivitiesController {
@@ -24,6 +27,7 @@ public class ActivitiesController {
         this.activitiesService = activitiesService;
     }
 
+    @Operation(summary = "Get activities")
     @GetMapping
     public ActivitySearchResponse getActivities(
             @RequestParam(value = "city", required = false) String city,
@@ -34,6 +38,7 @@ public class ActivitiesController {
         return activitiesService.getActivities(city, keyword, page, size);
     }
 
+    @Operation(summary = "Get activity by ID")
     @GetMapping("/{id}")
     public ResponseEntity<ActivityDto> getActivityById(@PathVariable("id") String id) {
         Optional<ActivityDto> activity = activitiesService.getActivityById(id);
