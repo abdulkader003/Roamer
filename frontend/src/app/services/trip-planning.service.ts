@@ -20,6 +20,40 @@ export interface TripBudgetResponse {
   travelStyle: string;
 }
 
+export interface SelectTripHotelRequest {
+  hotelId: number;
+}
+
+export interface TripHotelResponse {
+  tripPlanningId: number;
+  hotelId: number;
+  hotelName: string;
+  hotelCity: string;
+  pricePerNight: number;
+  stars: number;
+  ratingScore: number;
+  ratingLabel: string;
+}
+
+export interface SelectedTripActivity {
+  name: string;
+  category: string;
+  price: number;
+  duration: string;
+  city: string;
+}
+
+export interface SelectTripActivitiesRequest {
+  activities: SelectedTripActivity[];
+}
+
+export interface TripActivitiesResponse {
+  tripPlanningId: number;
+  selectedActivities: SelectedTripActivity[];
+  totalActivitiesCost: number;
+  selectedActivitiesCount: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -31,6 +65,21 @@ export class TripPlanningService {
   saveBudgetStep(request: CreateTripBudgetRequest): Observable<TripBudgetResponse> {
     // Uses the existing JWT header pattern because no auth interceptor exists.
     return this.http.post<TripBudgetResponse>(`${this.apiUrl}/budget`, request, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  saveHotelStep(tripPlanningId: number, request: SelectTripHotelRequest): Observable<TripHotelResponse> {
+    return this.http.post<TripHotelResponse>(`${this.apiUrl}/${tripPlanningId}/hotel`, request, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  saveActivitiesStep(
+    tripPlanningId: number,
+    request: SelectTripActivitiesRequest,
+  ): Observable<TripActivitiesResponse> {
+    return this.http.post<TripActivitiesResponse>(`${this.apiUrl}/${tripPlanningId}/activities`, request, {
       headers: this.authService.authHeader(),
     });
   }

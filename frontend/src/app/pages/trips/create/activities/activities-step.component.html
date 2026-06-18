@@ -1,0 +1,169 @@
+<main class="activities-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/dashboard">Dashboard</a>
+    <span>/</span>
+    <span>Trips</span>
+    <span>/</span>
+    <span>Create Trip</span>
+  </nav>
+
+  <ol class="stepper" aria-label="Create trip progress">
+    @for (step of steps; track step; let index = $index) {
+      <li class="step" [class.step--active]="index === 4" [class.step--done]="index < 4">
+        @if (stepRoute(step); as route) {
+          <a class="step-link" [routerLink]="route" [queryParams]="tripPlanningQueryParams()">
+            <span class="step-number">{{ index + 1 }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </a>
+        } @else {
+          <span class="step-link step-link--disabled">
+            <span class="step-number">{{ index + 1 }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </span>
+        }
+      </li>
+    }
+  </ol>
+
+  <section class="activities-shell">
+    <div class="page-heading">
+      <div>
+        <span class="eyebrow">Create your trip</span>
+        <h1>Plan your activities.</h1>
+        <p>{{ subtitle() }}</p>
+      </div>
+      <aside class="summary-card" aria-label="Selected activities summary">
+        <strong>€{{ selectedTotal() | number:'1.0-0' }}</strong>
+        <span>{{ selectedCount() }} added</span>
+      </aside>
+    </div>
+
+    @if (isLoading()) {
+      <div class="status-card">Loading activity ideas...</div>
+    } @else if (loadError()) {
+      <div class="status-card status-card--error">{{ loadError() }}</div>
+    } @else {
+      <div class="city-groups">
+        @for (group of cityGroups(); track group.city) {
+          <section class="city-group">
+            @if (isMultiCityTrip()) {
+              <h2 class="city-heading">{{ group.city }}</h2>
+            }
+
+            <div class="activity-grid">
+              @for (activity of group.activities; track trackByActivityId($index, activity)) {
+                <button
+                  type="button"
+                  class="activity-card"
+                  [class.activity-card--selected]="isSelected(activity)"
+                  (click)="toggleActivity(activity)">
+                  <span class="activity-icon" [ngClass]="'activity-icon--' + activity.tone">
+                    {{ activity.icon }}
+                  </span>
+
+                  <div>
+                    <p class="category">{{ activity.category }}</p>
+                    <h2>{{ activity.name }}</h2>
+                    <p class="city-label">{{ activity.city }}</p>
+                  </div>
+
+                  <p class="activity-description">{{ activity.description }}</p>
+
+                  <div class="detail-grid">
+                    @if (activity.venue || activity.address) {
+                      <div class="detail-item">
+                        <span class="detail-label">Location</span>
+                        @if (activity.venue) {
+                          <strong>{{ activity.venue }}</strong>
+                        }
+                        @if (activity.address) {
+                          <small>{{ activity.address }}</small>
+                        }
+                      </div>
+                    }
+                    @if (activity.eventDate) {
+                      <div class="detail-item">
+                        <span class="detail-label">Date</span>
+                        <strong>{{ activity.eventDate }}</strong>
+                      </div>
+                    }
+                    @if (activity.startTime) {
+                      <div class="detail-item">
+                        <span class="detail-label">Start Time</span>
+                        <strong>{{ activity.startTime }}</strong>
+                      </div>
+                    }
+                    @if (activity.endTime) {
+                      <div class="detail-item">
+                        <span class="detail-label">End Time</span>
+                        <strong>{{ activity.endTime }}</strong>
+                      </div>
+                    }
+                    @if (activity.timeRange && !activity.endTime) {
+                      <div class="detail-item">
+                        <span class="detail-label">Time Range</span>
+                        <strong>{{ activity.timeRange }}</strong>
+                      </div>
+                    }
+                    @if (activity.duration) {
+                      <div class="detail-item">
+                        <span class="detail-label">Duration</span>
+                        <strong>{{ activity.duration }}</strong>
+                      </div>
+                    }
+                  </div>
+
+                  <div class="detail-row">
+                    @if (activity.rating > 0) {
+                      <span>Rating {{ activity.rating | number:'1.1-1' }}</span>
+                    }
+                  </div>
+
+                  <div class="activity-meta">
+                    <div class="price-block">
+                      <strong>€{{ activity.price | number:'1.0-0' }}</strong>
+                      <span>per person</span>
+                    </div>
+                    <div class="footer-details">
+                      @if (activity.source && activity.source !== 'Planning suggestion') {
+                        <span>{{ activity.source }}</span>
+                      }
+                      <span class="select-box" aria-hidden="true">
+                        @if (isSelected(activity)) {
+                          ✓
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+    <div class="flow-actions">
+      <button type="button" class="secondary-button" (click)="goToPreviousStep()">Previous — Hotels</button>
+      <div class="save-status" aria-live="polite">
+        @if (saveError()) {
+          <span class="save-error">{{ saveError() }}</span>
+        } @else {
+          <span>Activities are optional. Continue with any number selected.</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="continue-button"
+        [disabled]="isSaving()"
+        (click)="continueToOverview()">
+        @if (isSaving()) {
+          Saving...
+        } @else {
+          Continue — Overview
+          <span aria-hidden="true">→</span>
+        }
+      </button>
+    </div>
+  </section>
+</main>

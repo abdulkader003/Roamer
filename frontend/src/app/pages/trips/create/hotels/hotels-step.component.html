@@ -1,0 +1,158 @@
+<main class="hotels-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/dashboard">Dashboard</a>
+    <span>/</span>
+    <span>Trips</span>
+    <span>/</span>
+    <span>Create Trip</span>
+  </nav>
+
+  <ol class="stepper" aria-label="Create trip progress">
+    @for (step of steps; track step; let index = $index) {
+      <li class="step" [class.step--active]="index === 3" [class.step--done]="index < 3">
+        @if (stepRoute(step); as route) {
+          <a class="step-link" [routerLink]="route" [queryParams]="tripPlanningQueryParams()">
+            <span class="step-number">{{ index + 1 }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </a>
+        } @else {
+          <span class="step-link step-link--disabled">
+            <span class="step-number">{{ index + 1 }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </span>
+        }
+      </li>
+    }
+  </ol>
+
+  <section class="hotels-shell">
+    <div class="page-heading">
+      <span class="eyebrow">Create your trip</span>
+      <h1>Choose your hotel.</h1>
+      <p>{{ subtitle() }}</p>
+    </div>
+
+    @if (isLoading()) {
+      <div class="status-card">Loading stays from the existing hotel search...</div>
+    } @else if (loadError()) {
+      <div class="status-card status-card--error">{{ loadError() }}</div>
+    } @else {
+      @if (loadWarning()) {
+        <div class="status-card status-card--warning">{{ loadWarning() }}</div>
+      }
+
+      <div class="city-groups">
+        @for (group of cityGroups(); track group.city) {
+          <section class="city-group">
+            @if (isMultiCityTrip()) {
+              <h2 class="city-heading">{{ group.city }}</h2>
+            }
+            <div class="hotel-grid">
+        @for (hotel of group.hotels; track trackByHotelId($index, hotel)) {
+          <article
+            class="hotel-card"
+            role="button"
+            tabindex="0"
+            [class.hotel-card--selected]="isSelectedHotel(hotel)"
+            (click)="selectHotel(hotel)"
+            (keydown)="selectHotelFromKeyboard($event, hotel)">
+            <span class="select-indicator" aria-hidden="true">
+              @if (isSelectedHotel(hotel)) {
+                ✓
+              }
+            </span>
+
+            @if (cardImages(hotel); as images) {
+              <div class="hotel-image-carousel">
+                <div class="hotel-image-frame">
+                  <img
+                    class="hotel-image"
+                    [src]="imageSource(hotel)"
+                    [alt]="hotel.name"
+                    (error)="handleHotelImageError(hotel, imageSource(hotel))" />
+                </div>
+
+                @if (images.length > 1) {
+                  <div class="carousel-dots" aria-label="Hotel image pagination">
+                    @for (image of images; track trackByImage($index, image); let imageIndex = $index) {
+                      <button
+                        type="button"
+                        class="carousel-dot"
+                        [class.carousel-dot--active]="imageIndex === currentImageIndex(hotel)"
+                        [attr.aria-label]="'Show hotel image ' + (imageIndex + 1)"
+                        (click)="selectHotelImage(hotel, imageIndex, $event)">
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="hotel-body">
+              <div class="hotel-main">
+                <div>
+                  <span class="city-pill">{{ hotel.tripCity }}</span>
+                  <h2>{{ hotel.name }}</h2>
+                  <p class="stars" aria-label="Hotel stars">
+                    @for (_ of starSlots(hotel); track _) {
+                      ★
+                    }
+                  </p>
+                </div>
+                <div class="rating">
+                  <strong>{{ ratingScore(hotel) }}</strong>
+                  <span>{{ ratingLabel(hotel) }}</span>
+                </div>
+              </div>
+
+              <p class="location">{{ hotel.distanceFromCenter || hotel.distance || hotel.city }}</p>
+              <p class="description">{{ hotel.description }}</p>
+
+              <div class="amenities">
+                @for (amenity of keyAmenities(hotel); track amenity) {
+                  <span>{{ amenity }}</span>
+                }
+              </div>
+
+              <div class="price-row">
+                <div class="nightly-price">
+                  <strong>€{{ hotel.pricePerNight | number:'1.0-0' }}</strong>
+                  <span>per night</span>
+                </div>
+                <strong class="total-price">€{{ totalPrice(hotel) | number:'1.0-0' }} total</strong>
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <div class="status-card">No hotels found for the current trip details.</div>
+        }
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+    <div class="flow-actions">
+      <button type="button" class="secondary-button" (click)="goToPreviousStep()">{{ previousButtonLabel() }}</button>
+      <div class="save-status" aria-live="polite">
+        @if (saveError()) {
+          <span class="save-error">{{ saveError() }}</span>
+        } @else {
+          <span>Select one hotel to continue.</span>
+        }
+      </div>
+      <button
+        type="button"
+        class="continue-button"
+        [disabled]="!selectedHotel() || isSaving()"
+        (click)="continueToActivities()">
+        @if (isSaving()) {
+          Saving...
+        } @else {
+          Continue — Activities
+          <span aria-hidden="true">→</span>
+        }
+      </button>
+    </div>
+  </section>
+</main>

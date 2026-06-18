@@ -10,8 +10,17 @@
   <ol class="stepper" aria-label="Create trip progress">
     @for (step of steps; track step; let index = $index) {
       <li class="step" [class.step--active]="index === 0">
-        <span class="step-number">{{ index + 1 }}</span>
-        <span class="step-label">{{ step }}</span>
+        @if (stepRoute(step); as route) {
+          <a class="step-link" [routerLink]="route">
+            <span class="step-number">{{ index + 1 }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </a>
+        } @else {
+          <span class="step-link step-link--disabled">
+            <span class="step-number">{{ index + 1 }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </span>
+        }
       </li>
     }
   </ol>
