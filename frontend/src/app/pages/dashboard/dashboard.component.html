@@ -106,7 +106,7 @@
       <div class="section-card weather-card">
         <div class="section-header">
           <span class="section-title">Weather</span>
-          <button type="button" class="view-all weather-refresh" (click)="loadWeather()">Refresh</button>
+          <button type="button" class="view-all weather-refresh" (click)="loadWeather(true)">Refresh</button>
         </div>
 
         @if (isWeatherLoading()) {

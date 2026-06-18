@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth';
 
@@ -21,11 +21,16 @@ export class WeatherService {
   private readonly authService = inject(AuthService);
   private readonly apiUrl = '/api/weather';
 
-  getWeather(): Observable<WeatherDto[]> {
-    console.debug('Loading weather from backend endpoint', this.apiUrl);
+  getWeather(cities: readonly string[]): Observable<WeatherDto[]> {
+    console.debug('Loading weather from backend endpoint', this.apiUrl, cities);
+    const params = cities.reduce(
+      (httpParams, city) => httpParams.append('city', city),
+      new HttpParams()
+    );
 
     return this.http.get<WeatherDto[]>(this.apiUrl, {
-      headers: this.authService.authHeader()
+      headers: this.authService.authHeader(),
+      params
     });
   }
 }
