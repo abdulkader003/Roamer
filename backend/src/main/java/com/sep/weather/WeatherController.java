@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,8 +27,8 @@ public class WeatherController {
     }
 
     @GetMapping
-    public List<WeatherDto> getWeather() {
-        return weatherService.getWeather();
+    public List<WeatherDto> getWeather(@RequestParam(value = "city", required = false) List<String> cities) {
+        return weatherService.getWeather(cities);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

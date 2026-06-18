@@ -1,8 +1,39 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, computed, signal, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
+
+
+export const DESTINATION_WEATHER_CITIES = [
+  'Bangkok',
+  'Paris',
+  'London',
+  'Dubai',
+  'Singapore',
+  'Kuala Lumpur',
+  'New York City',
+  'Istanbul',
+  'Tokyo',
+  'Seoul',
+  'Hong Kong',
+  'Barcelona',
+  'Rome',
+  'Amsterdam',
+  'Milan',
+  'Vienna',
+  'Prague',
+  'Madrid',
+  'Berlin',
+  'Los Angeles',
+  'Miami',
+  'Sydney',
+  'Toronto',
+  'Las Vegas'
+] as const;
+
+const WEATHER_ROTATION_INTERVAL_MS = 20000;
+const VISIBLE_WEATHER_CITY_COUNT = 3;
 
 interface Trip {
   name: string;
@@ -46,7 +77,7 @@ interface BackendCalendarEvent {
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnDestroy {
   // ThemeService is injected so the effect() in the service runs and sets data-theme on <html>
   private themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
@@ -54,6 +85,9 @@ export class DashboardComponent {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
   private readonly today = new Date();
+  private readonly weatherCache = new Map<string, WeatherDto>();
+  private weatherRotationIntervalId: ReturnType<typeof setInterval> | null = null;
+  private weatherRequestSequence = 0;
   readonly isPlanningTrip = signal(false);
 
   visibleCalendarMonth = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
@@ -89,8 +123,10 @@ export class DashboardComponent {
   ]);
 
   weather = signal<WeatherDto[]>([]);
+  visibleWeatherCities = signal<string[]>(DESTINATION_WEATHER_CITIES.slice(0, VISIBLE_WEATHER_CITY_COUNT));
   isWeatherLoading = signal(false);
   weatherError = signal('');
+  private visibleWeatherStartIndex = 0;
 
   calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.visibleCalendarMonth()));
   eventDates = signal<Set<string>>(new Set());
@@ -108,26 +144,105 @@ export class DashboardComponent {
   ngOnInit(): void {
     void this.loadCalendarEventDates();
     this.loadWeather();
+    this.weatherRotationIntervalId = setInterval(() => this.rotateWeatherCities(), WEATHER_ROTATION_INTERVAL_MS);
   }
 
-  loadWeather(): void {
+  ngOnDestroy(): void {
+    if (this.weatherRotationIntervalId !== null) {
+      clearInterval(this.weatherRotationIntervalId);
+      this.weatherRotationIntervalId = null;
+    }
+  }
+
+  loadWeather(forceRefresh = false): void {
+    const visibleCities = this.visibleWeatherCities();
+    const missingCities = forceRefresh
+      ? visibleCities
+      : visibleCities.filter((city) => !this.hasUsableCachedWeather(city));
+
+    if (missingCities.length === 0) {
+      this.applyVisibleWeatherFromCache();
+      return;
+    }
+
     this.isWeatherLoading.set(true);
     this.weatherError.set('');
+    const requestId = ++this.weatherRequestSequence;
 
-    this.weatherService.getWeather().subscribe({
+    this.weatherService.getWeather(missingCities).subscribe({
       next: (weather) => {
-        this.weather.set(weather);
-        this.isWeatherLoading.set(false);
-        this.cdr.detectChanges();
+        for (const [index, item] of weather.entries()) {
+          const requestedCity = missingCities[index];
+          if (!requestedCity || item.error) {
+            continue;
+          }
+
+          const normalizedWeather = this.weatherForVisibleCity(requestedCity, item);
+          this.weatherCache.set(requestedCity, normalizedWeather);
+          this.weatherCache.set(item.city, normalizedWeather);
+        }
+
+        if (requestId === this.weatherRequestSequence) {
+          this.applyVisibleWeatherFromCache();
+          this.isWeatherLoading.set(false);
+          this.cdr.detectChanges();
+        }
       },
       error: (error) => {
         console.error('Failed to load dashboard weather:', error);
-        this.weather.set([]);
-        this.weatherError.set('Weather is unavailable right now.');
-        this.isWeatherLoading.set(false);
-        this.cdr.detectChanges();
+        if (requestId === this.weatherRequestSequence) {
+          this.weather.set([]);
+          this.weatherError.set('Weather is unavailable right now.');
+          this.isWeatherLoading.set(false);
+          this.cdr.detectChanges();
+        }
       }
     });
+  }
+
+  rotateWeatherCities(): void {
+    this.visibleWeatherStartIndex = (this.visibleWeatherStartIndex + VISIBLE_WEATHER_CITY_COUNT) % DESTINATION_WEATHER_CITIES.length;
+    this.visibleWeatherCities.set(this.getWeatherCityGroup(this.visibleWeatherStartIndex));
+    this.loadWeather();
+  }
+
+  private getWeatherCityGroup(startIndex: number): string[] {
+    return Array.from({ length: VISIBLE_WEATHER_CITY_COUNT }, (_, offset) =>
+      DESTINATION_WEATHER_CITIES[(startIndex + offset) % DESTINATION_WEATHER_CITIES.length]
+    );
+  }
+
+  private weatherForVisibleCity(city: string, weather: WeatherDto): WeatherDto {
+    return {
+      ...weather,
+      city
+    };
+  }
+
+  private hasUsableCachedWeather(city: string): boolean {
+    const cachedWeather = this.weatherCache.get(city);
+    return cachedWeather !== undefined && !cachedWeather.error;
+  }
+
+  private applyVisibleWeatherFromCache(): void {
+    const visibleWeather = this.visibleWeatherCities()
+      .map((city) => this.weatherCache.get(city) ?? this.createWeatherPlaceholder(city));
+
+    this.weather.set(visibleWeather);
+    this.weatherError.set('');
+    this.cdr.detectChanges();
+  }
+
+  private createWeatherPlaceholder(city: string): WeatherDto {
+    return {
+      city,
+      temperatureC: null,
+      condition: null,
+      icon: null,
+      humidity: null,
+      windKph: null,
+      error: 'Weather unavailable'
+    };
   }
 
   getWeatherIcon(weather: WeatherDto | null): string {

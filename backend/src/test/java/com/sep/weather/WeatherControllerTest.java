@@ -15,12 +15,12 @@ class WeatherControllerTest {
     void getWeatherReturnsServiceDtos() {
         WeatherService weatherService = mock(WeatherService.class);
         List<WeatherDto> dto = List.of(new WeatherDto("Berlin", 18.5, "Sunny", "sun", 48, 8.1, null));
-        when(weatherService.getWeather()).thenReturn(dto);
+        when(weatherService.getWeather(List.of("Berlin"))).thenReturn(dto);
 
         WeatherController controller = new WeatherController(weatherService);
-        List<WeatherDto> response = controller.getWeather();
+        List<WeatherDto> response = controller.getWeather(List.of("Berlin"));
 
         assertThat(response).isEqualTo(dto);
-        verify(weatherService).getWeather();
+        verify(weatherService).getWeather(List.of("Berlin"));
     }
 }

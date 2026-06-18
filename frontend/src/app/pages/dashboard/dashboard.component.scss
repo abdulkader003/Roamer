@@ -766,9 +766,6 @@
     grid-template-columns: 1fr;
   }
 
-  .weather-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
   .budget-wrap {
     grid-template-columns: 1fr;
@@ -794,7 +791,6 @@
   .stats-grid,
   .rec-grid,
   .bottom-grid,
-  .weather-grid,
   .actions-grid {
     grid-template-columns: 1fr;
   }

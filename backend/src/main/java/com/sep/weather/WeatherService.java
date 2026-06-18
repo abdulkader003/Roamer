@@ -27,13 +27,32 @@ public class WeatherService {
     private static final Logger log = LoggerFactory.getLogger(WeatherService.class);
     private static final String PLACEHOLDER_URL = "PASTE_YOUR_API_URL_HERE";
     private static final List<WeatherLocation> WEATHER_LOCATIONS = List.of(
-            new WeatherLocation("Berlin", 52.520008, 13.404954),
+            new WeatherLocation("Bangkok", 13.756331, 100.501762),
             new WeatherLocation("Paris", 48.856613, 2.352222),
-            new WeatherLocation("Rome", 41.902782, 12.496366),
-            new WeatherLocation("Istanbul", 41.008240, 28.978359),
+            new WeatherLocation("London", 51.507351, -0.127758),
             new WeatherLocation("Dubai", 25.204849, 55.270782),
-            new WeatherLocation("New York", 40.730610, -73.935242)
+            new WeatherLocation("Singapore", 1.352083, 103.819836),
+            new WeatherLocation("Kuala Lumpur", 3.139003, 101.686855),
+            new WeatherLocation("New York City", 40.712776, -74.005974),
+            new WeatherLocation("Istanbul", 41.008240, 28.978359),
+            new WeatherLocation("Tokyo", 35.676193, 139.650311),
+            new WeatherLocation("Seoul", 37.566536, 126.977966),
+            new WeatherLocation("Hong Kong", 22.319304, 114.169361),
+            new WeatherLocation("Barcelona", 41.385063, 2.173404),
+            new WeatherLocation("Rome", 41.902782, 12.496366),
+            new WeatherLocation("Amsterdam", 52.367573, 4.904139),
+            new WeatherLocation("Milan", 45.464203, 9.189982),
+            new WeatherLocation("Vienna", 48.208176, 16.373819),
+            new WeatherLocation("Prague", 50.075539, 14.437800),
+            new WeatherLocation("Madrid", 40.416775, -3.703790),
+            new WeatherLocation("Berlin", 52.520008, 13.404954),
+            new WeatherLocation("Los Angeles", 34.052235, -118.243683),
+            new WeatherLocation("Miami", 25.761681, -80.191788),
+            new WeatherLocation("Sydney", -33.868820, 151.209290),
+            new WeatherLocation("Toronto", 43.653225, -79.383186),
+            new WeatherLocation("Las Vegas", 36.169941, -115.139832)
     );
+
 
     private final RestClient restClient;
     private final String apiUrl;
@@ -59,29 +78,81 @@ public class WeatherService {
      * Loads weather for the dashboard city set. A provider failure for one city is
      * isolated to that city so the dashboard can still render the remaining data.
      */
-    public List<WeatherDto> getWeather() {
+    public List<WeatherDto> getWeather(List<String> requestedCities) {
         if (!isConfigured()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Weather API URL is not configured.");
         }
 
         List<WeatherDto> weatherItems = new ArrayList<>();
 
-        for (WeatherLocation location : WEATHER_LOCATIONS) {
+        for (WeatherLocation location : resolveLocations(requestedCities)) {
             weatherItems.add(getWeatherForLocation(location));
         }
 
         return weatherItems;
     }
 
+    private List<WeatherLocation> resolveLocations(List<String> requestedCities) {
+        if (requestedCities == null || requestedCities.isEmpty()) {
+            return WEATHER_LOCATIONS;
+        }
+
+        return requestedCities.stream()
+                .flatMap(city -> java.util.Arrays.stream(city == null ? new String[] { "" } : city.split(",")))
+                .map(String::trim)
+                .filter(city -> !city.isBlank())
+                .map(this::findLocation)
+                .toList();
+    }
+
+    private WeatherLocation findLocation(String city) {
+        return WEATHER_LOCATIONS.stream()
+                .filter(location -> location.name().equalsIgnoreCase(city == null ? "" : city.trim()))
+                .findFirst()
+                .orElseGet(() -> new WeatherLocation(city == null || city.isBlank() ? "Unknown" : city.trim(), 40.712776, -74.005974));
+    }
+
     private WeatherDto getWeatherForLocation(WeatherLocation location) {
+        if (!fallbackUrl.isBlank()) {
+            return loadFromFallbackOrRapidApiOrError(location);
+        }
+
         try {
             return loadFromRapidApi(location);
         } catch (RestClientResponseException exception) {
             log.warn("Weather RapidAPI request failed for {}: status={} body={}", location.name(), exception.getStatusCode().value(), truncate(exception.getResponseBodyAsString()));
-            return loadFromFallbackOrError(location, exception);
+            return failedWeather(location.name(), "Weather unavailable");
         } catch (RuntimeException exception) {
             log.warn("Unable to load weather data from RapidAPI provider for {}.", location.name(), exception);
-            return loadFromFallbackOrError(location, exception);
+            return failedWeather(location.name(), "Weather unavailable");
+        }
+    }
+
+    private WeatherDto loadFromFallbackOrRapidApiOrError(WeatherLocation location) {
+        try {
+            return loadFromFallback(location);
+        } catch (RestClientResponseException exception) {
+            log.warn("Weather fallback request failed for {}: status={} body={}", location.name(), exception.getStatusCode().value(), truncate(exception.getResponseBodyAsString()));
+            return loadFromRapidApiOrError(location, exception);
+        } catch (RuntimeException exception) {
+            log.warn("Unable to load weather data from fallback provider for {}.", location.name(), exception);
+            return loadFromRapidApiOrError(location, exception);
+        }
+    }
+
+    private WeatherDto loadFromRapidApiOrError(WeatherLocation location, RuntimeException fallbackFailure) {
+        if (apiUrl.isBlank() || PLACEHOLDER_URL.equals(apiUrl)) {
+            return failedWeather(location.name(), "Weather unavailable");
+        }
+
+        try {
+            return loadFromRapidApi(location);
+        } catch (RestClientResponseException exception) {
+            log.warn("Weather RapidAPI request failed for {} after fallback failure: status={} body={}", location.name(), exception.getStatusCode().value(), truncate(exception.getResponseBodyAsString()));
+            return failedWeather(location.name(), "Weather unavailable");
+        } catch (RuntimeException exception) {
+            log.warn("Unable to load weather data from RapidAPI provider for {} after fallback failure.", location.name(), exception);
+            return failedWeather(location.name(), "Weather unavailable");
         }
     }
 
@@ -108,31 +179,18 @@ public class WeatherService {
         return weather;
     }
 
-    private WeatherDto loadFromFallbackOrError(WeatherLocation location, RuntimeException primaryFailure) {
-        if (fallbackUrl.isBlank()) {
-            log.warn("No weather fallback configured for {}.", location.name(), primaryFailure);
-            return failedWeather(location.name(), "Weather unavailable");
-        }
+    private WeatherDto loadFromFallback(WeatherLocation location) {
+        log.info("Loading weather from fallback provider city={} url={}", location.name(), fallbackUrl);
 
-        try {
-            log.info("Loading weather from fallback provider city={} url={}", location.name(), fallbackUrl);
+        JsonNode payload = restClient
+                .get()
+                .uri(buildUri(fallbackUrl, location))
+                .retrieve()
+                .body(JsonNode.class);
 
-            JsonNode payload = restClient
-                    .get()
-                    .uri(buildUri(fallbackUrl, location))
-                    .retrieve()
-                    .body(JsonNode.class);
-
-            WeatherDto weather = mapProviderResponse(requirePayload(payload, "fallback weather provider"), location.name());
-            log.info("Fallback weather mapped city={} temperature={} condition={}", weather.city(), weather.temperatureC(), weather.condition());
-            return weather;
-        } catch (RestClientResponseException exception) {
-            log.warn("Weather fallback request failed for {}: status={} body={}", location.name(), exception.getStatusCode().value(), truncate(exception.getResponseBodyAsString()));
-            return failedWeather(location.name(), "Weather unavailable");
-        } catch (RuntimeException exception) {
-            log.warn("Unable to load weather data from fallback provider for {}.", location.name(), exception);
-            return failedWeather(location.name(), "Weather unavailable");
-        }
+        WeatherDto weather = mapProviderResponse(requirePayload(payload, "fallback weather provider"), location.name());
+        log.info("Fallback weather mapped city={} temperature={} condition={}", weather.city(), weather.temperatureC(), weather.condition());
+        return weather;
     }
 
     private WeatherDto failedWeather(String city, String error) {

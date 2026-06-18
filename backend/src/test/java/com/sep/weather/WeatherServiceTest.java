@@ -46,11 +46,11 @@ class WeatherServiceTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        List<WeatherDto> weather = weatherService.getWeather();
+        List<WeatherDto> weather = weatherService.getWeather(List.of("Bangkok", "Paris", "London", "Dubai", "Singapore", "Kuala Lumpur"));
 
         assertThat(weather).hasSize(6);
         assertThat(weather).extracting(WeatherDto::city)
-                .containsExactly("Berlin", "Paris", "Rome", "Istanbul", "Dubai", "New York");
+                .containsExactly("Bangkok", "Paris", "London", "Dubai", "Singapore", "Kuala Lumpur");
         assertThat(weather).allSatisfy(item -> {
             assertThat(item.temperatureC()).isEqualTo(22.6);
             assertThat(item.condition()).isEqualTo("Partly cloudy");
@@ -60,7 +60,7 @@ class WeatherServiceTest {
     }
 
     @Test
-    void getWeatherFallsBackPerCityWhenRapidApiSubscriptionFails() {
+    void getWeatherUsesFallbackProviderForRequestedCities() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         WeatherService weatherService = new WeatherService(
@@ -71,10 +71,6 @@ class WeatherServiceTest {
                 "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto"
         );
 
-        server.expect(manyTimes(), requestTo(org.hamcrest.Matchers.startsWith("https://open-weather13.p.rapidapi.com/fivedaysforcast?latitude=")))
-                .andRespond(withStatus(HttpStatus.FORBIDDEN)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"message\":\"You are not subscribed to this API.\"}"));
         server.expect(manyTimes(), requestTo(org.hamcrest.Matchers.startsWith("https://api.open-meteo.com/v1/forecast?latitude=")))
                 .andRespond(withSuccess("""
                         {
@@ -87,7 +83,7 @@ class WeatherServiceTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        List<WeatherDto> weather = weatherService.getWeather();
+        List<WeatherDto> weather = weatherService.getWeather(List.of("New York City", "Istanbul", "Tokyo", "Seoul", "Hong Kong", "Barcelona"));
 
         assertThat(weather).hasSize(6);
         assertThat(weather).allSatisfy(item -> {
@@ -109,13 +105,15 @@ class WeatherServiceTest {
                 "https://open-weather13.p.rapidapi.com/fivedaysforcast?latitude={latitude}&longitude={longitude}&lang=EN",
                 "open-weather13.p.rapidapi.com",
                 "test-key",
-                ""
+                "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto"
         );
 
+        server.expect(manyTimes(), requestTo(org.hamcrest.Matchers.startsWith("https://api.open-meteo.com/v1/forecast?latitude=")))
+                .andRespond(withStatus(HttpStatus.BAD_GATEWAY));
         server.expect(manyTimes(), requestTo(org.hamcrest.Matchers.startsWith("https://open-weather13.p.rapidapi.com/fivedaysforcast?latitude=")))
                 .andRespond(withStatus(HttpStatus.FORBIDDEN));
 
-        List<WeatherDto> weather = weatherService.getWeather();
+        List<WeatherDto> weather = weatherService.getWeather(List.of("Rome", "Amsterdam", "Milan", "Vienna", "Prague", "Madrid"));
 
         assertThat(weather).hasSize(6);
         assertThat(weather).allSatisfy(item -> {
@@ -129,7 +127,7 @@ class WeatherServiceTest {
     void getWeatherRejectsMissingConfiguration() {
         WeatherService weatherService = new WeatherService(RestClient.builder(), "PASTE_YOUR_API_URL_HERE", "open-weather13.p.rapidapi.com", "", "");
 
-        assertThatThrownBy(weatherService::getWeather)
+        assertThatThrownBy(() -> weatherService.getWeather(List.of("Berlin")))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Weather API URL is not configured");
     }
