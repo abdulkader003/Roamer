@@ -2,8 +2,35 @@
 
   <!-- Page header -->
   <div class="page-header">
-    <h1 class="page-title">Budget Tracker</h1>
-    <p class="page-subtitle">Keep track of your travel spending at a glance</p>
+    <div>
+      <h1 class="page-title">Budget Tracker</h1>
+      <p class="page-subtitle">Keep track of your travel spending at a glance</p>
+    </div>
+    <div class="header-actions">
+      <div class="export-wrapper">
+        <button
+          type="button"
+          class="export-button"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="isExportMenuOpen"
+          (click)="toggleExportMenu()">
+          Export Report
+        </button>
+        @if (isExportMenuOpen) {
+          <div class="export-menu" role="menu">
+            <button type="button" class="export-menu-item" role="menuitem" (click)="exportReport('pdf')">
+              Export as PDF
+            </button>
+            <button type="button" class="export-menu-item" role="menuitem" (click)="exportReport('csv')">
+              Export as CSV
+            </button>
+          </div>
+        }
+      </div>
+      <button type="button" class="add-expense-button" (click)="openExpenseForm()">
+        + Add Manual Expense
+      </button>
+    </div>
   </div>
 
   <!-- ═══ User Story #1 — Budget Summary ═══ -->
@@ -11,42 +38,42 @@
     <div class="summary-grid">
 
       <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-copy">
+          <div class="stat-value">€{{ totalBudget | number:'1.0-0' }}</div>
+          <div class="stat-label">Total Budget</div>
+        </div>
+        <div class="stat-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="5" width="20" height="14" rx="2"/>
             <line x1="2" y1="10" x2="22" y2="10"/>
           </svg>
         </div>
-        <div>
-          <div class="stat-label">Total Budget</div>
-          <div class="stat-value">€{{ totalBudget | number:'1.0-0' }}</div>
-        </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-copy">
+          <div class="stat-value">€{{ totalSpent | number:'1.0-0' }}</div>
+          <div class="stat-label">Total Spent</div>
+        </div>
+        <div class="stat-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 1v22"/>
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
         </div>
-        <div>
-          <div class="stat-label">Total Spent</div>
-          <div class="stat-value">€{{ totalSpent | number:'1.0-0' }}</div>
-        </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">
+        <div class="stat-copy">
+          <div class="stat-value">€{{ remainingBalance | number:'1.0-0' }}</div>
+          <div class="stat-label">Remaining Balance</div>
+        </div>
+        <div class="stat-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/>
             <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/>
             <path d="M18 12a2 2 0 0 0 0 4h2a2 2 0 0 0 0-4h-2z"/>
           </svg>
-        </div>
-        <div>
-          <div class="stat-label">Remaining Balance</div>
-          <div class="stat-value">€{{ remainingBalance | number:'1.0-0' }}</div>
         </div>
       </div>
 
@@ -55,101 +82,254 @@
     <!-- Budget usage progress -->
     <div class="usage-block">
       <div class="usage-header">
-        <span class="usage-label">Budget Usage</span>
-        <span class="usage-percentage">{{ usagePercentage }}%</span>
+        <div class="usage-title-group">
+          <span class="usage-label">Budget Usage</span>
+          <span class="usage-percentage" [ngClass]="usageStatusClass">{{ usagePercentage }}% used</span>
+        </div>
+        <span class="usage-status-badge" [ngClass]="usageStatusClass">{{ usageStatusLabel }}</span>
       </div>
       <div class="usage-track">
-        <div class="usage-fill" [style.width.%]="usagePercentage"></div>
+        <div class="usage-fill" [ngClass]="usageStatusClass" [style.width.%]="usageProgressWidth"></div>
       </div>
     </div>
 
   </section>
 
-  <!-- ═══ User Story #2 — Spending Overview Chart ═══ -->
-  <section class="section-card">
-    <div class="section-header">
-      <h2 class="section-title">Spending Overview</h2>
-      <div class="toggle-group">
-        <button
-          type="button"
-          class="toggle-button"
-          [class.active]="chartView === 'monthly'"
-          (click)="setChartView('monthly')">
-          Monthly
-        </button>
-        <button
-          type="button"
-          class="toggle-button"
-          [class.active]="chartView === 'yearly'"
-          (click)="setChartView('yearly')">
-          Yearly
-        </button>
-      </div>
-    </div>
+  <!-- ═══ Charts row: Spending Overview + Spending Distribution side by side ═══ -->
+  <div class="charts-row">
 
-    <div class="chart-wrapper">
-      <div class="chart-svg-wrapper">
-        <svg [attr.viewBox]="chartViewBox" class="line-chart">
-          <!-- Baseline -->
-          <line x1="0" y1="196" x2="600" y2="196" class="chart-axis" />
-
-          <!-- Area fill -->
-          <path [attr.d]="areaPathD" class="chart-area" />
-
-          <!-- Line -->
-          <path [attr.d]="linePathD" class="chart-line" />
-
-          <!-- Points -->
-          @for (point of chartPoints; track point.label) {
-            <circle [attr.cx]="point.x" [attr.cy]="point.y" r="3.5" class="chart-point" />
-          }
-        </svg>
-      </div>
-
-      <!-- X-axis labels -->
-      <div class="chart-labels">
-        @for (point of chartPoints; track point.label) {
-          <span class="chart-label">{{ point.label }}</span>
-        }
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ User Story #3 — Spending Distribution ═══ -->
-  <section class="section-card">
-    <h2 class="section-title">Spending Distribution</h2>
-
-    <div class="donut-layout">
-      <div class="donut-wrapper">
-        <svg viewBox="0 0 200 200" class="donut-chart">
-          <g transform="rotate(-90 100 100)">
-            <circle cx="100" cy="100" r="70" fill="none" class="donut-track" [attr.stroke-width]="donutStrokeWidth" />
-            @for (segment of donutSegments; track segment.name) {
-              <circle
-                cx="100" cy="100" r="70" fill="none"
-                [attr.stroke]="segment.color"
-                [attr.stroke-width]="donutStrokeWidth"
-                [attr.stroke-dasharray]="segment.dasharray"
-                [attr.stroke-dashoffset]="segment.dashoffset"
-                class="donut-segment" />
-            }
-          </g>
-        </svg>
-        <div class="donut-center">
-          <span class="donut-center-value">€{{ categoryTotal | number:'1.0-0' }}</span>
-          <span class="donut-center-label">Total Spent</span>
+    <!-- ═══ User Story #2 — Spending Overview Chart ═══ -->
+    <section class="section-card chart-card">
+      <div class="section-header">
+        <div class="section-title-block">
+          <h2 class="section-title">Spending Overview</h2>
+        </div>
+        <div class="toggle-group">
+          <button
+            type="button"
+            class="toggle-button"
+            [class.active]="chartView === 'monthly'"
+            [attr.aria-pressed]="chartView === 'monthly'"
+            (click)="setChartView('monthly')">
+            Monthly
+          </button>
+          <button
+            type="button"
+            class="toggle-button"
+            [class.active]="chartView === 'yearly'"
+            [attr.aria-pressed]="chartView === 'yearly'"
+            (click)="setChartView('yearly')">
+            Yearly
+          </button>
         </div>
       </div>
 
-      <div class="donut-legend">
-        @for (segment of donutSegments; track segment.name) {
-          <div class="legend-row">
-            <span class="legend-dot" [style.background]="segment.color"></span>
-            <span class="legend-name">{{ segment.name }}</span>
-            <span class="legend-percentage">{{ segment.percentage }}%</span>
-          </div>
-        }
+      <div class="chart-wrapper">
+        <div class="chart-svg-wrapper">
+          <svg [attr.viewBox]="chartViewBox" class="line-chart" role="img" aria-label="Spending overview trend">
+            <!-- Baseline -->
+            <line x1="24" y1="192" x2="576" y2="192" class="chart-axis" />
+
+            <!-- Area fill -->
+            <path [attr.d]="areaPathD" class="chart-area" />
+
+            <!-- Line -->
+            <path [attr.d]="linePathD" class="chart-line" pathLength="1" />
+
+            <!-- Points -->
+            @for (point of chartPoints; track point.label; let i = $index) {
+              <circle
+                [attr.cx]="point.x"
+                [attr.cy]="point.y"
+                r="3.9"
+                class="chart-point"
+                [style.animation-delay.ms]="900 + (i * 70)" />
+            }
+          </svg>
+        </div>
+
+        <!-- X-axis labels -->
+        <div class="chart-labels">
+          @for (point of chartPoints; track point.label) {
+            <span class="chart-label" [style.left.%]="point.labelLeftPercent">{{ point.label }}</span>
+          }
+        </div>
       </div>
+    </section>
+
+    <!-- ═══ User Story #3 — Spending Distribution ═══ -->
+    <section class="section-card chart-card distribution-card">
+      <div class="section-header distribution-header">
+        <div class="section-title-block">
+          <h2 class="section-title">Spending Distribution</h2>
+          <p class="section-subtitle">Expense Breakdown by Category</p>
+        </div>
+      </div>
+
+      <div class="donut-layout">
+        <div class="donut-wrapper">
+          <svg viewBox="0 0 200 200" class="donut-chart" role="img" aria-label="Spending distribution by category">
+            <g transform="rotate(-90 100 100)">
+              <circle cx="100" cy="100" r="70" fill="none" class="donut-track" [attr.stroke-width]="donutStrokeWidth" />
+              @for (segment of donutSegments; track segment.name; let i = $index) {
+                <circle
+                  cx="100" cy="100" r="70" fill="none"
+                  [style.stroke]="segment.color"
+                  [attr.stroke-width]="donutStrokeWidth"
+                  [attr.stroke-dasharray]="segment.dasharray"
+                  [attr.stroke-dashoffset]="segment.dashoffset"
+                  class="donut-segment"
+                  [style.animation-delay.ms]="i * 120">
+                  <title>{{ segment.name }}: {{ segment.precisePercentage }}% - €{{ segment.amount | number:'1.0-0' }}</title>
+                </circle>
+              }
+            </g>
+          </svg>
+          <div class="donut-center">
+            <span class="donut-center-value">€{{ categoryTotal | number:'1.0-0' }}</span>
+            <span class="donut-center-label">Total Spent</span>
+          </div>
+        </div>
+
+        <div class="donut-legend">
+          @for (segment of donutSegments; track segment.name; let i = $index) {
+            <div class="legend-row" [style.animation-delay.ms]="900 + (i * 110)">
+              <span class="legend-dot" [style.background]="segment.color"></span>
+              <span class="legend-copy">
+                <span class="legend-name">{{ segment.name }}</span>
+                <span class="legend-amount">€{{ segment.amount | number:'1.0-0' }}</span>
+              </span>
+              <span class="legend-percentage">{{ segment.percentage }}%</span>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- User Story 4 -- Budget by Category -->
+  <section class="section-card">
+    <div class="category-section-header">
+      <h2 class="section-title">Budget by Category</h2>
+    </div>
+
+    <div class="category-grid">
+      @for (cat of categoryBudgetRows; track cat.name) {
+        <div class="category-card">
+          <div class="category-card-header">
+            <span class="category-name">{{ cat.name }}</span>
+            <span class="category-status-badge" [ngClass]="cat.statusClass">{{ cat.status }}</span>
+          </div>
+
+          <div class="category-amounts">
+            <span class="category-spent">€ {{ cat.spent | number:'1.0-0' }}</span>
+            <span class="category-budget">/ € {{ cat.budget | number:'1.0-0' }}</span>
+          </div>
+
+          <div class="category-progress-track">
+            <div
+              class="category-progress-fill"
+              [ngClass]="cat.statusClass"
+              [style.width.%]="cat.percentage">
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- User Story 5 -- Add Manual Expense Modal -->
+  @if (isExpenseFormOpen) {
+    <div class="expense-modal-backdrop" (click)="closeExpenseForm()">
+      <div
+        class="expense-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="expense-modal-title"
+        (click)="$event.stopPropagation()">
+        <div class="expense-modal-header">
+          <h3 id="expense-modal-title">Add Manual Expense</h3>
+          <button type="button" class="modal-close-button" aria-label="Close expense form" (click)="closeExpenseForm()">&times;</button>
+        </div>
+
+        <form class="expense-form" (ngSubmit)="saveExpense()">
+          <label class="form-field">
+            <span>Amount (EUR)</span>
+            <input type="number" min="0" step="0.01" [(ngModel)]="expenseDraft.amount" name="amount" required>
+          </label>
+
+          <label class="form-field">
+            <span>Category</span>
+            <select [(ngModel)]="expenseDraft.category" name="category" required>
+              @for (cat of expenseCategories; track cat) {
+                <option [value]="cat">{{ cat }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span>Description</span>
+            <input type="text" [(ngModel)]="expenseDraft.description" name="description" placeholder="e.g. Taxi to airport">
+          </label>
+
+          <label class="form-field">
+            <span>Date</span>
+            <input type="date" [(ngModel)]="expenseDraft.date" name="date" required>
+          </label>
+
+          <div class="expense-form-actions">
+            <button type="button" class="secondary-button" (click)="closeExpenseForm()">Cancel</button>
+            <button type="submit" class="primary-button">Save Expense</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- User Story 6 -- Recent Trip Budgets -->
+  <section class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">Recent Trip Budgets</h2>
+      <select class="trip-filter" [(ngModel)]="tripStatusFilter" name="tripFilter">
+        <option value="All">All Statuses</option>
+        <option value="Under Budget">Under Budget</option>
+        <option value="Near Limit">Near Limit</option>
+        <option value="Over Budget">Over Budget</option>
+      </select>
+    </div>
+
+    <div class="trip-table-wrapper">
+      <table class="trip-table">
+        <thead>
+          <tr>
+            <th>Trip Name</th>
+            <th>Destination</th>
+            <th>Budget</th>
+            <th>Spent</th>
+            <th>Remaining</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (trip of filteredTripRows; track trip.name) {
+            <tr>
+              <td class="trip-name-cell">{{ trip.name }}</td>
+              <td>{{ trip.destination }}</td>
+              <td>€{{ trip.budget | number:'1.0-0' }}</td>
+              <td>€{{ trip.spent | number:'1.0-0' }}</td>
+              <td>€{{ trip.remaining | number:'1.0-0' }}</td>
+              <td>
+                <span
+                  class="trip-status-badge"
+                  [ngClass]="trip.statusClass">
+                  {{ trip.status }}
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
     </div>
   </section>
 
