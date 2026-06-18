@@ -57,6 +57,7 @@ export class SidebarComponent {
     },
     {
       label: 'Budget Tracker',
+      route: '/budget-tracker',
       dividerBefore: true,
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
     },
