@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { ProfileStateService } from '../../services/profile-state.service';
 
 export interface NavItem {
   label: string;
@@ -20,6 +21,7 @@ export interface NavItem {
 })
 export class SidebarComponent {
   private readonly authService = inject(AuthService);
+  private readonly profileState = inject(ProfileStateService);
   private readonly router = inject(Router);
 
   @Input() isMobile = false;
@@ -67,6 +69,12 @@ export class SidebarComponent {
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
     },
     {
+      label: 'Profile',
+      route: '/profile',
+      dividerBefore: true,
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
+    },
+    {
       label: 'Bookings',
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
     },
@@ -91,6 +99,7 @@ export class SidebarComponent {
   }
 
   logout(): void {
+    this.profileState.clear();
     this.authService.logout();
 
     if (this.isMobile) {

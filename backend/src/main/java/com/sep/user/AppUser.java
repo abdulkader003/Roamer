@@ -23,6 +23,26 @@ public class AppUser {
     @Column(nullable = false)
     private boolean verified = false;
 
+    @Column(length = 80)
+    private String firstName;
+
+    @Column(length = 80)
+    private String lastName;
+
+    @Column(length = 30)
+    private String phoneNumber;
+
+    @Column(length = 20)
+    private String homeAirport;
+
+    @Column(name = "profile_picture")
+    private byte[] profilePicture;
+
+    @Column(length = 80)
+    private String profilePictureContentType;
+
+    private LocalDateTime profilePictureUpdatedAt;
+
     private String verificationCode;
 
     private LocalDateTime verificationCodeExpiresAt;
@@ -70,6 +90,34 @@ public class AppUser {
         return verified;
     }
 
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getHomeAirport() {
+        return homeAirport;
+    }
+
+    public byte[] getProfilePicture() {
+        return profilePicture;
+    }
+
+    public String getProfilePictureContentType() {
+        return profilePictureContentType;
+    }
+
+    public LocalDateTime getProfilePictureUpdatedAt() {
+        return profilePictureUpdatedAt;
+    }
+
     public String getVerificationCode() {
         return verificationCode;
     }
@@ -100,6 +148,34 @@ public class AppUser {
 
     public void setVerified(boolean verified) {
         this.verified = verified;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public void setHomeAirport(String homeAirport) {
+        this.homeAirport = homeAirport;
+    }
+
+    public void setProfilePicture(byte[] profilePicture) {
+        this.profilePicture = profilePicture;
+    }
+
+    public void setProfilePictureContentType(String profilePictureContentType) {
+        this.profilePictureContentType = profilePictureContentType;
+    }
+
+    public void setProfilePictureUpdatedAt(LocalDateTime profilePictureUpdatedAt) {
+        this.profilePictureUpdatedAt = profilePictureUpdatedAt;
     }
 
     public void setVerificationCode(String verificationCode) {

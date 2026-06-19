@@ -13,4 +13,6 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
      * into the authenticated user's response.
      */
     List<Trip> findAllByOwnerIdOrderByStartDateAsc(Long ownerId);
+
+    void deleteAllByOwnerId(Long ownerId);
 }

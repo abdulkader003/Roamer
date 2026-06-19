@@ -40,10 +40,8 @@
       <a class="signup-link" routerLink="/signup">Sign up</a>
     }
 
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" (click)="toggleTheme()" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+    <button class="theme-toggle" type="button" (click)="toggleTheme()" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
       @if (isDark()) {
-        <!-- Sun icon -->
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="5"/>
           <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
@@ -52,7 +50,6 @@
           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
         </svg>
       } @else {
-        <!-- Moon icon -->
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
@@ -60,17 +57,72 @@
     </button>
 
     @if (isAuthenticated()) {
-      <div class="notif-btn">
+      <button type="button" class="notif-btn" title="Notifications" aria-label="Notifications">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
         <span class="notif-dot"></span>
+      </button>
+
+      <div class="account-menu-wrap" (click)="$event.stopPropagation()">
+        <button
+          type="button"
+          class="account-trigger"
+          [class.account-trigger--open]="isAccountMenuOpen()"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="isAccountMenuOpen()"
+          title="Open account menu"
+          (click)="toggleAccountMenu($event)">
+          <span class="avatar">
+            @if (avatarImageUrl()) {
+              <img [src]="avatarImageUrl()" [alt]="accountDisplayName() + ' profile picture'" (error)="onAvatarImageError()" />
+            } @else {
+              {{ avatarLabel() }}
+            }
+          </span>
+          <span class="account-text">
+            <span>Account</span>
+            <small>{{ accountEmail() }}</small>
+          </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron" [class.chevron--open]="isAccountMenuOpen()">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        @if (isAccountMenuOpen()) {
+          <div class="account-menu" role="menu">
+            <div class="account-menu-header">
+              <span class="avatar avatar--menu">
+                @if (avatarImageUrl()) {
+                  <img [src]="avatarImageUrl()" [alt]="accountDisplayName() + ' profile picture'" (error)="onAvatarImageError()" />
+                } @else {
+                  {{ avatarLabel() }}
+                }
+              </span>
+              <div>
+                <strong>{{ accountDisplayName() }}</strong>
+                <small>Manage your ROAMER account</small>
+              </div>
+            </div>
+
+            <a routerLink="/profile" role="menuitem" class="account-menu-item" (click)="closeAccountMenu()">
+              <span>Profile</span>
+              <small>View and edit your details</small>
+            </a>
+
+            <a routerLink="/profile" fragment="security" role="menuitem" class="account-menu-item" (click)="closeAccountMenu()">
+              <span>Change password</span>
+              <small>Security settings</small>
+            </a>
+
+            <button type="button" role="menuitem" class="account-menu-item account-menu-item--danger" (click)="logout()">
+              <span>Logout</span>
+              <small>End this session</small>
+            </button>
+          </div>
+        }
       </div>
-      <div class="avatar">{{ avatarLabel() }}</div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
     }
   </div>
 </header>
