@@ -3,7 +3,7 @@
 import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   Airport,
   CabinClass,
@@ -51,6 +51,7 @@ interface CalendarDay {
 export class FlightsComponent implements OnDestroy {
   private readonly flightsService = inject(FlightsService);
   private readonly calendarService = inject(CalendarService);
+  private readonly route = inject(ActivatedRoute);
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   // Optional: read theme from your service (for any theme-aware logic)
@@ -244,6 +245,10 @@ export class FlightsComponent implements OnDestroy {
   ];
 
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  constructor() {
+    this.applyDestinationQueryParams();
+  }
 
   ngOnDestroy(): void {
     if (this.toastTimeoutId) {
@@ -701,6 +706,111 @@ export class FlightsComponent implements OnDestroy {
 
   toggleCityAirportSearch(): void {
     this.includeCityAirports.update(value => !value);
+  }
+
+  private applyDestinationQueryParams(): void {
+    const query = this.route.snapshot.queryParamMap;
+    const tripType = this.readTripType(query.get('tripType'));
+    const travelers = Number(query.get('travelers'));
+
+    if (tripType) {
+      this.tripType.set(tripType);
+    }
+
+    if (Number.isFinite(travelers) && travelers > 0) {
+      // Destination only collects total travelers, so Flights treats them as adults.
+      this.adults.set(Math.min(9, Math.max(1, Math.floor(travelers))));
+      this.children.set(0);
+    }
+
+    if (tripType === 'multi-city') {
+      this.applyMultiCityQuery(query.get('multiCitySegments'));
+      return;
+    }
+
+    const fromText = query.get('from') ?? '';
+    const toText = query.get('to') ?? '';
+    const departure = this.parseDateInput(query.get('departureDate') ?? '');
+    const returnDate = this.parseDateInput(query.get('returnDate') ?? '');
+
+    if (fromText.trim()) {
+      const airport = this.parseAirportText(fromText, this.from());
+      this.from.set(airport);
+      this.fromText.set(airport.code ? this.normalizeAirportText(fromText) : fromText.trim());
+    }
+
+    if (toText.trim()) {
+      const airport = this.parseAirportText(toText, this.to());
+      this.to.set(airport);
+      this.toText.set(airport.code ? this.normalizeAirportText(toText) : toText.trim());
+    }
+
+    if (departure) {
+      this.departureDate.set(departure);
+      this.datePickerMonth.set(new Date(departure.getFullYear(), departure.getMonth(), 1));
+    }
+
+    if (tripType === 'round-trip' && returnDate) {
+      this.returnDate.set(returnDate);
+    }
+  }
+
+  private applyMultiCityQuery(rawSegments: string | null): void {
+    if (!rawSegments) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawSegments) as unknown;
+
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+
+      const segments = parsed
+        .map((segment): MultiCitySegment | null => {
+          if (!segment || typeof segment !== 'object') {
+            return null;
+          }
+
+          const value = segment as Record<string, unknown>;
+          const fromText = typeof value['fromText'] === 'string' ? value['fromText'] : '';
+          const toText = typeof value['toText'] === 'string' ? value['toText'] : '';
+          const dateText = typeof value['date'] === 'string' ? value['date'] : '';
+
+          return {
+            fromText: fromText.trim() ? this.normalizeAirportText(fromText) : '',
+            toText: toText.trim() ? this.normalizeAirportText(toText) : '',
+            date: this.parseDateInput(dateText),
+          };
+        })
+        .filter((segment): segment is MultiCitySegment => segment !== null);
+
+      if (segments.length >= 2) {
+        this.multiCitySegments.set(segments);
+        this.departureDate.set(segments[0].date);
+
+        const firstAirport = this.parseAirportText(segments[0].fromText, this.from());
+        const lastAirport = this.parseAirportText(segments[segments.length - 1].toText, this.to());
+
+        this.from.set(firstAirport);
+        this.fromText.set(segments[0].fromText);
+        this.to.set(lastAirport);
+        this.toText.set(segments[segments.length - 1].toText);
+
+        if (segments[0].date) {
+          this.datePickerMonth.set(new Date(segments[0].date.getFullYear(), segments[0].date.getMonth(), 1));
+        }
+      }
+    } catch {
+      this.searchError.set('Could not read the multi-city route from the trip destination step.');
+    }
+  }
+
+  private readTripType(value: string | null): TripType | null {
+    return value === 'one-way' || value === 'round-trip' || value === 'multi-city'
+      ? value
+      : null;
   }
 
   onSearch(): void {

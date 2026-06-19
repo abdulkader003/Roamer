@@ -1,0 +1,139 @@
+<main class="trip-flights-page">
+  <nav class="wizard-progress" aria-label="Create trip progress">
+    @for (step of steps; track step.number; let last = $last) {
+      <div
+        class="wizard-step"
+        [class.wizard-step--complete]="step.state === 'complete'"
+        [class.wizard-step--active]="step.state === 'active'">
+        <span class="step-circle">
+          @if (step.state === 'complete') {
+            <span aria-hidden="true">✓</span>
+          } @else {
+            {{ step.number }}
+          }
+        </span>
+        <span class="step-label">{{ step.label }}</span>
+      </div>
+
+      @if (!last) {
+        <span class="step-line" [class.step-line--complete]="step.state === 'complete'" aria-hidden="true"></span>
+      }
+    }
+  </nav>
+
+  <section class="flights-content">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span>›</span>
+      <a routerLink="/trips/create/budget">Trips</a>
+      <span>›</span>
+      <strong>Create Trip</strong>
+    </nav>
+
+    <header class="page-header">
+      <h1>Select your <em>flight</em>.</h1>
+      <p>{{ routeSummary() }}</p>
+    </header>
+
+    @if (isLoading) {
+      <div class="status-card">Searching real flight options...</div>
+    }
+
+    @if (searchError) {
+      <div class="form-error" role="alert">
+        <span>{{ searchError }}</span>
+        <button type="button" [disabled]="isLoading" (click)="retrySearch()">
+          Retry search
+        </button>
+      </div>
+    }
+
+    <section class="flight-results" aria-label="Flight options">
+      @for (flight of flights; track flight.id) {
+        <article class="flight-card" [class.flight-card--expanded]="isFlightExpanded(flight)">
+          <button
+            type="button"
+            class="flight-option"
+            [class.flight-option--selected]="selectedFlightId === flight.id"
+            [attr.aria-expanded]="isFlightExpanded(flight)"
+            (click)="selectFlight(flight)">
+            <span class="airline-logo {{ flight.airline.colorClass }}">{{ flight.airline.code }}</span>
+
+            <span class="airline-copy">
+              <strong>{{ flight.airline.name }}</strong>
+              <small>{{ flight.flightNumber || flight.id }}</small>
+            </span>
+
+            <span class="flight-time">
+              <strong>{{ flight.departure.time }}</strong>
+              <small>{{ flight.departure.airport }}</small>
+            </span>
+
+            <span class="flight-duration">
+              <small>{{ flight.duration }}</small>
+              <span class="duration-line"></span>
+              <em [class.direct]="flight.stops === 0">{{ stopsLabel(flight) }}</em>
+            </span>
+
+            <span class="flight-time">
+              <strong>{{ flight.arrival.time }}</strong>
+              <small>{{ flight.arrival.airport }}</small>
+            </span>
+
+            <span class="flight-price">
+              <strong>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ flight.price }}</strong>
+              <small>per person</small>
+              <small>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ totalPrice(flight) }} total</small>
+            </span>
+
+            <span class="select-dot" aria-hidden="true"></span>
+          </button>
+
+          @if (isFlightExpanded(flight)) {
+            <section class="flight-details" aria-label="Flight details">
+              <div class="detail-block">
+                <span>Route</span>
+                <strong>{{ flight.departure.city }} → {{ flight.arrival.city }}</strong>
+                <p>
+                  {{ flight.departure.airport }}
+                  @if (flight.departure.terminal) {
+                    · Terminal {{ flight.departure.terminal }}
+                  }
+                  to {{ flight.arrival.airport }}
+                  @if (flight.arrival.terminal) {
+                    · Terminal {{ flight.arrival.terminal }}
+                  }
+                </p>
+              </div>
+
+              <div class="detail-block">
+                <span>Flight</span>
+                <strong>{{ flight.airline.name }} · {{ flight.flightNumber || flight.id }}</strong>
+                <p>{{ flightStatus(flight) }} · {{ flight.duration }} · {{ stopsLabel(flight) }}</p>
+              </div>
+
+              <div class="detail-block">
+                <span>Baggage</span>
+                <strong>{{ baggageSummary(flight) }}</strong>
+                <p>Cabin class: Economy · Travelers: {{ tripTemp.travelers }}</p>
+              </div>
+
+              <div class="detail-block detail-block--price">
+                <span>Total</span>
+                <strong>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ totalPrice(flight) }}</strong>
+                <p>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ flight.price }} per traveler</p>
+              </div>
+            </section>
+          }
+        </article>
+      }
+    </section>
+
+    <footer class="page-actions">
+      <a class="back-button" routerLink="/trips/create/destination">← Back</a>
+      <button class="continue-button" type="button" [disabled]="!selectedFlightId" (click)="continueToHotels()">
+        Continue - Choose Hotels →
+      </button>
+    </footer>
+  </section>
+</main>

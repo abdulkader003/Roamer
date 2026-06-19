@@ -13,6 +13,9 @@ import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password
 import { ResetPasswordComponent } from './pages/reset-password/reset-password.component';
 import { SignupComponent } from './pages/signup/signup.component';
 import { BudgetComponent } from './pages/trips/create/budget/budget.component';
+import { TripDestinationComponent } from './pages/trips/create/destination/trip-destination.component';
+import { TripFlightsComponent } from './pages/trips/create/flights/trip-flights.component';
+import { TripComponent } from './pages/trips/trip/trip.component';
 import { BudgetTracker } from './pages/budget-tracker/budget-tracker';
 
 export const routes: Routes = [
@@ -20,7 +23,10 @@ export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'calendar', component: CalendarMonth, canActivate: [authGuard] },
+  { path: 'trips', component: TripComponent, canActivate: [authGuard] },
   { path: 'trips/create/budget', component: BudgetComponent, canActivate: [authGuard] },
+  { path: 'trips/create/destination', component: TripDestinationComponent, canActivate: [authGuard] },
+  { path: 'trips/create/flights', component: TripFlightsComponent, canActivate: [authGuard] },
   { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
   { path: 'flights', component: FlightsComponent },
   { path: 'activities', component: ActivitiesListComponent },

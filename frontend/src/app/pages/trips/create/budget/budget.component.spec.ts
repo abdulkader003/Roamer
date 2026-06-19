@@ -1,18 +1,24 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { Subject, throwError } from 'rxjs';
 
 import { TripBudgetResponse, TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 import { BudgetComponent } from './budget.component';
 
 describe('BudgetComponent', () => {
   let component: BudgetComponent;
   let fixture: ComponentFixture<BudgetComponent>;
+  let router: Router;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let tripTempService: jasmine.SpyObj<TripTempService>;
 
   beforeEach(async () => {
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', [
       'saveBudgetStep',
+    ]);
+    tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', [
+      'updateTripTemp',
     ]);
 
     await TestBed.configureTestingModule({
@@ -20,11 +26,13 @@ describe('BudgetComponent', () => {
       providers: [
         provideRouter([]),
         { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: TripTempService, useValue: tripTempService },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BudgetComponent);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
     fixture.detectChanges();
   });
 
@@ -94,6 +102,7 @@ describe('BudgetComponent', () => {
   });
 
   it('sends the recommended budget even when the manual budget is invalid', () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
     const response: TripBudgetResponse = {
       id: 10,
       tripName: 'Summer in Italy',
@@ -116,11 +125,19 @@ describe('BudgetComponent', () => {
       duration: 7,
       travelStyle: 'Mid-range',
     });
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
+      tripName: 'Summer in Italy',
+      budget: 2450,
+      currency: 'EUR',
+      durationNights: 7,
+      travelStyle: 'Mid-range',
+    });
 
     saveResult.next(response);
     saveResult.complete();
 
     expect(component.savedTripPlanningId()).toBe(10);
+    expect(navigateSpy).toHaveBeenCalledWith(['/trips/create/destination']);
   });
 
   it('sends the user-entered budget through the manual flow', () => {
@@ -135,6 +152,13 @@ describe('BudgetComponent', () => {
       budget: 1234,
       currency: 'EUR',
       duration: 7,
+      travelStyle: 'Mid-range',
+    });
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
+      tripName: 'Summer in Italy',
+      budget: 1234,
+      currency: 'EUR',
+      durationNights: 7,
       travelStyle: 'Mid-range',
     });
   });

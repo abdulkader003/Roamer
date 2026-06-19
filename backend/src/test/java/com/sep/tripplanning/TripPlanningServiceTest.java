@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,5 +67,26 @@ class TripPlanningServiceTest {
         assertThat(response.id()).isEqualTo(10L);
         assertThat(response.budget()).isEqualByComparingTo("2500.00");
         assertThat(response.travelStyle()).isEqualTo("Mid-range");
+    }
+
+    @Test
+    void listsOnlyTripsForAuthenticatedUser() {
+        TripPlanning tripPlanning = new TripPlanning();
+        tripPlanning.setId(11L);
+        tripPlanning.setTripName("Business Conference");
+        tripPlanning.setBudget(new BigDecimal("1200.00"));
+        tripPlanning.setCurrency("EUR");
+        tripPlanning.setDuration(3);
+        tripPlanning.setTravelStyle("Budget");
+
+        when(tripPlanningRepository.findByUserEmailIgnoreCaseOrderByUpdatedAtDesc("traveler@example.com"))
+                .thenReturn(List.of(tripPlanning));
+
+        List<TripBudgetResponse> trips = tripPlanningService.findTripsForUser("traveler@example.com");
+
+        verify(tripPlanningRepository).findByUserEmailIgnoreCaseOrderByUpdatedAtDesc("traveler@example.com");
+        assertThat(trips).hasSize(1);
+        assertThat(trips.get(0).tripName()).isEqualTo("Business Conference");
+        assertThat(trips.get(0).budget()).isEqualByComparingTo("1200.00");
     }
 }
