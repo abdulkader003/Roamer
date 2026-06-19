@@ -1,6 +1,6 @@
 import { CommonModule, Location } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { ActivitiesService, Activity, ActivityAttraction, ActivityImage, ActivityPresale } from '../../services/activities';
 import { StatusToastComponent, StatusToastType } from '../../shared/status-toast/status-toast.component';
@@ -8,7 +8,7 @@ import { StatusToastComponent, StatusToastType } from '../../shared/status-toast
 @Component({
   selector: 'app-activity-details',
   standalone: true,
-  imports: [CommonModule, RouterLink, StatusToastComponent],
+  imports: [CommonModule, StatusToastComponent],
   templateUrl: './activity-details.html',
   styleUrls: ['./activity-details.css'],
 })
