@@ -1,19 +1,14 @@
 <main class="main-content">
 
     <!-- Hero -->
-    <div class="hero">
+    <div class="hero dashboard-hero">
       <div class="hero-overlay"></div>
       <div class="hero-overlay-gradient"></div>
       <div class="hero-content">
         <p class="hero-sup">Good Evening</p>
         <h1 class="hero-title">Where to next?</h1>
         <p class="hero-desc">Flights, events, activities, attractions, beaches and parties – all in one luxurious place.</p>
-        <button
-          class="hero-btn"
-          type="button"
-          [class.hero-btn--departing]="isPlanningTrip()"
-          [disabled]="isPlanningTrip()"
-          (click)="planNextAdventure()">
+        <button class="hero-btn" routerLink="/trips/create/destination">
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
           </svg>
@@ -78,7 +73,7 @@
     <div class="three-col-grid">
 
       <!-- Upcoming Trips -->
-      <div class="section-card">
+      <div class="section-card trips-card">
         <div class="section-header">
           <span class="section-title">Upcoming Trips</span>
           <a href="#" class="view-all">View All</a>
@@ -107,25 +102,43 @@
         }
       </div>
 
-      <!-- World Weather -->
-      <div class="section-card">
+      <!-- Weather -->
+      <div class="section-card weather-card">
         <div class="section-header">
-          <span class="section-title">World Weather</span>
-          <a href="#" class="view-all">View More</a>
+          <span class="section-title">Weather</span>
+          <button type="button" class="view-all weather-refresh" (click)="loadWeather(true)">Refresh</button>
         </div>
-        <div class="world-weather-list">
-          @for (weather of worldWeather(); track weather.city) {
-            <div class="world-weather-row">
-              <span class="world-weather-city">{{ weather.city }}</span>
-              <span class="world-weather-icon">{{ weather.icon }}</span>
-              <span class="world-weather-temp">{{ weather.temperature }}</span>
-            </div>
-          }
-        </div>
+
+        @if (isWeatherLoading()) {
+          <div class="weather-state">Loading weather...</div>
+        } @else if (weatherError()) {
+          <div class="weather-state weather-state-error">{{ weatherError() }}</div>
+        } @else if (weather().length > 0) {
+          <div class="weather-grid">
+            @for (currentWeather of weather(); track currentWeather.city) {
+              <div class="weather-current" [class.weather-current-error]="currentWeather.error">
+                <div class="weather-card-top">
+                  <div class="weather-icon" aria-hidden="true">{{ getWeatherIcon(currentWeather) }}</div>
+                  <div class="weather-temp">{{ formatTemperature(currentWeather.temperatureC) }}</div>
+                </div>
+                <div class="weather-summary">
+                  <p class="weather-city">{{ currentWeather.city }}</p>
+                  <p class="weather-condition">{{ currentWeather.error || currentWeather.condition || 'Current forecast' }}</p>
+                </div>
+                <div class="weather-details">
+                  <span>Humidity {{ currentWeather.humidity ?? '--' }}%</span>
+                  <span>Wind {{ currentWeather.windKph ?? '--' }} km/h</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="weather-state">No weather data available.</div>
+        }
       </div>
 
       <!-- Calendar -->
-      <div class="section-card">
+      <div class="section-card calendar-card">
         <div class="section-header">
           <span class="section-title">Travel Calendar</span>
           <a href="/calendar" class="view-all">View Full Calendar</a>
@@ -155,7 +168,7 @@
     </div>
 
     <!-- Recommended Experiences -->
-    <div class="section-card">
+    <div class="section-card recommendations-card">
       <div class="section-header">
         <span class="section-title">Recommended Experiences</span>
         <div class="rec-arrows">
@@ -189,7 +202,7 @@
     <div class="bottom-grid">
 
       <!-- Budget Overview -->
-      <div class="section-card">
+      <div class="section-card budget-card">
         <div class="section-header">
           <span class="section-title">Budget Overview</span>
           <a href="#" class="view-all">View Report</a>
@@ -227,7 +240,7 @@
       </div>
 
       <!-- Quick Actions -->
-      <div class="section-card">
+      <div class="section-card quick-actions-card">
         <div class="section-header">
           <span class="section-title">Quick Actions</span>
         </div>

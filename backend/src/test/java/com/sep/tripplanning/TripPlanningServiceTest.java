@@ -83,6 +83,7 @@ class TripPlanningServiceTest {
     }
 
     @Test
+<<<<<<< backend/src/test/java/com/sep/tripplanning/TripPlanningServiceTest.java
     void savesSelectedHotelForOwnedTripPlanningRecord() {
         AppUser user = new AppUser();
         user.setEmail("traveler@example.com");
@@ -199,5 +200,26 @@ class TripPlanningServiceTest {
                 "traveler@example.com"
         )).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
+    }
+=======
+    void listsOnlyTripsForAuthenticatedUser() {
+        TripPlanning tripPlanning = new TripPlanning();
+        tripPlanning.setId(11L);
+        tripPlanning.setTripName("Business Conference");
+        tripPlanning.setBudget(new BigDecimal("1200.00"));
+        tripPlanning.setCurrency("EUR");
+        tripPlanning.setDuration(3);
+        tripPlanning.setTravelStyle("Budget");
+
+        when(tripPlanningRepository.findByUserEmailIgnoreCaseOrderByUpdatedAtDesc("traveler@example.com"))
+                .thenReturn(List.of(tripPlanning));
+
+        List<TripBudgetResponse> trips = tripPlanningService.findTripsForUser("traveler@example.com");
+
+        verify(tripPlanningRepository).findByUserEmailIgnoreCaseOrderByUpdatedAtDesc("traveler@example.com");
+        assertThat(trips).hasSize(1);
+        assertThat(trips.get(0).tripName()).isEqualTo("Business Conference");
+        assertThat(trips.get(0).budget()).isEqualByComparingTo("1200.00");
+>>>>>>> backend/src/test/java/com/sep/tripplanning/TripPlanningServiceTest.java
     }
 }

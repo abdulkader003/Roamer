@@ -45,6 +45,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/verify-email").permitAll()
@@ -52,7 +57,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password/verify").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/api/trips/**").authenticated()
                         .requestMatchers("/api/calendar-events/**").authenticated()
+                        .requestMatchers("/api/weather/**").authenticated()
                         .requestMatchers("/api/travel-documents/**").authenticated()
                         .requestMatchers("/api/trip-planning/**").authenticated()
                         .anyRequest().permitAll()

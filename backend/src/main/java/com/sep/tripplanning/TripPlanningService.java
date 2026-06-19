@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+<<<<<<< backend/src/main/java/com/sep/tripplanning/TripPlanningService.java
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,7 @@ public class TripPlanningService {
         return toResponse(saved);
     }
 
+<<<<<<< backend/src/main/java/com/sep/tripplanning/TripPlanningService.java
     @Transactional
     public TripHotelResponse saveHotel(Long tripPlanningId, SelectTripHotelRequest request, String authenticatedEmail) {
         TripPlanning tripPlanning = tripPlanningRepository.findById(tripPlanningId)
@@ -99,6 +101,16 @@ public class TripPlanningService {
         tripPlanning.setSelectedActivities(activities);
 
         return toActivitiesResponse(tripPlanningRepository.save(tripPlanning));
+    }
+
+=======
+    @Transactional(readOnly = true)
+    public List<TripBudgetResponse> findTripsForUser(String authenticatedEmail) {
+        return tripPlanningRepository.findByUserEmailIgnoreCaseOrderByUpdatedAtDesc(authenticatedEmail)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+>>>>>>> backend/src/main/java/com/sep/tripplanning/TripPlanningService.java
     }
 
     private TripBudgetResponse toResponse(TripPlanning tripPlanning) {

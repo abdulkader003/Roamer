@@ -1,0 +1,357 @@
+<main class="destination-page">
+  <nav class="wizard-progress" aria-label="Create trip progress">
+    @for (step of steps; track step.number; let last = $last) {
+      <div
+        class="wizard-step"
+        [class.wizard-step--complete]="step.state === 'complete'"
+        [class.wizard-step--active]="step.state === 'active'">
+        <span class="step-circle">
+          @if (step.state === 'complete') {
+            <span aria-hidden="true">✓</span>
+          } @else {
+            {{ step.number }}
+          }
+        </span>
+        <span class="step-label">{{ step.label }}</span>
+      </div>
+
+      @if (!last) {
+        <span class="step-line" [class.step-line--complete]="step.state === 'complete'" aria-hidden="true"></span>
+      }
+    }
+  </nav>
+
+  <section class="destination-content">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span>›</span>
+      <a routerLink="/trips/create/budget">Budget</a>
+      <span>›</span>
+      <strong>Create Trip</strong>
+    </nav>
+
+    <header class="page-header">
+      <h1>Choose your <em>destination</em>.</h1>
+      <p>Where are you headed? We'll find the best flights, hotels and activities.</p>
+    </header>
+
+    <form #destinationForm="ngForm" (ngSubmit)="continueToFlights(destinationForm)" novalidate>
+      <div class="trip-tabs" role="tablist" aria-label="Trip type">
+        @for (type of tripTypes; track type.id) {
+          <button
+            type="button"
+            role="tab"
+            class="trip-tab"
+            [class.active]="tripType === type.id"
+            [attr.aria-selected]="tripType === type.id"
+            (click)="setTripType(type.id)">
+            {{ type.label }}
+          </button>
+        }
+      </div>
+
+      @if (tripType !== 'multi-city') {
+        <section class="destination-card">
+          <label class="destination-field airport-field">
+            <span class="field-label">From</span>
+            <input
+              type="text"
+              name="origin"
+              placeholder="Add origin"
+              required
+              [ngModel]="origin"
+              (ngModelChange)="updateAirportText('origin', $event)"
+              (focus)="showAirportSuggestions('origin')" />
+            <span class="field-meta">Type a city or airport code</span>
+
+            @if (activeAirportPicker === 'origin' && airportSuggestions('origin').length) {
+              <div class="airport-suggestions">
+                @for (airport of airportSuggestions('origin'); track airport.code) {
+                  <button type="button" class="airport-option" (mousedown)="$event.preventDefault(); selectAirport('origin', airport)">
+                    <strong>{{ airport.city }}</strong>
+                    <span>{{ airport.fullName }}</span>
+                    <em>{{ airport.code }}</em>
+                  </button>
+                }
+              </div>
+            }
+          </label>
+
+          <label class="destination-field airport-field airport-field--to">
+            <span class="field-label">To</span>
+            <input
+              type="text"
+              name="destination"
+              placeholder="Add destination"
+              required
+              [ngModel]="destination"
+              (ngModelChange)="updateAirportText('destination', $event)"
+              (focus)="showAirportSuggestions('destination')" />
+            <span class="field-meta">Type a city or airport code</span>
+
+            @if (activeAirportPicker === 'destination' && airportSuggestions('destination').length) {
+              <div class="airport-suggestions">
+                @for (airport of airportSuggestions('destination'); track airport.code) {
+                  <button type="button" class="airport-option" (mousedown)="$event.preventDefault(); selectAirport('destination', airport)">
+                    <strong>{{ airport.city }}</strong>
+                    <span>{{ airport.fullName }}</span>
+                    <em>{{ airport.code }}</em>
+                  </button>
+                }
+              </div>
+            }
+          </label>
+
+          <button type="button" class="swap-button" aria-label="Swap origin and destination" (click)="swapAirports()">⇄</button>
+
+          <div class="destination-field date-field" [class.open]="activeDatePicker === 'departure'">
+            <button
+              type="button"
+              class="date-trigger"
+              aria-label="Choose departure date"
+              [attr.aria-expanded]="activeDatePicker === 'departure'"
+              (click)="toggleDatePicker('departure')">
+              <span class="field-label">Departure</span>
+              <span class="field-value" [class.placeholder]="!departureDate">{{ formatDate(departureDate) }}</span>
+              <span class="field-meta">{{ departureDate ? formatYear(departureDate) : 'Outbound date' }}</span>
+            </button>
+          </div>
+
+          <div class="destination-field date-field" [class.open]="activeDatePicker === 'return'" [class.disabled]="tripType !== 'round-trip'">
+            <button
+              type="button"
+              class="date-trigger"
+              aria-label="Choose return date"
+              [disabled]="tripType !== 'round-trip'"
+              [attr.aria-expanded]="activeDatePicker === 'return'"
+              (click)="toggleDatePicker('return')">
+              <span class="field-label">Return</span>
+              <span class="field-value" [class.placeholder]="!returnDate">
+                {{ returnDate ? formatDate(returnDate) : '— add return —' }}
+              </span>
+              <span class="field-meta">{{ returnDate ? formatYear(returnDate) : 'Optional' }}</span>
+            </button>
+          </div>
+
+          <div class="destination-field traveler-field">
+            <span class="field-label">Travelers</span>
+            <div class="traveler-control">
+              <button type="button" [disabled]="travelers <= 1" (click)="changeTravelers(-1)">−</button>
+              <strong>{{ travelers }}</strong>
+              <button type="button" [disabled]="travelers >= 10" (click)="changeTravelers(1)">+</button>
+            </div>
+            <span class="field-meta">{{ travelers }} {{ travelers === 1 ? 'Adult' : 'Adults' }}</span>
+          </div>
+        </section>
+      } @else {
+        <section class="multi-city-builder" aria-label="Multi-city route">
+          @for (segment of multiCitySegments; track $index; let i = $index) {
+            <div class="multi-city-row">
+              <span class="segment-number">{{ i + 1 }}</span>
+
+              <label class="destination-field airport-field">
+                <span class="field-label">From</span>
+                <input
+                  type="text"
+                  [value]="segment.fromText"
+                  (input)="updateMultiCityText(i, 'fromText', $any($event.target).value)"
+                  (focus)="showMultiCityAirportSuggestions(i, 'fromText')"
+                  placeholder="Add origin" />
+                <span class="field-meta">Type a city or airport code</span>
+
+                @if (isMultiCityAirportPickerOpen(i, 'fromText') && multiCityAirportSuggestions(i, 'fromText').length) {
+                  <div class="airport-suggestions">
+                    @for (airport of multiCityAirportSuggestions(i, 'fromText'); track airport.code) {
+                      <button type="button" class="airport-option" (mousedown)="$event.preventDefault(); selectMultiCityAirport(i, 'fromText', airport)">
+                        <strong>{{ airport.city }}</strong>
+                        <span>{{ airport.fullName }}</span>
+                        <em>{{ airport.code }}</em>
+                      </button>
+                    }
+                  </div>
+                }
+              </label>
+
+              <label class="destination-field airport-field airport-field--to">
+                <span class="field-label">To</span>
+                <input
+                  type="text"
+                  [value]="segment.toText"
+                  (input)="updateMultiCityText(i, 'toText', $any($event.target).value)"
+                  (focus)="showMultiCityAirportSuggestions(i, 'toText')"
+                  placeholder="Add destination" />
+                <span class="field-meta">Type a city or airport code</span>
+
+                @if (isMultiCityAirportPickerOpen(i, 'toText') && multiCityAirportSuggestions(i, 'toText').length) {
+                  <div class="airport-suggestions">
+                    @for (airport of multiCityAirportSuggestions(i, 'toText'); track airport.code) {
+                      <button type="button" class="airport-option" (mousedown)="$event.preventDefault(); selectMultiCityAirport(i, 'toText', airport)">
+                        <strong>{{ airport.city }}</strong>
+                        <span>{{ airport.fullName }}</span>
+                        <em>{{ airport.code }}</em>
+                      </button>
+                    }
+                  </div>
+                }
+              </label>
+
+              <div class="destination-field date-field" [class.open]="activeMultiCityDatePicker === i">
+                <button
+                  type="button"
+                  class="date-trigger"
+                  [attr.aria-label]="'Choose date for segment ' + (i + 1)"
+                  [attr.aria-expanded]="activeMultiCityDatePicker === i"
+                  (click)="toggleMultiCityDatePicker(i)">
+                  <span class="field-label">Date</span>
+                  <span class="field-value" [class.placeholder]="!segment.date">
+                    {{ segment.date ? formatDate(segment.date) : 'Choose date' }}
+                  </span>
+                  <span class="field-meta">{{ segment.date ? formatYear(segment.date) : 'Segment ' + (i + 1) }}</span>
+                </button>
+              </div>
+
+              <button type="button" class="segment-remove" [disabled]="multiCitySegments.length <= 2" (click)="removeMultiCitySegment(i)">×</button>
+            </div>
+          }
+
+          <div class="multi-city-actions">
+            <button type="button" class="add-segment-button" (click)="addMultiCitySegment()">
+              <span>+</span>
+              Add city
+            </button>
+
+            <div class="destination-field traveler-field">
+              <span class="field-label">Travelers</span>
+              <div class="traveler-control">
+                <button type="button" [disabled]="travelers <= 1" (click)="changeTravelers(-1)">−</button>
+                <strong>{{ travelers }}</strong>
+                <button type="button" [disabled]="travelers >= 10" (click)="changeTravelers(1)">+</button>
+              </div>
+              <span class="field-meta">{{ travelers }} {{ travelers === 1 ? 'Adult' : 'Adults' }}</span>
+            </div>
+          </div>
+        </section>
+      }
+
+      <section class="popular-section">
+        <h2>Popular destinations</h2>
+        <div class="destination-chips">
+          @for (city of popularDestinations; track city) {
+            <button type="button" [class.destination-chip--selected]="destination === city" (click)="selectDestination(city)">
+              {{ city }}
+            </button>
+          }
+        </div>
+      </section>
+
+      @if (formError) {
+        <p class="form-error" role="alert">{{ formError }}</p>
+      }
+
+      <footer class="page-actions">
+        <a class="back-button" routerLink="/trips/create/budget">← Back</a>
+        <button class="continue-button" type="submit">Continue - Search Flights →</button>
+      </footer>
+    </form>
+
+    @if (activeDatePicker || activeMultiCityDatePicker !== null) {
+      <div
+        class="date-popover-backdrop"
+        role="presentation"
+        (click)="closeDatePicker()">
+        <section
+          class="date-popover"
+          role="dialog"
+          aria-modal="true"
+          [attr.aria-label]="activeDatePickerTitle()"
+          (click)="$event.stopPropagation()">
+          <header class="date-popover__head">
+            <div>
+              <span class="date-popover__eyebrow">Trip dates</span>
+              <h3>{{ activeDatePickerTitle() }}</h3>
+            </div>
+            <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </header>
+
+          <div class="date-popover__body">
+            <aside class="date-manual">
+              <label>
+                <span>Manual date</span>
+                <input
+                  type="text"
+                  [value]="manualDateText"
+                  (input)="updateActiveDatePickerInput($any($event.target).value)"
+                  placeholder="YYYY-MM-DD"
+                  inputmode="numeric"
+                  [class.invalid]="manualDateError"
+                  [attr.aria-invalid]="manualDateError ? 'true' : 'false'"
+                  aria-describedby="destination-manual-date-hint"
+                  [attr.aria-label]="activeDatePickerTitle()" />
+              </label>
+              <p
+                id="destination-manual-date-hint"
+                class="date-hint"
+                [class.error]="manualDateError">
+                {{ activeDatePickerHint() }}
+              </p>
+
+              @if (tripType === 'round-trip' && activeMultiCityDatePicker === null) {
+                <p class="date-range-summary">
+                  {{ departureDate ? formatDate(departureDate) : 'Departure' }}
+                  →
+                  {{ returnDate ? formatDate(returnDate) : 'Return' }}
+                </p>
+              }
+
+              @if (activeDatePicker === 'return') {
+                <button type="button" class="date-clear" (click)="clearReturnDate()">Clear return</button>
+              }
+            </aside>
+
+            <div class="date-calendar">
+              <div class="date-calendar__toolbar">
+                <button type="button" aria-label="Previous month" (click)="moveDatePickerMonth(-1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <strong>{{ datePickerMonthLabel() }}</strong>
+                <button type="button" aria-label="Next month" (click)="moveDatePickerMonth(1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="date-weekdays">
+                @for (day of weekDays; track day) {
+                  <span>{{ day }}</span>
+                }
+              </div>
+
+              <div class="date-days">
+                @for (day of calendarDays(); track day.date.getTime()) {
+                  <button
+                    type="button"
+                    [class.muted]="!day.inCurrentMonth"
+                    [class.selected]="day.isSelected"
+                    [class.range-start]="day.isRangeStart"
+                    [class.range-end]="day.isRangeEnd"
+                    [class.in-range]="day.isInRange"
+                    [class.today]="day.isToday"
+                    (click)="selectCalendarDate(day.date)">
+                    {{ day.dayNumber }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+  </section>
+</main>

@@ -5,6 +5,7 @@ import {
   CreateTripBudgetRequest,
   TripPlanningService,
 } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 
 type TravelStyle = 'budget' | 'mid-range' | 'luxury';
 
@@ -31,8 +32,10 @@ interface TripStep {
 })
 export class BudgetComponent {
   private readonly formBuilder = inject(FormBuilder);
-  private readonly tripPlanningService = inject(TripPlanningService);
   private readonly router = inject(Router);
+  private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly tripTempService = inject(TripTempService);
+
 
   readonly steps: TripStep[] = [
     { label: 'Budget', route: '/trips/create/budget' },
@@ -212,6 +215,13 @@ export class BudgetComponent {
 
     this.isSaving.set(true);
     this.saveError.set('');
+    this.tripTempService.updateTripTemp({
+      tripName: request.tripName,
+      budget,
+      currency,
+      durationNights: request.duration,
+      travelStyle: request.travelStyle,
+    });
 
     // Both flows save through the same backend endpoint.
     this.tripPlanningService.saveBudgetStep(request).subscribe({
@@ -219,6 +229,7 @@ export class BudgetComponent {
         this.savedTripPlanningId.set(response.id);
         this.isSaving.set(false);
         this.navigateAfterBudgetSave(response.id);
+
       },
       error: () => {
         this.saveError.set('Could not save your budget. Please try again.');

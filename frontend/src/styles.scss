@@ -69,12 +69,29 @@
   --badge-pending-bg:       #FEF3C7;
   --badge-pending-text:     #92400E;
   --badge-pending-border:   transparent;
+  --status-normal:   #0F766E;
+  --status-normal-bg: rgba(15,118,110,0.12);
+  --status-normal-border: rgba(15,118,110,0.22);
+  --status-near-limit:     #B7791F;
+  --status-near-limit-bg:  rgba(183,121,31,0.14);
+  --status-near-limit-border: rgba(183,121,31,0.24);
+  --status-over-budget:     #BE4B61;
+  --status-over-budget-bg:  rgba(190,75,97,0.12);
+  --status-over-budget-border: rgba(190,75,97,0.22);
 
   /* Calendar today */
   --today-text: #FFFFFF;
 
   /* Donut */
   --donut-track: #E5E7EB;
+  --budget-chart-flights: var(--accent);
+  --budget-chart-hotels: #0EA5E9;
+  --budget-chart-food: #F59E0B;
+  --budget-chart-transport: #7C3AED;
+  --budget-chart-activities: #EC4899;
+  --overview-chart-line: #1A56DB;
+  --overview-chart-fill: rgba(26,86,219,0.07);
+  --overview-chart-dot-fill: #FFFFFF;
 
   /* Cards */
   --card-shadow: rgba(0,0,0,0.09);
@@ -164,12 +181,29 @@
   --badge-pending-bg:       rgba(201,150,42,0.12);
   --badge-pending-text:     #C9962A;
   --badge-pending-border:   rgba(201,150,42,0.30);
+  --status-normal:   #5FBFA8;
+  --status-normal-bg: rgba(95,191,168,0.12);
+  --status-normal-border: rgba(95,191,168,0.24);
+  --status-near-limit:     #D6A43A;
+  --status-near-limit-bg:  rgba(214,164,58,0.14);
+  --status-near-limit-border: rgba(214,164,58,0.28);
+  --status-over-budget:     #D77A8B;
+  --status-over-budget-bg:  rgba(215,122,139,0.13);
+  --status-over-budget-border: rgba(215,122,139,0.25);
 
   /* Calendar today */
   --today-text: #0D0D0D;
 
   /* Donut */
   --donut-track: #222222;
+  --budget-chart-flights: #1A56DB;
+  --budget-chart-hotels: #0EA5E9;
+  --budget-chart-food: #F59E0B;
+  --budget-chart-transport: #7C3AED;
+  --budget-chart-activities: #EC4899;
+  --overview-chart-line: #6F8FB8;
+  --overview-chart-fill: rgba(111,143,184,0.08);
+  --overview-chart-dot-fill: #141414;
 
   /* Cards */
   --card-shadow: rgba(0,0,0,0.40);

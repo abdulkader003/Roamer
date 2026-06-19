@@ -83,4 +83,10 @@ export class TripPlanningService {
       headers: this.authService.authHeader(),
     });
   }
-}
+
+  listTrips(): Observable<TripBudgetResponse[]> {
+    return this.http.get<TripBudgetResponse[]>(this.apiUrl, {
+      headers: this.authService.authHeader(),
+    });
+  }
+  
