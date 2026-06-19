@@ -269,16 +269,34 @@
 }
 
 /* ── Line chart (User Story #2) ── */
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.overview-card .section-header {
+  flex-shrink: 0;
+}
+
 .chart-wrapper {
   width: 100%;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: clamp(250px, 25vw, 330px);
+  padding-top: clamp(12px, 1.4vw, 18px);
+  padding-bottom: 0;
 }
 
 .chart-svg-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 600 / 220;
+  height: clamp(210px, 21vw, 285px);
   overflow: visible;
-  margin-top: -8px;
+  margin-top: 0;
 }
 
 .line-chart {
@@ -287,51 +305,59 @@
   display: block;
 }
 
+.chart-grid-line {
+  stroke: color-mix(in srgb, var(--border) 54%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 .chart-axis {
   stroke: color-mix(in srgb, var(--border) 78%, transparent);
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 .chart-area {
   fill: var(--overview-chart-fill);
-  animation: chartAreaFadeIn 1.65s 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: chartAreaFadeIn 0.85s 0.12s ease-out both;
 }
 
 .chart-line {
   fill: none;
   stroke: var(--overview-chart-line);
-  stroke-width: 2.6;
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--overview-chart-line) 12%, transparent));
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  animation: chartLineDraw 1.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  filter: drop-shadow(0 3px 7px color-mix(in srgb, var(--overview-chart-line) 12%, transparent));
+  animation: chartLineReveal 0.72s 0.08s ease-out both;
 }
 
 .chart-point {
   fill: var(--overview-chart-dot-fill);
   stroke: var(--overview-chart-line);
-  stroke-width: 2.2;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  filter: drop-shadow(0 2px 5px color-mix(in srgb, var(--overview-chart-line) 16%, transparent));
-  animation: chartPointReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--overview-chart-line) 14%, transparent));
+  animation: chartPointReveal 0.36s ease-out both;
 }
 
 .chart-labels {
   position: relative;
   width: 100%;
-  height: 22px;
-  margin-top: 8px;
+  height: 18px;
+  margin-top: 6px;
+  margin-bottom: 0;
 }
 
 .chart-label {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  font-size: 13px;
+  font-size: clamp(10px, 0.82vw, 12px);
   font-weight: 700;
   color: var(--text-muted);
   line-height: 1.2;
@@ -359,13 +385,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(18px, 3vw, 34px);
-  min-height: 360px;
+  gap: clamp(14px, 2vw, 28px);
+  min-height: clamp(260px, 24vw, 360px);
+  min-width: 0;
 }
 
 .donut-wrapper {
   position: relative;
-  width: clamp(300px, 34vw, 440px);
+  width: clamp(260px, 45%, 410px);
+  max-width: min(100%, 410px);
   aspect-ratio: 1;
   flex-shrink: 0;
   filter: drop-shadow(0 14px 22px color-mix(in srgb, var(--accent) 14%, transparent));
@@ -406,14 +434,14 @@
 }
 
 .donut-center-value {
-  font-size: clamp(28px, 3.2vw, 38px);
+  font-size: clamp(22px, 2.4vw, 36px);
   font-weight: 800;
   color: var(--text-primary);
   line-height: 1;
 }
 
 .donut-center-label {
-  font-size: 12px;
+  font-size: clamp(10px, 0.9vw, 12px);
   font-weight: 700;
   color: var(--text-muted);
   margin-top: 8px;
@@ -422,9 +450,9 @@
 .donut-legend {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: clamp(8px, 1vw, 10px);
   flex: 1;
-  min-width: 190px;
+  min-width: min(190px, 100%);
   max-width: 260px;
 }
 
@@ -432,12 +460,12 @@
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: clamp(8px, 1vw, 12px);
+  padding: clamp(8px, 1vw, 10px) clamp(9px, 1vw, 12px);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-secondary);
-  font-size: 13px;
+  font-size: clamp(12px, 0.95vw, 13px);
   color: var(--text-primary);
   animation: legendRowReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
@@ -479,12 +507,14 @@
   color: var(--accent);
 }
 
-@keyframes chartLineDraw {
+@keyframes chartLineReveal {
   from {
-    stroke-dashoffset: 1;
+    opacity: 0;
+    transform: translateY(4px);
   }
   to {
-    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -551,6 +581,91 @@
 }
 
 @media (max-width: 1200px) {
+  .donut-wrapper {
+    width: clamp(250px, 44%, 330px);
+  }
+}
+
+@media (max-width: 1080px) {
+  .donut-layout {
+    flex-direction: column;
+    min-height: 0;
+    align-items: center;
+  }
+
+  .donut-legend {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1200px) {
+  .chart-wrapper {
+    min-height: clamp(240px, 27vw, 310px);
+  }
+
+  .chart-svg-wrapper {
+    height: clamp(200px, 23vw, 260px);
+  }
+
+  .chart-card {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .donut-layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .donut-wrapper {
+    width: clamp(230px, 74vw, 300px);
+  }
+
+  .legend-row {
+    padding: 9px 10px;
+  }
+}
+
+/* ── Charts row layout ── */
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 1.8vw, 20px);
+  align-items: stretch;
+}
+
+.chart-card {
+  min-width: 0;
+  padding-top: 14px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-wrapper {
+    min-height: clamp(245px, 40vw, 320px);
+  }
+
+  .chart-svg-wrapper {
+    height: clamp(205px, 34vw, 270px);
+  }
+
+  .donut-layout {
+    flex-direction: row;
+    min-height: clamp(260px, 36vw, 320px);
+  }
+
+  .donut-wrapper {
+    width: clamp(240px, 36vw, 300px);
+  }
+}
+
+@media (max-width: 720px) {
   .donut-layout {
     flex-direction: column;
     min-height: 0;
@@ -562,37 +677,22 @@
   }
 }
 
-@media (max-width: 600px) {
-  .donut-layout {
-    flex-direction: column;
-    gap: 18px;
+@media (max-width: 520px) {
+  .section-card.chart-card {
+    padding: 14px;
   }
 
-  .donut-wrapper {
-    width: min(100%, 320px);
+  .chart-wrapper {
+    min-height: clamp(230px, 68vw, 300px);
+    padding-top: 8px;
   }
 
-  .legend-row {
-    padding: 9px 10px;
+  .chart-svg-wrapper {
+    height: clamp(190px, 58vw, 250px);
   }
-}
 
-/* ── Charts row layout ── */
-.charts-row {
-  display: flex;
-  gap: 20px;
-  align-items: stretch;
-}
-
-.chart-card {
-  flex: 1;
-  min-width: 0;
-  padding-top: 14px;
-}
-
-@media (max-width: 900px) {
-  .charts-row {
-    flex-direction: column;
+  .chart-label {
+    font-size: 11px;
   }
 }
 
@@ -811,6 +911,270 @@
   border-color: var(--accent-border);
 }
 
+.expense-category-menu {
+  position: relative;
+  width: 100%;
+}
+
+.expense-category-button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.expense-category-button:hover,
+.expense-category-button:focus-visible {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.expense-category-button svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.expense-category-button[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.expense-category-options {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  right: 0;
+  z-index: 70;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-primary);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--card-shadow) 90%, transparent);
+  animation: expenseCategoryMenuReveal 0.16s ease both;
+}
+
+.expense-category-option {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 10px 12px;
+  text-align: left;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.expense-category-option:hover,
+.expense-category-option:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.expense-category-option.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+@keyframes expenseCategoryMenuReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.expense-date-picker {
+  position: relative;
+  width: 100%;
+}
+
+.expense-date-button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.expense-date-button:hover,
+.expense-date-button:focus-visible {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.expense-date-button svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.expense-calendar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 7px);
+  z-index: 75;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-primary);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--card-shadow) 90%, transparent);
+  padding: 12px;
+  animation: expenseCalendarReveal 0.16s ease both;
+}
+
+.expense-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.expense-calendar-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.expense-calendar-nav {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.expense-calendar-nav:hover,
+.expense-calendar-nav:focus-visible {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.expense-calendar-weekdays,
+.expense-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.expense-calendar-weekdays {
+  margin-bottom: 6px;
+}
+
+.expense-calendar-weekdays span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.expense-calendar-day {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.expense-calendar-day:hover,
+.expense-calendar-day:focus-visible {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.expense-calendar-day.muted {
+  color: var(--text-dim);
+}
+
+.expense-calendar-day.today {
+  border-color: var(--accent-border);
+}
+
+.expense-calendar-day.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+[data-theme='dark'] .expense-calendar-day.selected {
+  color: #0D0D0D;
+}
+
+@keyframes expenseCalendarReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .expense-form-actions {
   display: flex;
   justify-content: flex-end;
@@ -840,7 +1204,17 @@
 
 
 /* -- Trip table (User Story 6) -- */
-.trip-filter {
+.trip-filter-menu {
+  position: relative;
+  z-index: 20;
+}
+
+.trip-filter-button {
+  min-width: 150px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 12px;
@@ -849,6 +1223,82 @@
   color: var(--text-primary);
   background: var(--surface-secondary);
   cursor: pointer;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--card-shadow) 38%, transparent);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trip-filter-button:hover,
+.trip-filter-button:focus-visible {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.trip-filter-button svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.trip-filter-button[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.trip-filter-options {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-primary);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--card-shadow) 90%, transparent);
+  animation: tripFilterMenuReveal 0.16s ease both;
+}
+
+.trip-filter-option {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 10px 12px;
+  text-align: left;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.trip-filter-option:hover,
+.trip-filter-option:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.trip-filter-option.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+@keyframes tripFilterMenuReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .trip-table-wrapper {
