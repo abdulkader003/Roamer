@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   CreateTripBudgetRequest,
   TripPlanningService,
 } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 
 type TravelStyle = 'budget' | 'mid-range' | 'luxury';
 
@@ -14,6 +15,11 @@ interface TravelStyleOption {
   description: string;
   icon: string;
   ratePerNight: number;
+}
+
+interface TripStep {
+  label: string;
+  route?: string;
 }
 
 @Component({
@@ -26,9 +32,19 @@ interface TravelStyleOption {
 })
 export class BudgetComponent {
   private readonly formBuilder = inject(FormBuilder);
+  private readonly router = inject(Router);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly tripTempService = inject(TripTempService);
 
-  readonly steps = ['Budget', 'Destination', 'Flights', 'Hotels', 'Activities', 'Overview'];
+
+  readonly steps: TripStep[] = [
+    { label: 'Budget', route: '/trips/create/budget' },
+    { label: 'Destination', route: '/trips/create/destination' },
+    { label: 'Flights' },
+    { label: 'Hotels', route: '/trips/create/hotels' },
+    { label: 'Activities', route: '/trips/create/activities' },
+    { label: 'Overview' },
+  ];
   readonly selectedTravelStyle = signal<TravelStyle>('mid-range');
   readonly recommendedBudget = signal(2450);
   readonly recommendationUpdated = signal(false);
@@ -158,6 +174,10 @@ export class BudgetComponent {
     );
   }
 
+  stepRoute(step: TripStep): string | null {
+    return step.route && this.routeExists(step.route) ? step.route : null;
+  }
+
   continueWithRecommendedBudget(): void {
     if (this.recommendedFlowInvalid() || this.isSaving()) {
       this.budgetForm.controls.tripName.markAsTouched();
@@ -195,18 +215,45 @@ export class BudgetComponent {
 
     this.isSaving.set(true);
     this.saveError.set('');
+    this.tripTempService.updateTripTemp({
+      tripName: request.tripName,
+      budget,
+      currency,
+      durationNights: request.duration,
+      travelStyle: request.travelStyle,
+    });
 
     // Both flows save through the same backend endpoint.
     this.tripPlanningService.saveBudgetStep(request).subscribe({
       next: (response) => {
         this.savedTripPlanningId.set(response.id);
         this.isSaving.set(false);
-        // TODO: Navigate to /trips/create/destination when the Destination step is implemented.
+        this.navigateAfterBudgetSave(response.id);
+
       },
       error: () => {
         this.saveError.set('Could not save your budget. Please try again.');
         this.isSaving.set(false);
       },
     });
+  }
+
+  private navigateAfterBudgetSave(tripPlanningId: number): void {
+    const destinationRoute = '/trips/create/destination';
+
+    if (this.routeExists(destinationRoute)) {
+      void this.router.navigate([destinationRoute], { queryParams: { tripPlanningId } });
+      return;
+    }
+
+    // Flights step is skipped until it is implemented.
+    if (this.routeExists('/trips/create/hotels')) {
+      void this.router.navigate(['/trips/create/hotels'], { queryParams: { tripPlanningId } });
+    }
+  }
+
+  private routeExists(route: string): boolean {
+    const normalizedRoute = route.replace(/^\//, '');
+    return this.router.config.some((routeConfig) => routeConfig.path === normalizedRoute);
   }
 }
