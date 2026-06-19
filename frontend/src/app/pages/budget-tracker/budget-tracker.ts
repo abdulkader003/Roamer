@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -66,12 +66,12 @@ export class BudgetTracker {
     { label: '2026', amount: 3200 }
   ];
 
-  // Chart drawing constants (viewBox 0 0 600 220)
-  readonly chartWidth = 600;
-  private readonly chartHeight = 220;
-  private readonly chartPaddingX = 24;
-  private readonly chartPaddingTop = 12;
-  private readonly chartPaddingBottom = 28;
+  // Chart drawing constants (viewBox 0 0 720 320)
+  readonly chartWidth = 720;
+  private readonly chartHeight = 320;
+  private readonly chartPaddingX = 34;
+  private readonly chartPaddingTop = 30;
+  private readonly chartPaddingBottom = 56;
 
   setChartView(view: 'monthly' | 'yearly'): void {
     this.chartView = view;
@@ -83,7 +83,30 @@ export class BudgetTracker {
 
   get chartMax(): number {
     const max = Math.max(...this.chartData.map(d => d.amount));
-    return Math.ceil((max * 1.15) / 100) * 100;
+    return Math.ceil((max * 1.12) / 100) * 100;
+  }
+
+  get chartAxisStartX(): number {
+    return this.chartPaddingX;
+  }
+
+  get chartAxisEndX(): number {
+    return this.chartWidth - this.chartPaddingX;
+  }
+
+  get chartBaselineY(): number {
+    return this.chartHeight - this.chartPaddingBottom;
+  }
+
+  get chartGridLines() {
+    const steps = 4;
+    return Array.from({ length: steps + 1 }, (_, index) => {
+      const ratio = index / steps;
+      return {
+        y: this.chartPaddingTop + ratio * (this.chartBaselineY - this.chartPaddingTop),
+        isBaseline: index === steps
+      };
+    });
   }
 
   get chartPoints() {
@@ -115,7 +138,7 @@ export class BudgetTracker {
   get areaPathD(): string {
     const points = this.chartPoints;
     if (!points.length) return '';
-    const bottomY = this.chartHeight - this.chartPaddingBottom;
+    const bottomY = this.chartBaselineY;
     const first = points[0];
     const last = points[points.length - 1];
     const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -194,6 +217,9 @@ export class BudgetTracker {
 
   // -- User Story 5 -- Add Manual Expense --
   isExpenseFormOpen = false;
+  isExpenseCategoryMenuOpen = false;
+  isExpenseDatePickerOpen = false;
+  expenseCalendarMonth = new Date();
 
   expenseDraft = {
     amount: '',
@@ -203,19 +229,121 @@ export class BudgetTracker {
   };
 
   expenseCategories = ['Flights', 'Hotels', 'Food', 'Transport', 'Activities'];
+  readonly expenseCalendarWeekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  get selectedExpenseCategoryOptionId(): string {
+    return `expense-category-${this.expenseDraft.category.toLowerCase()}`;
+  }
+
+  get expenseDateLabel(): string {
+    const selected = this.parseDateString(this.expenseDraft.date);
+    if (!selected) return 'Select date';
+    return selected.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  get expenseCalendarMonthLabel(): string {
+    return this.expenseCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  get expenseCalendarDays() {
+    const year = this.expenseCalendarMonth.getFullYear();
+    const month = this.expenseCalendarMonth.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
+    const selectedDate = this.expenseDraft.date;
+    const today = this.formatDateValue(new Date());
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(gridStart);
+      date.setDate(gridStart.getDate() + index);
+      const value = this.formatDateValue(date);
+
+      return {
+        value,
+        day: date.getDate(),
+        isCurrentMonth: date.getMonth() === month,
+        isSelected: value === selectedDate,
+        isToday: value === today
+      };
+    });
+  }
 
   openExpenseForm(): void {
     this.expenseDraft = {
       amount: '',
       category: 'Flights',
       description: '',
-      date: new Date().toISOString().split('T')[0]
+      date: this.formatDateValue(new Date())
     };
+    this.isExpenseCategoryMenuOpen = false;
+    this.isExpenseDatePickerOpen = false;
+    this.expenseCalendarMonth = new Date();
     this.isExpenseFormOpen = true;
   }
 
   closeExpenseForm(): void {
+    this.isExpenseCategoryMenuOpen = false;
+    this.isExpenseDatePickerOpen = false;
     this.isExpenseFormOpen = false;
+  }
+
+  handleExpenseModalClick(event: MouseEvent): void {
+    event.stopPropagation();
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.expense-category-menu')) {
+      this.isExpenseCategoryMenuOpen = false;
+    }
+    if (!target?.closest('.expense-date-picker')) {
+      this.isExpenseDatePickerOpen = false;
+    }
+  }
+
+  toggleExpenseCategoryMenu(): void {
+    this.isExpenseCategoryMenuOpen = !this.isExpenseCategoryMenuOpen;
+  }
+
+  selectExpenseCategory(category: string): void {
+    this.expenseDraft.category = category;
+    this.isExpenseCategoryMenuOpen = false;
+  }
+
+  toggleExpenseDatePicker(): void {
+    this.isExpenseDatePickerOpen = !this.isExpenseDatePickerOpen;
+    const selected = this.parseDateString(this.expenseDraft.date);
+    if (selected) {
+      this.expenseCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+    }
+  }
+
+  changeExpenseCalendarMonth(offset: number): void {
+    this.expenseCalendarMonth = new Date(
+      this.expenseCalendarMonth.getFullYear(),
+      this.expenseCalendarMonth.getMonth() + offset,
+      1
+    );
+  }
+
+  selectExpenseDate(value: string): void {
+    this.expenseDraft.date = value;
+    const selected = this.parseDateString(value);
+    if (selected) {
+      this.expenseCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
+    }
+    this.isExpenseDatePickerOpen = false;
+  }
+
+  private parseDateString(value: string): Date | null {
+    if (!value) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }
+
+  private formatDateValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   saveExpense(): void {
@@ -246,6 +374,52 @@ export class BudgetTracker {
 
   // -- User Story 6 -- Recent Trip Budgets --
   tripStatusFilter: 'All' | 'Under Budget' | 'Near Limit' | 'Over Budget' = 'All';
+  isTripFilterOpen = false;
+
+  readonly tripStatusOptions: Array<{ value: 'All' | 'Under Budget' | 'Near Limit' | 'Over Budget'; label: string; id: string }> = [
+    { value: 'All', label: 'All Statuses', id: 'trip-filter-all' },
+    { value: 'Under Budget', label: 'Under Budget', id: 'trip-filter-under-budget' },
+    { value: 'Near Limit', label: 'Near Limit', id: 'trip-filter-near-limit' },
+    { value: 'Over Budget', label: 'Over Budget', id: 'trip-filter-over-budget' }
+  ];
+
+  @HostListener('document:click', ['$event'])
+  closeMenusOnOutsideClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.trip-filter-menu')) {
+      this.isTripFilterOpen = false;
+    }
+    if (!target?.closest('.expense-category-menu')) {
+      this.isExpenseCategoryMenuOpen = false;
+    }
+    if (!target?.closest('.expense-date-picker')) {
+      this.isExpenseDatePickerOpen = false;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeMenusOnEscape(): void {
+    this.isTripFilterOpen = false;
+    this.isExpenseCategoryMenuOpen = false;
+    this.isExpenseDatePickerOpen = false;
+  }
+
+  get selectedTripStatusLabel(): string {
+    return this.tripStatusOptions.find(option => option.value === this.tripStatusFilter)?.label ?? 'All Statuses';
+  }
+
+  get selectedTripStatusOptionId(): string {
+    return this.tripStatusOptions.find(option => option.value === this.tripStatusFilter)?.id ?? 'trip-filter-all';
+  }
+
+  toggleTripFilterMenu(): void {
+    this.isTripFilterOpen = !this.isTripFilterOpen;
+  }
+
+  selectTripStatusFilter(value: 'All' | 'Under Budget' | 'Near Limit' | 'Over Budget'): void {
+    this.tripStatusFilter = value;
+    this.isTripFilterOpen = false;
+  }
 
   trips = [
     { name: 'Summer Getaway', destination: 'Barcelona, Spain', budget: 1800, spent: 1200 },
