@@ -1,0 +1,288 @@
+<section class="profile-page">
+  <div class="profile-header">
+    <div>
+      <a class="breadcrumb" routerLink="/dashboard">Dashboard</a>
+      <h1>Profile</h1>
+      <p>Manage your account details, profile picture, password, and account access.</p>
+    </div>
+  </div>
+
+  @if (isLoading) {
+    <div class="state-panel">
+      <span class="spinner"></span>
+      <p>Loading profile...</p>
+    </div>
+  } @else if (profileError && !profile) {
+    <div class="state-panel state-panel--error">
+      <h2>Profile unavailable</h2>
+      <p>{{ profileError }}</p>
+      <button type="button" class="secondary-button" (click)="loadProfile()">Try again</button>
+    </div>
+  } @else if (profile; as currentProfile) {
+    <div class="profile-grid">
+      <section class="profile-panel profile-summary" id="profile-picture">
+        <div class="avatar-block">
+          <div class="avatar-frame" [class.avatar-frame--loading]="isPictureLoading">
+            @if (profileImageUrl) {
+              <img [src]="profileImageUrl" [alt]="displayName + ' profile picture'" (error)="onProfileImageError()" />
+            } @else {
+              <span>{{ avatarInitials }}</span>
+            }
+          </div>
+
+          <div class="avatar-actions">
+            <label class="picture-button picture-button--primary" [class.picture-button--busy]="isUploadingPicture">
+              <span class="picture-button__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              </span>
+              <span>
+                {{ isUploadingPicture ? 'Uploading...' : currentProfile.hasProfilePicture ? 'Replace picture' : 'Upload picture' }}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                (change)="onPictureSelected($event)"
+                [disabled]="isUploadingPicture" />
+            </label>
+
+            @if (currentProfile.hasProfilePicture) {
+              <button
+                type="button"
+                class="picture-button picture-button--muted"
+                (click)="deleteProfilePicture()"
+                [disabled]="isDeletingPicture">
+                <span class="picture-button__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                  </svg>
+                </span>
+                <span>{{ isDeletingPicture ? 'Deleting...' : 'Delete picture' }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (pictureError) {
+          <p class="message message--error">{{ pictureError }}</p>
+        }
+
+        <div class="identity-block">
+          <h2>{{ displayName }}</h2>
+          <p>{{ currentProfile.email }}</p>
+          <div class="profile-tags">
+            <span>{{ currentProfile.username }}</span>
+            @if (currentProfile.verified) {
+              <span class="verified-tag">Verified</span>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="profile-panel" id="profile-details">
+        <div class="panel-heading">
+          <div>
+            <h2>Edit Profile</h2>
+            <p>Update safe personal details. Password changes are handled separately.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+          <label>
+            Username
+            <input type="text" formControlName="username" autocomplete="username" />
+            @if (fieldHasError('username')) {
+              <span class="field-error">Use 3-40 letters, numbers, dots, underscores, or hyphens.</span>
+            }
+          </label>
+
+          <div class="form-row">
+            <label>
+              First name
+              <input type="text" formControlName="firstName" autocomplete="given-name" />
+              @if (fieldHasError('firstName')) {
+                <span class="field-error">First name is too long.</span>
+              }
+            </label>
+
+            <label>
+              Last name
+              <input type="text" formControlName="lastName" autocomplete="family-name" />
+              @if (fieldHasError('lastName')) {
+                <span class="field-error">Last name is too long.</span>
+              }
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label>
+              Phone number
+              <input type="tel" formControlName="phoneNumber" autocomplete="tel" />
+              @if (fieldHasError('phoneNumber')) {
+                <span class="field-error">Enter a valid phone number.</span>
+              }
+            </label>
+
+            <label class="airport-field">
+              Home airport
+              <input
+                type="text"
+                formControlName="homeAirport"
+                autocomplete="off"
+                placeholder="Search city, airport, or IATA code"
+                (focus)="openAirportPicker()"
+                (blur)="closeAirportPickerSoon()" />
+              @if (isAirportPickerOpen) {
+                <div class="airport-suggestions" role="listbox">
+                  @if (isAirportSearching) {
+                    <div class="airport-suggestion-state">Searching airports...</div>
+                  } @else if (airportSuggestions.length) {
+                    @for (airport of airportSuggestions; track airport.code) {
+                      <button
+                        type="button"
+                        class="airport-option"
+                        role="option"
+                        (mousedown)="$event.preventDefault(); selectHomeAirport(airport)">
+                        <strong>{{ airport.city }}</strong>
+                        <span>{{ airport.fullName }}</span>
+                        <em>{{ airport.code }}</em>
+                      </button>
+                    }
+                  } @else {
+                    <div class="airport-suggestion-state">{{ airportSearchMessage || 'Start typing to search airports.' }}</div>
+                  }
+                </div>
+              }
+              @if (fieldHasError('homeAirport')) {
+                <span class="field-error">Choose an airport suggestion or enter a valid 3-letter IATA code.</span>
+              }
+            </label>
+          </div>
+
+          @if (profileError) {
+            <p class="message message--error">{{ profileError }}</p>
+          }
+          @if (profileSuccess) {
+            <p class="message message--success">{{ profileSuccess }}</p>
+          }
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button" [disabled]="isSavingProfile">
+              {{ isSavingProfile ? 'Saving...' : 'Save changes' }}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="profile-panel" id="security">
+        <div class="panel-heading">
+          <div>
+            <h2>Change Password</h2>
+            <p>Use your current password before choosing a new one.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="profile-form">
+          <label>
+            Current password
+            <div class="password-input-wrap">
+              <input [type]="showCurrentPassword ? 'text' : 'password'" formControlName="currentPassword" autocomplete="current-password" />
+              <button type="button" class="password-toggle" (click)="togglePasswordVisibility('current')">
+                {{ showCurrentPassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            @if (passwordFieldHasError('currentPassword')) {
+              <span class="field-error">Current password is required.</span>
+            }
+          </label>
+
+          <label>
+            New password
+            <div class="password-input-wrap">
+              <input [type]="showNewPassword ? 'text' : 'password'" formControlName="newPassword" autocomplete="new-password" />
+              <button type="button" class="password-toggle" (click)="togglePasswordVisibility('new')">
+                {{ showNewPassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            @if (passwordFieldHasError('newPassword')) {
+              <span class="field-error">Use at least 8 characters.</span>
+            }
+          </label>
+
+          <label>
+            Confirm new password
+            <div class="password-input-wrap">
+              <input [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" autocomplete="new-password" />
+              <button type="button" class="password-toggle" (click)="togglePasswordVisibility('confirm')">
+                {{ showConfirmPassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            @if (passwordFieldHasError('confirmPassword') || passwordMismatchVisible()) {
+              <span class="field-error">Passwords must match.</span>
+            }
+          </label>
+
+          @if (passwordError) {
+            <p class="message message--error">{{ passwordError }}</p>
+          }
+          @if (passwordSuccess) {
+            <p class="message message--success">{{ passwordSuccess }}</p>
+          }
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button" [disabled]="isChangingPassword">
+              {{ isChangingPassword ? 'Changing...' : 'Change password' }}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="profile-panel danger-panel" id="danger-zone">
+        <div>
+          <h2>Delete Account</h2>
+          <p>This permanently removes your account and user-owned trip data.</p>
+        </div>
+
+        <button type="button" class="danger-button" (click)="openDeleteDialog()">
+          Delete account
+        </button>
+      </section>
+    </div>
+
+    @if (isDeleteDialogOpen) {
+      <div class="dialog-backdrop" role="presentation" (click)="closeDeleteDialog()">
+        <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-account-title" (click)="$event.stopPropagation()">
+          <h2 id="delete-account-title">Delete your account?</h2>
+          <p>Enter your current password to confirm. This cannot be undone.</p>
+
+          <form [formGroup]="deleteAccountForm" (ngSubmit)="deleteAccount()" class="profile-form">
+            <label>
+              Current password
+              <input type="password" formControlName="currentPassword" autocomplete="current-password" />
+              @if (deleteFieldHasError()) {
+                <span class="field-error">Password is required.</span>
+              }
+            </label>
+
+            @if (deleteError) {
+              <p class="message message--error">{{ deleteError }}</p>
+            }
+
+            <div class="dialog-actions">
+              <button type="button" class="secondary-button" (click)="closeDeleteDialog()" [disabled]="isDeletingAccount">
+                Cancel
+              </button>
+              <button type="submit" class="danger-button" [disabled]="isDeletingAccount">
+                {{ isDeletingAccount ? 'Deleting...' : 'Confirm delete' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    }
+  }
+</section>
