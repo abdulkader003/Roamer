@@ -53,6 +53,126 @@ class TripPlanningControllerTest {
     }
 
     @Test
+<<<<<<< backend/src/test/java/com/sep/tripplanning/TripPlanningControllerTest.java
+    void rejectsInvalidHotelSelectionBeforeSaving() throws Exception {
+        mockMvc.perform(post("/api/trip-planning/10/hotel")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        ))
+                        .contentType("application/json")
+                        .content("{\"hotelId\":0}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripPlanningService);
+    }
+
+    @Test
+    void forwardsValidHotelSelectionToService() throws Exception {
+        mockMvc.perform(post("/api/trip-planning/10/hotel")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        ))
+                        .contentType("application/json")
+                        .content("{\"hotelId\":77}"))
+                .andExpect(status().isOk());
+
+        verify(tripPlanningService).saveHotel(
+                org.mockito.ArgumentMatchers.eq(10L),
+                org.mockito.ArgumentMatchers.argThat(request -> request.hotelId().equals(77L)),
+                org.mockito.ArgumentMatchers.eq("traveler@example.com")
+        );
+    }
+
+    @Test
+    void rejectsNegativeActivityPriceBeforeSaving() throws Exception {
+        String invalidRequest = """
+                {
+                  "activities": [
+                    {
+                      "name": "Picasso Museum",
+                      "category": "Arts & Culture",
+                      "price": -1,
+                      "duration": "2 hours",
+                      "city": "Barcelona"
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/trip-planning/10/activities")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        ))
+                        .contentType("application/json")
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripPlanningService);
+    }
+
+    @Test
+    void rejectsBlankActivityNameBeforeSaving() throws Exception {
+        String invalidRequest = """
+                {
+                  "activities": [
+                    {
+                      "name": " ",
+                      "category": "Tours",
+                      "price": 20,
+                      "duration": "1 hour",
+                      "city": "Barcelona"
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/trip-planning/10/activities")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        ))
+                        .contentType("application/json")
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripPlanningService);
+    }
+
+    @Test
+    void forwardsValidActivitiesSelectionToService() throws Exception {
+        String validRequest = """
+                {
+                  "activities": [
+                    {
+                      "name": "Picasso Museum",
+                      "category": "Arts & Culture",
+                      "price": 28,
+                      "duration": "2 hours",
+                      "city": "Barcelona"
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/trip-planning/10/activities")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        ))
+                        .contentType("application/json")
+                        .content(validRequest))
+                .andExpect(status().isOk());
+
+        verify(tripPlanningService).saveActivities(
+                org.mockito.ArgumentMatchers.eq(10L),
+                org.mockito.ArgumentMatchers.argThat(request -> request.activities().size() == 1),
+                org.mockito.ArgumentMatchers.eq("traveler@example.com")
+        );
+    }
+=======
     void listsTripsForAuthenticatedUser() throws Exception {
         mockMvc.perform(get("/api/trip-planning")
                         .principal(new UsernamePasswordAuthenticationToken(
@@ -62,5 +182,6 @@ class TripPlanningControllerTest {
                 .andExpect(status().isOk());
 
         verify(tripPlanningService).findTripsForUser("traveler@example.com");
+>>>>>>> backend/src/test/java/com/sep/tripplanning/TripPlanningControllerTest.java
     }
 }

@@ -17,6 +17,11 @@ interface TravelStyleOption {
   ratePerNight: number;
 }
 
+interface TripStep {
+  label: string;
+  route?: string;
+}
+
 @Component({
   selector: 'app-budget',
   standalone: true,
@@ -31,7 +36,15 @@ export class BudgetComponent {
   private readonly tripPlanningService = inject(TripPlanningService);
   private readonly tripTempService = inject(TripTempService);
 
-  readonly steps = ['Budget', 'Destination', 'Flights', 'Hotels', 'Activities', 'Overview'];
+
+  readonly steps: TripStep[] = [
+    { label: 'Budget', route: '/trips/create/budget' },
+    { label: 'Destination', route: '/trips/create/destination' },
+    { label: 'Flights' },
+    { label: 'Hotels', route: '/trips/create/hotels' },
+    { label: 'Activities', route: '/trips/create/activities' },
+    { label: 'Overview' },
+  ];
   readonly selectedTravelStyle = signal<TravelStyle>('mid-range');
   readonly recommendedBudget = signal(2450);
   readonly recommendationUpdated = signal(false);
@@ -161,6 +174,10 @@ export class BudgetComponent {
     );
   }
 
+  stepRoute(step: TripStep): string | null {
+    return step.route && this.routeExists(step.route) ? step.route : null;
+  }
+
   continueWithRecommendedBudget(): void {
     if (this.recommendedFlowInvalid() || this.isSaving()) {
       this.budgetForm.controls.tripName.markAsTouched();
@@ -211,12 +228,32 @@ export class BudgetComponent {
       next: (response) => {
         this.savedTripPlanningId.set(response.id);
         this.isSaving.set(false);
-        void this.router.navigate(['/trips/create/destination']);
+        this.navigateAfterBudgetSave(response.id);
+
       },
       error: () => {
         this.saveError.set('Could not save your budget. Please try again.');
         this.isSaving.set(false);
       },
     });
+  }
+
+  private navigateAfterBudgetSave(tripPlanningId: number): void {
+    const destinationRoute = '/trips/create/destination';
+
+    if (this.routeExists(destinationRoute)) {
+      void this.router.navigate([destinationRoute], { queryParams: { tripPlanningId } });
+      return;
+    }
+
+    // Flights step is skipped until it is implemented.
+    if (this.routeExists('/trips/create/hotels')) {
+      void this.router.navigate(['/trips/create/hotels'], { queryParams: { tripPlanningId } });
+    }
+  }
+
+  private routeExists(route: string): boolean {
+    const normalizedRoute = route.replace(/^\//, '');
+    return this.router.config.some((routeConfig) => routeConfig.path === normalizedRoute);
   }
 }

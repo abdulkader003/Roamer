@@ -1,7 +1,10 @@
 package com.sep.tripplanning;
 
 import com.sep.user.AppUser;
+import com.sep.hotel.model.Hotel;
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -15,6 +18,8 @@ import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "trip_planning")
@@ -42,6 +47,27 @@ public class TripPlanning {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "selected_hotel_id")
+    private Hotel selectedHotel;
+
+    private String selectedHotelName;
+
+    private String selectedHotelCity;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal selectedHotelPricePerNight;
+
+    private Integer selectedHotelStars;
+
+    private Double selectedHotelRatingScore;
+
+    private String selectedHotelRatingLabel;
+
+    @ElementCollection
+    @CollectionTable(name = "trip_planning_activities", joinColumns = @JoinColumn(name = "trip_planning_id"))
+    private List<TripPlanningActivity> selectedActivities = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -115,6 +141,70 @@ public class TripPlanning {
 
     public void setUser(AppUser user) {
         this.user = user;
+    }
+
+    public Hotel getSelectedHotel() {
+        return selectedHotel;
+    }
+
+    public void setSelectedHotel(Hotel selectedHotel) {
+        this.selectedHotel = selectedHotel;
+    }
+
+    public String getSelectedHotelName() {
+        return selectedHotelName;
+    }
+
+    public void setSelectedHotelName(String selectedHotelName) {
+        this.selectedHotelName = selectedHotelName;
+    }
+
+    public String getSelectedHotelCity() {
+        return selectedHotelCity;
+    }
+
+    public void setSelectedHotelCity(String selectedHotelCity) {
+        this.selectedHotelCity = selectedHotelCity;
+    }
+
+    public BigDecimal getSelectedHotelPricePerNight() {
+        return selectedHotelPricePerNight;
+    }
+
+    public void setSelectedHotelPricePerNight(BigDecimal selectedHotelPricePerNight) {
+        this.selectedHotelPricePerNight = selectedHotelPricePerNight;
+    }
+
+    public Integer getSelectedHotelStars() {
+        return selectedHotelStars;
+    }
+
+    public void setSelectedHotelStars(Integer selectedHotelStars) {
+        this.selectedHotelStars = selectedHotelStars;
+    }
+
+    public Double getSelectedHotelRatingScore() {
+        return selectedHotelRatingScore;
+    }
+
+    public void setSelectedHotelRatingScore(Double selectedHotelRatingScore) {
+        this.selectedHotelRatingScore = selectedHotelRatingScore;
+    }
+
+    public String getSelectedHotelRatingLabel() {
+        return selectedHotelRatingLabel;
+    }
+
+    public void setSelectedHotelRatingLabel(String selectedHotelRatingLabel) {
+        this.selectedHotelRatingLabel = selectedHotelRatingLabel;
+    }
+
+    public List<TripPlanningActivity> getSelectedActivities() {
+        return selectedActivities;
+    }
+
+    public void setSelectedActivities(List<TripPlanningActivity> selectedActivities) {
+        this.selectedActivities = selectedActivities;
     }
 
     public LocalDateTime getCreatedAt() {
