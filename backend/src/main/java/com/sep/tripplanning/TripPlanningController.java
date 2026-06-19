@@ -38,7 +38,7 @@ public class TripPlanningController {
         return tripPlanningService.saveBudget(request, authentication.getName());
     }
 
-<<<<<<< backend/src/main/java/com/sep/tripplanning/TripPlanningController.java
+
     @PostMapping("/{tripPlanningId}/hotel")
     public TripHotelResponse saveHotel(
             @PathVariable Long tripPlanningId,
@@ -56,10 +56,10 @@ public class TripPlanningController {
     ) {
         return tripPlanningService.saveActivities(tripPlanningId, request, authentication.getName());
     }
-=======
+
     @GetMapping
     public List<TripBudgetResponse> listTrips(Authentication authentication) {
         return tripPlanningService.findTripsForUser(authentication.getName());
->>>>>>> backend/src/main/java/com/sep/tripplanning/TripPlanningController.java
+
     }
 }
