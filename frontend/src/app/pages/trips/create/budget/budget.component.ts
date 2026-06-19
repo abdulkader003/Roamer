@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   CreateTripBudgetRequest,
   TripPlanningService,
 } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 
 type TravelStyle = 'budget' | 'mid-range' | 'luxury';
 
@@ -26,7 +27,9 @@ interface TravelStyleOption {
 })
 export class BudgetComponent {
   private readonly formBuilder = inject(FormBuilder);
+  private readonly router = inject(Router);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly tripTempService = inject(TripTempService);
 
   readonly steps = ['Budget', 'Destination', 'Flights', 'Hotels', 'Activities', 'Overview'];
   readonly selectedTravelStyle = signal<TravelStyle>('mid-range');
@@ -195,13 +198,20 @@ export class BudgetComponent {
 
     this.isSaving.set(true);
     this.saveError.set('');
+    this.tripTempService.updateTripTemp({
+      tripName: request.tripName,
+      budget,
+      currency,
+      durationNights: request.duration,
+      travelStyle: request.travelStyle,
+    });
 
     // Both flows save through the same backend endpoint.
     this.tripPlanningService.saveBudgetStep(request).subscribe({
       next: (response) => {
         this.savedTripPlanningId.set(response.id);
         this.isSaving.set(false);
-        // TODO: Navigate to /trips/create/destination when the Destination step is implemented.
+        void this.router.navigate(['/trips/create/destination']);
       },
       error: () => {
         this.saveError.set('Could not save your budget. Please try again.');

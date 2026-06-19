@@ -9,7 +9,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,5 +50,17 @@ class TripPlanningControllerTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(tripPlanningService);
+    }
+
+    @Test
+    void listsTripsForAuthenticatedUser() throws Exception {
+        mockMvc.perform(get("/api/trip-planning")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        )))
+                .andExpect(status().isOk());
+
+        verify(tripPlanningService).findTripsForUser("traveler@example.com");
     }
 }

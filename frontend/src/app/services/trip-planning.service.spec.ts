@@ -44,4 +44,24 @@ describe('TripPlanningService', () => {
     expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
     httpRequest.flush({ id: 10, ...request });
   });
+
+  it('loads trips with the existing JWT header', () => {
+    service.listTrips().subscribe((trips) => {
+      expect(trips[0].tripName).toBe('Summer in Italy');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trip-planning');
+    expect(httpRequest.request.method).toBe('GET');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush([
+      {
+        id: 10,
+        tripName: 'Summer in Italy',
+        budget: 2450,
+        currency: 'EUR',
+        duration: 7,
+        travelStyle: 'Mid-range',
+      },
+    ]);
+  });
 });

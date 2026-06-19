@@ -34,4 +34,11 @@ export class TripPlanningService {
       headers: this.authService.authHeader(),
     });
   }
+
+  listTrips(): Observable<TripBudgetResponse[]> {
+    // Returns only the authenticated user's trip-planning records.
+    return this.http.get<TripBudgetResponse[]>(this.apiUrl, {
+      headers: this.authService.authHeader(),
+    });
+  }
 }

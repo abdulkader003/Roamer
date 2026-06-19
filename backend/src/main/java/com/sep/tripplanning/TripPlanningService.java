@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 @Service
 public class TripPlanningService {
 
@@ -39,6 +41,14 @@ public class TripPlanningService {
 
         TripPlanning saved = tripPlanningRepository.save(tripPlanning);
         return toResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripBudgetResponse> findTripsForUser(String authenticatedEmail) {
+        return tripPlanningRepository.findByUserEmailIgnoreCaseOrderByUpdatedAtDesc(authenticatedEmail)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private TripBudgetResponse toResponse(TripPlanning tripPlanning) {

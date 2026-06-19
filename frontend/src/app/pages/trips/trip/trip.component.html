@@ -1,0 +1,72 @@
+<main class="trips-page">
+  <section class="trips-content">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span>›</span>
+      <strong>Trips</strong>
+    </nav>
+
+    <header class="page-header">
+      <div>
+        <h1>Your <em>trips</em>.</h1>
+        <p>Manage and track all your travel plans in one place.</p>
+      </div>
+
+      <a class="create-button" routerLink="/trips/create/budget">
+        <span aria-hidden="true">+</span>
+        Create New Trip
+      </a>
+    </header>
+
+    @if (isLoading()) {
+      <div class="state-card">Loading your trips...</div>
+    }
+
+    @if (loadError()) {
+      <div class="state-card state-card--error" role="alert">
+        <span>{{ loadError() }}</span>
+        <button type="button" (click)="loadTrips()">Retry</button>
+      </div>
+    }
+
+    @if (!isLoading() && !loadError()) {
+      <section class="trip-list" aria-label="Your trips">
+        @for (trip of trips(); track trip.id; let i = $index) {
+          <article class="trip-card">
+            <div class="trip-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M3 12h18"></path>
+                <path d="M12 3c3 3.3 3 14.7 0 18"></path>
+                <path d="M12 3c-3 3.3-3 14.7 0 18"></path>
+              </svg>
+            </div>
+
+            <div class="trip-copy">
+              <h2>{{ trip.tripName }}</h2>
+              <p>{{ trip.duration }} nights · {{ trip.travelStyle }}</p>
+            </div>
+
+            <div class="trip-meta">
+              <strong>{{ formatBudget(trip) }}</strong>
+              <span [class.upcoming]="statusFor(i) === 'Upcoming'">{{ statusFor(i) }}</span>
+            </div>
+
+            <span class="chevron" aria-hidden="true">›</span>
+          </article>
+        } @empty {
+          <div class="empty-card">
+            <h2>No trips yet</h2>
+            <p>Create your first trip plan and it will show up here.</p>
+            <a routerLink="/trips/create/budget">Plan a new trip</a>
+          </div>
+        }
+
+        <a class="plan-card" routerLink="/trips/create/budget">
+          <span aria-hidden="true">+</span>
+          Plan a new trip
+        </a>
+      </section>
+    }
+  </section>
+</main>
