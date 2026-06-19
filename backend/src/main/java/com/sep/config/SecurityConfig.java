@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password/verify").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
+                        .requestMatchers("/api/profile/**").authenticated()
                         .requestMatchers("/api/trips/**").authenticated()
                         .requestMatchers("/api/calendar-events/**").authenticated()
                         .requestMatchers("/api/weather/**").authenticated()
