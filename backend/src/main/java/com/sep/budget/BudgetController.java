@@ -1,12 +1,18 @@
 package com.sep.budget;
 
 import com.sep.budget.dto.BudgetSummaryResponse;
+import com.sep.budget.dto.CategoryBudgetResponse;
+import com.sep.budget.dto.CreateExpenseRequest;
+import com.sep.budget.dto.ExpenseResponse;
 import com.sep.budget.dto.TripBudgetRowResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,6 +49,25 @@ public class BudgetController {
     @GetMapping("/trips")
     public List<TripBudgetRowResponse> getTripBudgetRows(Authentication authentication) {
         return budgetService.getTripBudgetRows(authentication.getName());
+    }
+
+    /**
+     * User Story #4 — spend vs. an equal per-category share of the budget.
+     */
+    @GetMapping("/categories")
+    public List<CategoryBudgetResponse> getCategoryBudgets(Authentication authentication) {
+        return budgetService.getCategoryBudgets(authentication.getName());
+    }
+
+    /**
+     * User Story #5 — logs a new manual expense against one of the user's trips.
+     */
+    @PostMapping("/expenses")
+    public ExpenseResponse createExpense(
+            Authentication authentication,
+            @Valid @RequestBody CreateExpenseRequest request
+    ) {
+        return budgetService.createExpense(authentication.getName(), request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
