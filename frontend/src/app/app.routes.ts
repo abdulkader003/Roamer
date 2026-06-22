@@ -50,8 +50,4 @@ export const routes: Routes = [
   { path: 'reset-password', component: ResetPasswordComponent, canActivate: [passwordResetGuard] },
 
   { path: '**', redirectTo: '' },
-
- /* { path: 'forgot-password', component: ForgotPasswordComponent },
-  { path: 'reset-password', component: ResetPasswordComponent, canActivate: [passwordResetGuard] },
-  { path: '**', redirectTo: '' },*/
 ];
