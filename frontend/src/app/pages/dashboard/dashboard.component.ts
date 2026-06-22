@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
+import { TripTempService } from '../trips/create/trip-temp.service';
 
 
 export const DESTINATION_WEATHER_CITIES = [
@@ -82,6 +83,7 @@ export class DashboardComponent implements OnDestroy {
   private themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
   private readonly weatherService = inject(WeatherService);
+  private readonly tripTempService = inject(TripTempService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
   private readonly today = new Date();
@@ -287,6 +289,7 @@ export class DashboardComponent implements OnDestroy {
     }
 
     this.isPlanningTrip.set(true);
+    this.tripTempService.clearTripTemp();
     setTimeout(() => void this.router.navigate(['/trips/create/budget']), 260);
   }
 

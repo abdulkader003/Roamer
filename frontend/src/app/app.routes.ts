@@ -15,6 +15,7 @@ import { SignupComponent } from './pages/signup/signup.component';
 import { BudgetComponent } from './pages/trips/create/budget/budget.component';
 import { HotelsStepComponent } from './pages/trips/create/hotels/hotels-step.component';
 import { ActivitiesStepComponent } from './pages/trips/create/activities/activities-step.component';
+import { OverviewStepComponent } from './pages/trips/create/overview/overview-step.component';
 import { TripDestinationComponent } from './pages/trips/create/destination/trip-destination.component';
 import { TripFlightsComponent } from './pages/trips/create/flights/trip-flights.component';
 import { TripComponent } from './pages/trips/trip/trip.component';
@@ -32,6 +33,7 @@ export const routes: Routes = [
   { path: 'trips/create/budget', component: BudgetComponent, canActivate: [authGuard] },
   { path: 'trips/create/hotels', component: HotelsStepComponent, canActivate: [authGuard] },
   { path: 'trips/create/activities', component: ActivitiesStepComponent, canActivate: [authGuard] },
+  { path: 'trips/create/overview', component: OverviewStepComponent, canActivate: [authGuard] },
   { path: 'trips/create/destination', component: TripDestinationComponent, canActivate: [authGuard] },
   { path: 'trips/create/flights', component: TripFlightsComponent, canActivate: [authGuard] },
   { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
@@ -48,8 +50,8 @@ export const routes: Routes = [
   { path: 'reset-password', component: ResetPasswordComponent, canActivate: [passwordResetGuard] },
 
   { path: '**', redirectTo: '' },
-];
-  { path: 'forgot-password', component: ForgotPasswordComponent },
+
+ /* { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent, canActivate: [passwordResetGuard] },
-  { path: '**', redirectTo: '' },
+  { path: '**', redirectTo: '' },*/
 ];

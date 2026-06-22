@@ -3,6 +3,7 @@ import { convertToParamMap, ActivatedRoute, provideRouter, Router } from '@angul
 import { of, Subject, throwError } from 'rxjs';
 import { ActivitiesService } from '../../../../services/activities';
 import { TripActivitiesResponse, TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 import { ActivitiesStepComponent } from './activities-step.component';
 
 describe('ActivitiesStepComponent', () => {
@@ -10,12 +11,42 @@ describe('ActivitiesStepComponent', () => {
   let component: ActivitiesStepComponent;
   let activitiesService: jasmine.SpyObj<ActivitiesService>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let tripTempService: jasmine.SpyObj<TripTempService>;
   let router: Router;
 
   function setup(queryParams: Record<string, string | string[]> = { tripPlanningId: '10' }) {
     TestBed.resetTestingModule();
     activitiesService = jasmine.createSpyObj<ActivitiesService>('ActivitiesService', ['getActivities']);
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['saveActivitiesStep']);
+    tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', ['getTripTemp', 'updateTripTemp']);
+    tripTempService.getTripTemp.and.returnValue({
+      tripPlanningId: 10,
+      tripName: 'Summer in Barcelona',
+      budget: 2000,
+      currency: 'EUR',
+      durationNights: 7,
+      travelStyle: 'Mid-range',
+      origin: 'Frankfurt (FRA)',
+      destination: 'Barcelona (BCN)',
+      destinationCities: ['Barcelona'],
+      departureDate: '2026-07-14',
+      returnDate: '2026-07-21',
+      travelers: 2,
+      selectedFlightId: '',
+      selectedFlightAirline: '',
+      selectedFlightNumber: '',
+      selectedFlightDepartureTime: '',
+      selectedFlightArrivalTime: '',
+      selectedFlightDuration: '',
+      selectedFlightStops: '',
+      selectedFlightTotal: null,
+      selectedHotelName: '',
+      selectedHotelCity: '',
+      selectedHotelStars: null,
+      selectedHotelTotal: null,
+      selectedActivities: [],
+      selectedActivitiesTotal: 0,
+    });
     activitiesService.getActivities.and.returnValue(of({
       items: [
         {
@@ -70,6 +101,7 @@ describe('ActivitiesStepComponent', () => {
         ]),
         { provide: ActivitiesService, useValue: activitiesService },
         { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: TripTempService, useValue: tripTempService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -95,6 +127,12 @@ describe('ActivitiesStepComponent', () => {
   it('renders activities', () => {
     expect(activitiesService.getActivities).toHaveBeenCalledWith('Barcelona', undefined, 0, 8);
     expect(fixture.nativeElement.textContent).toContain('Picasso Museum');
+  });
+
+  it('describes the activity search using the trip dates, travelers, and destination city', () => {
+    expect(component.subtitle()).toBe(
+      "Discover activities in Barcelona · 14 Jul 2026 to 21 Jul 2026 · 2 travelers. Select as many as you'd like.",
+    );
   });
 
   it('displays real event details from the existing Activities API mapping', () => {
@@ -236,6 +274,39 @@ describe('ActivitiesStepComponent', () => {
     saveResult.complete();
   });
 
+  it('fills required activity fields before saving real events with missing duration', () => {
+    const activity = component.activities()[0];
+    component.activities.set([
+      {
+        ...activity,
+        duration: '',
+        timeRange: '18:30 - 20:00',
+      },
+      ...component.activities().slice(1),
+    ]);
+    component.toggleActivity(component.activities()[0]);
+    tripPlanningService.saveActivitiesStep.and.returnValue(of({
+      tripPlanningId: 10,
+      selectedActivities: [],
+      totalActivitiesCost: 0,
+      selectedActivitiesCount: 0,
+    }));
+
+    component.continueToOverview();
+
+    expect(tripPlanningService.saveActivitiesStep).toHaveBeenCalledWith(10, {
+      activities: [
+        {
+          name: 'Picasso Museum',
+          category: 'Arts & Culture',
+          price: 28,
+          duration: '18:30 - 20:00',
+          city: 'Barcelona',
+        },
+      ],
+    });
+  });
+
   it('allows continuing with zero activities', () => {
     tripPlanningService.saveActivitiesStep.and.returnValue(of({
       tripPlanningId: 10,
@@ -265,6 +336,23 @@ describe('ActivitiesStepComponent', () => {
     expect(activitiesService.getActivities).toHaveBeenCalledWith('Barcelona', undefined, 0, 8);
     expect(activitiesService.getActivities).toHaveBeenCalledWith('Paris', undefined, 0, 8);
     expect(component.cityGroups().map((group) => group.city)).toEqual(['Barcelona', 'Paris']);
+  });
+
+  it('groups activities for every multi-city destination city', () => {
+    setup({
+      tripPlanningId: '10',
+      multiCitySegments: JSON.stringify([
+        { fromText: 'Frankfurt (FRA)', toText: 'Barcelona (BCN)', date: '2026-07-14' },
+        { fromText: 'Barcelona (BCN)', toText: 'Rome (FCO)', date: '2026-07-18' },
+      ]),
+    });
+
+    expect(activitiesService.getActivities).toHaveBeenCalledWith('Barcelona', undefined, 0, 8);
+    expect(activitiesService.getActivities).toHaveBeenCalledWith('Rome', undefined, 0, 8);
+    expect(component.selectedCities()).toEqual(['Barcelona', 'Rome']);
+    expect(component.subtitle()).toBe(
+      "Discover activities across Barcelona and Rome · 14 Jul 2026 to 21 Jul 2026 · 2 travelers. Select as many as you'd like.",
+    );
   });
 
   it('filters duplicate API activities', () => {

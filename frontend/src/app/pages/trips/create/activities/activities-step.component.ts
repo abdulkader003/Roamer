@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
 import { ActivitiesService, Activity } from '../../../../services/activities';
 import { SelectedTripActivity, TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 
 interface TripStep {
   label: string;
@@ -37,17 +39,19 @@ interface TripActivityCard extends SelectedTripActivity {
 export class ActivitiesStepComponent implements OnInit {
   private readonly activitiesService = inject(ActivitiesService);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly tripTempService = inject(TripTempService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly tripTemp = this.tripTempService.getTripTemp();
 
   readonly steps: TripStep[] = [
     { label: 'Budget', route: '/trips/create/budget' },
     { label: 'Destination', route: '/trips/create/destination' },
-    { label: 'Flights' },
+    { label: 'Flights', route: '/trips/create/flights' },
     { label: 'Hotels', route: '/trips/create/hotels' },
     { label: 'Activities', route: '/trips/create/activities' },
-    { label: 'Overview' },
+    { label: 'Overview', route: '/trips/create/overview' },
   ];
   readonly selectedCities = signal<string[]>(['Barcelona']);
   readonly activities = signal<TripActivityCard[]>([]);
@@ -61,8 +65,7 @@ export class ActivitiesStepComponent implements OnInit {
   private readonly activitiesPerCity = 6;
 
   ngOnInit(): void {
-    const tripPlanningId = Number(this.route.snapshot.queryParamMap.get('tripPlanningId'));
-    this.tripPlanningId.set(Number.isFinite(tripPlanningId) && tripPlanningId > 0 ? tripPlanningId : null);
+    this.tripPlanningId.set(this.readTripPlanningId());
     this.selectedCities.set(this.readSelectedCities());
     this.loadActivities();
   }
@@ -86,6 +89,7 @@ export class ActivitiesStepComponent implements OnInit {
         const failedCities = results.filter((result) => result.usedFallback).map((result) => result.city);
 
         this.activities.set(activities);
+        this.preselectSavedActivities(activities);
 
         if (failedCities.length) {
           this.loadWarning.set(`Using planning suggestions for: ${failedCities.join(', ')}.`);
@@ -107,6 +111,30 @@ export class ActivitiesStepComponent implements OnInit {
         : [...selectedIds, activity.id],
     );
     this.saveError.set('');
+  }
+
+  private preselectSavedActivities(activities: TripActivityCard[]): void {
+    if (this.selectedActivityIds().length) {
+      return;
+    }
+
+    const savedNames = new Set(
+      this.tripTempService
+        .getTripTemp()
+        .selectedActivities.map((activity) => this.normalizeForDuplicateKey(activity.name)),
+    );
+
+    if (!savedNames.size) {
+      return;
+    }
+
+    const matchedIds = activities
+      .filter((activity) => savedNames.has(this.normalizeForDuplicateKey(activity.name)))
+      .map((activity) => activity.id);
+
+    if (matchedIds.length) {
+      this.selectedActivityIds.set(matchedIds);
+    }
   }
 
   isSelected(activity: TripActivityCard): boolean {
@@ -142,14 +170,12 @@ export class ActivitiesStepComponent implements OnInit {
     this.saveError.set('');
 
     const request = {
-      activities: this.selectedActivities().map(({ name, category, price, duration, city }) => ({
-        name,
-        category,
-        price,
-        duration,
-        city,
-      })),
+      activities: this.selectedActivities().map((activity) => this.toSaveableActivity(activity)),
     };
+    this.tripTempService.updateTripTemp({
+      selectedActivities: request.activities,
+      selectedActivitiesTotal: this.selectedTotal(),
+    });
 
     // Saves selected activities for the current trip planning session.
     this.tripPlanningService
@@ -162,8 +188,8 @@ export class ActivitiesStepComponent implements OnInit {
           }
           // Keeps Overview navigation safe until the route exists.
         },
-        error: () => {
-          this.saveError.set('Could not save your activities. Please try again.');
+        error: (error: unknown) => {
+          this.saveError.set(this.saveActivitiesErrorMessage(error));
         },
       });
   }
@@ -181,9 +207,76 @@ export class ActivitiesStepComponent implements OnInit {
     return tripPlanningId ? { tripPlanningId } : undefined;
   }
 
+  private readTripPlanningId(): number | null {
+    const routeTripPlanningId = Number(this.route.snapshot.queryParamMap.get('tripPlanningId'));
+
+    if (Number.isFinite(routeTripPlanningId) && routeTripPlanningId > 0) {
+      this.tripTempService.updateTripTemp({ tripPlanningId: routeTripPlanningId });
+      return routeTripPlanningId;
+    }
+
+    return this.tripTempService.getTripTemp().tripPlanningId ?? null;
+  }
+
+  private saveActivitiesErrorMessage(error: unknown): string {
+    if (!(error instanceof HttpErrorResponse)) {
+      return 'Could not save your activities. Please try again.';
+    }
+
+    if (error.status === 0) {
+      return 'Could not reach the backend. Make sure it is running on port 8080.';
+    }
+
+    if (error.status === 401 || error.status === 403) {
+      return 'Your login session cannot save these activities. Please log in again.';
+    }
+
+    if (error.status === 404) {
+      return 'This trip planning session was not found. Start again from the Budget step.';
+    }
+
+    const message = this.backendErrorMessage(error);
+    return message || `Could not save your activities. Backend returned ${error.status}.`;
+  }
+
+  private backendErrorMessage(error: HttpErrorResponse): string {
+    const errorBody = error.error as { detail?: unknown; message?: unknown; title?: unknown } | string | null;
+
+    if (typeof errorBody === 'string') {
+      return errorBody;
+    }
+
+    if (typeof errorBody?.message === 'string') {
+      return errorBody.message;
+    }
+
+    if (typeof errorBody?.detail === 'string') {
+      return errorBody.detail;
+    }
+
+    return typeof errorBody?.title === 'string' ? errorBody.title : '';
+  }
+
+  private toSaveableActivity(activity: TripActivityCard): SelectedTripActivity {
+    return {
+      name: this.cleanText(activity.name) || 'Selected activity',
+      category: this.cleanText(activity.category) || 'Leisure',
+      price: Math.max(0, Math.round(Number(activity.price) || 0)),
+      // The backend requires a non-empty duration. Some real event rows only
+      // provide a date/time, so we store a clear fallback instead of failing.
+      duration: this.cleanText(activity.duration) || this.cleanText(activity.timeRange) || 'See event time',
+      city: this.cleanText(activity.city) || this.cleanText(activity.tripCity) || this.cityListText(this.selectedCities()),
+    };
+  }
+
   subtitle(): string {
-    const cities = this.selectedCities().join(', ');
-    return `Discover the best things to do in ${cities}. Select as many as you'd like.`;
+    const cityText = this.cityListText(this.selectedCities());
+    const locationText = this.isMultiCityTrip() ? `across ${cityText}` : `in ${cityText}`;
+    const dateText = this.dateRangeText();
+    const travelerText = this.pluralize(Math.max(this.tripTemp.travelers || 1, 1), 'traveler');
+    const searchContext = [dateText, travelerText].filter(Boolean).join(' · ');
+
+    return `Discover activities ${locationText}${searchContext ? ` · ${searchContext}` : ''}. Select as many as you'd like.`;
   }
 
   isMultiCityTrip(): boolean {
@@ -504,10 +597,77 @@ export class ActivitiesStepComponent implements OnInit {
   private readSelectedCities(): string[] {
     const cityParams = this.route.snapshot.queryParamMap.getAll('city');
     const citiesParam = this.route.snapshot.queryParamMap.get('cities');
-    const rawCities = cityParams.length ? cityParams : citiesParam?.split(',') ?? [];
-    const selectedCities = rawCities.map((city) => city.trim()).filter(Boolean);
+    const multiCitySegmentsParam = this.route.snapshot.queryParamMap.get('multiCitySegments');
+    const tripTemp = this.tripTempService.getTripTemp();
+    const rawCities = cityParams.length
+      ? cityParams
+      : citiesParam?.split(',') ?? this.destinationCitiesFromMultiCitySegments(multiCitySegmentsParam);
+    const selectedCities = rawCities.map((city) => this.cityOnly(city)).filter(Boolean);
 
-    return selectedCities.length ? Array.from(new Set(selectedCities)) : ['Barcelona'];
+    if (selectedCities.length) {
+      return Array.from(new Set(selectedCities));
+    }
+
+    if (tripTemp.destinationCities.length) {
+      return Array.from(new Set(tripTemp.destinationCities.map((city) => this.cityOnly(city)).filter(Boolean)));
+    }
+
+    const destinationCity = this.cityOnly(tripTemp.destination);
+    return destinationCity ? [destinationCity] : ['Barcelona'];
+  }
+
+  private destinationCitiesFromMultiCitySegments(rawSegments: string | null): string[] {
+    if (!rawSegments) {
+      return [];
+    }
+
+    try {
+      const segments = JSON.parse(rawSegments) as Array<{ toText?: string }>;
+      return segments.map((segment) => segment.toText ?? '');
+    } catch {
+      return [];
+    }
+  }
+
+  private cityOnly(value: string): string {
+    return value.replace(/\s*\([A-Za-z]{3}\)$/, '').trim();
+  }
+
+  private cityListText(cities: string[]): string {
+    if (cities.length <= 1) {
+      return cities[0] ?? 'your destination';
+    }
+
+    return `${cities.slice(0, -1).join(', ')} and ${cities[cities.length - 1]}`;
+  }
+
+  private dateRangeText(): string {
+    const departureDate = this.formatDisplayDate(this.tripTemp.departureDate);
+    const returnDate = this.formatDisplayDate(this.tripTemp.returnDate);
+
+    return departureDate && returnDate ? `${departureDate} to ${returnDate}` : departureDate;
+  }
+
+  private pluralize(count: number, label: string): string {
+    return `${count} ${label}${count === 1 ? '' : 's'}`;
+  }
+
+  private formatDisplayDate(value: string): string {
+    if (!value) {
+      return '';
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date);
   }
 
   private routeExists(route: string): boolean {

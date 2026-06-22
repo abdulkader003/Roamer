@@ -6,6 +6,7 @@ import com.sep.tripplanning.dto.SelectTripHotelRequest;
 import com.sep.tripplanning.dto.TripActivitiesResponse;
 import com.sep.tripplanning.dto.TripBudgetResponse;
 import com.sep.tripplanning.dto.TripHotelResponse;
+import com.sep.tripplanning.dto.TripOverviewResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -61,5 +62,13 @@ public class TripPlanningController {
     public List<TripBudgetResponse> listTrips(Authentication authentication) {
         return tripPlanningService.findTripsForUser(authentication.getName());
 
+    }
+
+    @GetMapping("/{tripPlanningId}/overview")
+    public TripOverviewResponse getOverview(
+            @PathVariable Long tripPlanningId,
+            Authentication authentication
+    ) {
+        return tripPlanningService.getOverview(tripPlanningId, authentication.getName());
     }
 }

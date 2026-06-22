@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
@@ -11,6 +12,7 @@ describe('TripFlightsComponent', () => {
   let fixture: ComponentFixture<TripFlightsComponent>;
   let flightsService: jasmine.SpyObj<FlightsService>;
   let tripTempService: jasmine.SpyObj<TripTempService>;
+  let router: Router;
 
   const tripTemp: TripTemp = {
     tripName: 'Summer in Barcelona',
@@ -20,16 +22,29 @@ describe('TripFlightsComponent', () => {
     travelStyle: 'Mid-range',
     origin: 'Frankfurt (FRA)',
     destination: 'Barcelona (BCN)',
+    destinationCities: ['Barcelona'],
     departureDate: '2026-07-14',
     returnDate: '2026-07-21',
     travelers: 2,
     selectedFlightId: '',
+    selectedFlightAirline: '',
+    selectedFlightNumber: '',
+    selectedFlightDepartureTime: '',
+    selectedFlightArrivalTime: '',
+    selectedFlightDuration: '',
+    selectedFlightStops: '',
     selectedFlightTotal: null,
+    selectedHotelName: '',
+    selectedHotelCity: '',
+    selectedHotelStars: null,
+    selectedHotelTotal: null,
+    selectedActivities: [],
+    selectedActivitiesTotal: 0,
   };
 
   const flightSearchResponse = {
     searchId: 1,
-    tripType: 'one-way' as const,
+    tripType: 'round-trip' as const,
     from: { code: 'FRA', city: 'Frankfurt', fullName: 'Frankfurt Airport' },
     to: { code: 'BCN', city: 'Barcelona', fullName: 'Barcelona-El Prat' },
     departureDate: '2026-07-14',
@@ -56,11 +71,29 @@ describe('TripFlightsComponent', () => {
         carryOnWeightKg: 8,
       },
     ],
-    returnFlights: [],
+    returnFlights: [
+      {
+        id: 'LH-1183',
+        flightNumber: 'LH 1183',
+        airline: { code: 'LH', name: 'Lufthansa', colorClass: 'lh' },
+        departure: { time: '18:20', airport: 'BCN', city: 'Barcelona', terminal: '2' },
+        arrival: { time: '20:35', airport: 'FRA', city: 'Frankfurt', terminal: '1' },
+        duration: '2h 15m',
+        stops: 0,
+        price: 176,
+        currency: 'EUR',
+        carryOnIncluded: true,
+        checkedBagIncluded: false,
+        carryOnWeightKg: 8,
+      },
+    ],
     segmentFlights: [],
   };
 
-  async function configureTestBed(savedTripTemp: TripTemp = tripTemp): Promise<void> {
+  async function configureTestBed(
+    savedTripTemp: TripTemp = tripTemp,
+    queryParams: Record<string, string> = {},
+  ): Promise<void> {
     flightsService = jasmine.createSpyObj<FlightsService>('FlightsService', ['search']);
     flightsService.search.and.returnValue(of(flightSearchResponse));
     tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', [
@@ -73,6 +106,15 @@ describe('TripFlightsComponent', () => {
       imports: [TripFlightsComponent],
       providers: [
         provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParams,
+              queryParamMap: convertToParamMap(queryParams),
+            },
+          },
+        },
         { provide: FlightsService, useValue: flightsService },
         { provide: TripTempService, useValue: tripTempService },
       ],
@@ -83,6 +125,7 @@ describe('TripFlightsComponent', () => {
     await configureTestBed();
     fixture = TestBed.createComponent(TripFlightsComponent);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
     fixture.detectChanges();
   });
 
@@ -92,13 +135,15 @@ describe('TripFlightsComponent', () => {
 
   it('searches real flight options from the saved destination step', () => {
     expect(flightsService.search).toHaveBeenCalledWith(jasmine.objectContaining({
-      tripType: 'one-way',
+      tripType: 'round-trip',
       from: jasmine.objectContaining({ code: 'FRA' }),
       to: jasmine.objectContaining({ code: 'BCN' }),
+      returnDate: jasmine.any(Date),
       travelers: 2,
       adults: 2,
     }));
     expect(component.flights.length).toBe(1);
+    expect(component.returnFlights.length).toBe(1);
   });
 
   it('renders selectable flight result cards', () => {
@@ -107,6 +152,8 @@ describe('TripFlightsComponent', () => {
     expect(card.textContent).toContain('Lufthansa');
     expect(card.textContent).toContain('07:10');
     expect(card.textContent).toContain('€189');
+    expect(fixture.nativeElement.textContent).toContain('Return flight');
+    expect(fixture.nativeElement.textContent).toContain('18:20');
   });
 
   it('stores the selected flight in trip-temp', () => {
@@ -115,8 +162,14 @@ describe('TripFlightsComponent', () => {
     component.selectFlight(flight);
 
     expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
-      selectedFlightId: 'LH-1182',
-      selectedFlightTotal: 378,
+      selectedFlightId: 'LH-1182|LH-1183',
+      selectedFlightAirline: 'Lufthansa + Lufthansa',
+      selectedFlightNumber: 'LH 1182 / LH 1183',
+      selectedFlightDepartureTime: '07:10',
+      selectedFlightArrivalTime: '20:35',
+      selectedFlightDuration: 'Outbound 2h 15m · Return 2h 15m',
+      selectedFlightStops: 'Direct outbound · Direct return',
+      selectedFlightTotal: 730,
     });
   });
 
@@ -171,5 +224,86 @@ describe('TripFlightsComponent', () => {
     expect(flightsService.search).toHaveBeenCalledTimes(2);
     expect(component.flights.length).toBe(1);
     expect(component.searchError).toBe('');
+  });
+
+  it('continues to the trip hotel step after a flight is selected', () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+
+    component.continueToHotels();
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/trips/create/hotels'], {
+      queryParams: jasmine.any(Object),
+    });
+  });
+
+  it('renders and saves one selected flight per multi-city segment', async () => {
+    TestBed.resetTestingModule();
+    const multiCitySegments = [
+      { fromText: 'Frankfurt (FRA)', toText: 'Barcelona (BCN)', date: '2026-07-14' },
+      { fromText: 'Barcelona (BCN)', toText: 'Rome (FCO)', date: '2026-07-18' },
+    ];
+    await configureTestBed(
+      {
+        ...tripTemp,
+        origin: 'Frankfurt (FRA)',
+        destination: 'Rome (FCO)',
+        departureDate: '2026-07-14',
+        returnDate: '2026-07-18',
+      },
+      {
+        tripType: 'multi-city',
+        multiCitySegments: JSON.stringify(multiCitySegments),
+      },
+    );
+    flightsService.search.and.returnValue(of({
+      ...flightSearchResponse,
+      tripType: 'multi-city',
+      outboundFlights: [],
+      returnFlights: [],
+      flights: [],
+      segmentFlights: [
+        {
+          segmentIndex: 0,
+          fromText: 'Frankfurt (FRA)',
+          toText: 'Barcelona (BCN)',
+          date: '2026-07-14',
+          flights: [flightSearchResponse.outboundFlights[0]],
+        },
+        {
+          segmentIndex: 1,
+          fromText: 'Barcelona (BCN)',
+          toText: 'Rome (FCO)',
+          date: '2026-07-18',
+          flights: [{
+            ...flightSearchResponse.returnFlights[0],
+            id: 'AZ-77',
+            flightNumber: 'AZ 77',
+            airline: { code: 'AZ', name: 'ITA Airways', colorClass: 'az' },
+            departure: { time: '11:30', airport: 'BCN', city: 'Barcelona', terminal: '1' },
+            arrival: { time: '13:10', airport: 'FCO', city: 'Rome', terminal: '3' },
+            price: 120,
+          }],
+        },
+      ],
+    }));
+
+    fixture = TestBed.createComponent(TripFlightsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(flightsService.search).toHaveBeenCalledWith(jasmine.objectContaining({
+      tripType: 'multi-city',
+      multiCitySegments: jasmine.arrayContaining([
+        jasmine.objectContaining({ fromText: 'Frankfurt (FRA)', toText: 'Barcelona (BCN)', date: jasmine.any(Date) }),
+        jasmine.objectContaining({ fromText: 'Barcelona (BCN)', toText: 'Rome (FCO)', date: jasmine.any(Date) }),
+      ]),
+    }));
+    expect(fixture.nativeElement.textContent).toContain('Segment 1');
+    expect(fixture.nativeElement.textContent).toContain('Segment 2');
+    expect(component.allSegmentsSelected()).toBeTrue();
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith(jasmine.objectContaining({
+      selectedFlightId: 'LH-1182|AZ-77',
+      selectedFlightTotal: 618,
+    }));
   });
 });

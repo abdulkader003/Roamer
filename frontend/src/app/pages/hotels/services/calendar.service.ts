@@ -134,7 +134,8 @@ export class CalendarService {
       endDateTime: `${event.endDate}T${normalizedEndTime}:00`,
       category: event.category?.trim() || 'Event',
       budgetCost: event.price,
-      notes: event.notes?.trim() ?? ''
+      notes: event.notes?.trim() ?? '',
+      tripId: event.tripId ?? null
     };
   }
 

@@ -18,11 +18,24 @@ describe('TripDestinationComponent', () => {
     travelStyle: 'Mid-range',
     origin: 'Frankfurt (FRA)',
     destination: 'Barcelona (BCN)',
+    destinationCities: ['Barcelona'],
     departureDate: '2026-07-14',
     returnDate: '2026-07-21',
     travelers: 2,
     selectedFlightId: '',
+    selectedFlightAirline: '',
+    selectedFlightNumber: '',
+    selectedFlightDepartureTime: '',
+    selectedFlightArrivalTime: '',
+    selectedFlightDuration: '',
+    selectedFlightStops: '',
     selectedFlightTotal: null,
+    selectedHotelName: '',
+    selectedHotelCity: '',
+    selectedHotelStars: null,
+    selectedHotelTotal: null,
+    selectedActivities: [],
+    selectedActivitiesTotal: 0,
   };
 
   beforeEach(async () => {
@@ -149,6 +162,7 @@ describe('TripDestinationComponent', () => {
     expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
       origin: 'Frankfurt (FRA)',
       destination: 'Barcelona (BCN)',
+      destinationCities: ['Barcelona'],
       departureDate: '2026-07-14',
       returnDate: '2026-07-21',
       travelers: 2,
@@ -177,6 +191,7 @@ describe('TripDestinationComponent', () => {
     expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
       origin: 'Dusseldorf (DUS)',
       destination: 'Milan (MXP)',
+      destinationCities: ['Milan'],
       departureDate: '2026-06-18',
       returnDate: '2026-06-25',
       travelers: 2,
@@ -206,6 +221,7 @@ describe('TripDestinationComponent', () => {
     expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
       origin: 'Frankfurt (FRA)',
       destination: 'Barcelona (BCN)',
+      destinationCities: ['Paris', 'Barcelona'],
       departureDate: '2026-07-14',
       returnDate: '2026-07-21',
       travelers: 2,

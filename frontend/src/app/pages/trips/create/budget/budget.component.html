@@ -11,7 +11,7 @@
     @for (step of steps; track step; let index = $index) {
       <li class="step" [class.step--active]="index === 0">
         @if (stepRoute(step); as route) {
-          <a class="step-link" [routerLink]="route">
+          <a class="step-link" [routerLink]="route" [queryParams]="stepQueryParams()" (click)="persistBudgetDraft()">
             <span class="step-number">{{ index + 1 }}</span>
             <span class="step-label">{{ step.label }}</span>
           </a>

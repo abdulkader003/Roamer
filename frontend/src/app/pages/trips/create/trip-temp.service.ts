@@ -7,6 +7,8 @@ import { Injectable } from '@angular/core';
  * keeps the unfinished trip values available while the user moves between pages.
  */
 export interface TripTemp {
+  tripPlanningId?: number | null;
+  draftTripId?: number | null;
   tripName: string;
   budget: number | null;
   currency: string;
@@ -14,26 +16,62 @@ export interface TripTemp {
   travelStyle: string;
   origin: string;
   destination: string;
+  destinationCities: string[];
   departureDate: string;
   returnDate: string;
   travelers: number;
   selectedFlightId: string;
+  selectedFlightAirline: string;
+  selectedFlightNumber: string;
+  selectedFlightDepartureTime: string;
+  selectedFlightArrivalTime: string;
+  selectedFlightDuration: string;
+  selectedFlightStops: string;
   selectedFlightTotal: number | null;
+  selectedHotelName: string;
+  selectedHotelCity: string;
+  selectedHotelStars: number | null;
+  selectedHotelTotal: number | null;
+  selectedActivities: TripTempActivity[];
+  selectedActivitiesTotal: number;
+}
+
+export interface TripTempActivity {
+  name: string;
+  category: string;
+  price: number;
+  duration: string;
+  city: string;
 }
 
 const EMPTY_TRIP_TEMP: TripTemp = {
+  tripPlanningId: null,
+  draftTripId: null,
   tripName: '',
   budget: null,
   currency: 'EUR',
-  durationNights: 7,
+  durationNights: 0,
   travelStyle: 'Mid-range',
   origin: '',
   destination: '',
+  destinationCities: [],
   departureDate: '',
   returnDate: '',
   travelers: 2,
   selectedFlightId: '',
+  selectedFlightAirline: '',
+  selectedFlightNumber: '',
+  selectedFlightDepartureTime: '',
+  selectedFlightArrivalTime: '',
+  selectedFlightDuration: '',
+  selectedFlightStops: '',
   selectedFlightTotal: null,
+  selectedHotelName: '',
+  selectedHotelCity: '',
+  selectedHotelStars: null,
+  selectedHotelTotal: null,
+  selectedActivities: [],
+  selectedActivitiesTotal: 0,
 };
 
 @Injectable({
@@ -74,5 +112,13 @@ export class TripTempService {
     }
 
     return nextTripTemp;
+  }
+
+  clearTripTemp(): TripTemp {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(this.storageKey);
+    }
+
+    return { ...EMPTY_TRIP_TEMP };
   }
 }

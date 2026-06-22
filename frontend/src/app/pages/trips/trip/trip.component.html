@@ -12,7 +12,7 @@
         <p>Manage and track all your travel plans in one place.</p>
       </div>
 
-      <a class="create-button" routerLink="/trips/create/budget">
+      <a class="create-button" routerLink="/trips/create/budget" (click)="startNewTrip()">
         <span aria-hidden="true">+</span>
         Create New Trip
       </a>
@@ -32,7 +32,13 @@
     @if (!isLoading() && !loadError()) {
       <section class="trip-list" aria-label="Your trips">
         @for (trip of trips(); track trip.id; let i = $index) {
-          <article class="trip-card">
+          <article
+            class="trip-card"
+            role="button"
+            tabindex="0"
+            [class.trip-card--draft]="trip.status === 'PLANNING'"
+            (click)="openTrip(trip)"
+            (keydown)="openTripFromKeyboard($event, trip)">
             <div class="trip-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <circle cx="12" cy="12" r="9"></circle>
@@ -43,13 +49,15 @@
             </div>
 
             <div class="trip-copy">
-              <h2>{{ trip.tripName }}</h2>
-              <p>{{ trip.duration }} nights · {{ trip.travelStyle }}</p>
+              <h2>{{ trip.name }}</h2>
+              <p>{{ durationLabel(trip) }}</p>
             </div>
 
             <div class="trip-meta">
               <strong>{{ formatBudget(trip) }}</strong>
-              <span [class.upcoming]="statusFor(i) === 'Upcoming'">{{ statusFor(i) }}</span>
+              <span [class.upcoming]="trip.status === 'UPCOMING'" [class.draft]="trip.status === 'PLANNING'">
+                {{ statusFor(trip) }}
+              </span>
             </div>
 
             <span class="chevron" aria-hidden="true">›</span>
@@ -58,15 +66,292 @@
           <div class="empty-card">
             <h2>No trips yet</h2>
             <p>Create your first trip plan and it will show up here.</p>
-            <a routerLink="/trips/create/budget">Plan a new trip</a>
+            <a routerLink="/trips/create/budget" (click)="startNewTrip()">Plan a new trip</a>
           </div>
         }
 
-        <a class="plan-card" routerLink="/trips/create/budget">
+        <a class="plan-card" routerLink="/trips/create/budget" (click)="startNewTrip()">
           <span aria-hidden="true">+</span>
           Plan a new trip
         </a>
       </section>
     }
   </section>
+
+  @if (selectedTrip(); as trip) {
+    <section class="trip-modal-backdrop" role="presentation" (click)="closeTripModal()">
+      <article
+        class="trip-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trip-modal-title"
+        (click)="$event.stopPropagation()">
+        <header class="trip-modal-header">
+          <div>
+            <span class="modal-eyebrow">{{ statusFor(trip) }} trip</span>
+            <h2 id="trip-modal-title">{{ trip.name }}</h2>
+          </div>
+          <button type="button" class="icon-button" aria-label="Close trip summary" (click)="closeTripModal()">×</button>
+        </header>
+
+        @if (isEditing() && editTripForm) {
+          <form class="trip-edit-form" #editForm="ngForm" (ngSubmit)="saveTripEdits()">
+            <label>
+              <span>Trip name</span>
+              <input name="name" [(ngModel)]="editTripForm.name" required maxlength="120" />
+            </label>
+
+            <label>
+              <span>Destination</span>
+              <input name="destination" [(ngModel)]="editTripForm.destination" required maxlength="120" />
+            </label>
+
+            <div class="form-grid">
+              <label class="date-edit-field" [class.open]="activeEditDatePicker() === 'startDate'">
+                <span>Start date</span>
+                <input type="hidden" name="startDate" [(ngModel)]="editTripForm.startDate" required />
+                <button
+                  type="button"
+                  class="date-edit-button"
+                  [attr.aria-expanded]="activeEditDatePicker() === 'startDate'"
+                  (click)="toggleEditDatePicker('startDate')">
+                  <strong>{{ editDateLabel(editTripForm.startDate) }}</strong>
+                  <small>Start date</small>
+                </button>
+              </label>
+
+              <label class="date-edit-field" [class.open]="activeEditDatePicker() === 'endDate'">
+                <span>End date</span>
+                <input type="hidden" name="endDate" [(ngModel)]="editTripForm.endDate" required />
+                <button
+                  type="button"
+                  class="date-edit-button"
+                  [attr.aria-expanded]="activeEditDatePicker() === 'endDate'"
+                  (click)="toggleEditDatePicker('endDate')">
+                  <strong>{{ editDateLabel(editTripForm.endDate) }}</strong>
+                  <small>End date</small>
+                </button>
+              </label>
+            </div>
+
+            <label>
+              <span>Budget</span>
+              <input type="number" name="budget" [(ngModel)]="editTripForm.budget" min="0" required />
+            </label>
+
+            @if (actionError()) {
+              <p class="modal-error" role="alert">{{ actionError() }}</p>
+            }
+
+            <div class="modal-actions">
+              <button type="button" class="secondary-action" (click)="cancelEditing()" [disabled]="isActionSaving()">Cancel</button>
+              <button type="submit" class="primary-action" [disabled]="editForm.invalid || isActionSaving()">
+                {{ isActionSaving() ? 'Saving...' : 'Save Changes' }}
+              </button>
+            </div>
+
+            @if (activeEditDatePicker()) {
+              <div class="date-popover-backdrop" role="presentation" (click)="closeEditDatePicker()">
+                <section
+                  class="date-popover"
+                  role="dialog"
+                  aria-modal="true"
+                  [attr.aria-label]="activeEditDatePickerTitle()"
+                  (click)="$event.stopPropagation()">
+                  <header class="date-popover-header">
+                    <div>
+                      <span class="modal-eyebrow">Trip dates</span>
+                      <h3>{{ activeEditDatePickerTitle() }}</h3>
+                    </div>
+                    <button type="button" class="icon-button" aria-label="Close date picker" (click)="closeEditDatePicker()">×</button>
+                  </header>
+
+                  <label class="manual-date-field">
+                    <span>Type date</span>
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      placeholder="YYYY-MM-DD"
+                      [value]="editManualDateText()"
+                      [class.invalid]="editManualDateError()"
+                      [attr.aria-invalid]="editManualDateError() ? 'true' : 'false'"
+                      (input)="updateEditDatePickerInput($any($event.target).value)" />
+                  </label>
+                  <p class="date-picker-hint" [class.error]="editManualDateError()">{{ activeEditDatePickerHint() }}</p>
+
+                  <div class="date-calendar">
+                    <div class="date-calendar__toolbar">
+                      <button type="button" aria-label="Previous month" (click)="moveEditDatePickerMonth(-1)">‹</button>
+                      <strong>{{ editDatePickerMonth() | date:'MMMM yyyy' }}</strong>
+                      <button type="button" aria-label="Next month" (click)="moveEditDatePickerMonth(1)">›</button>
+                    </div>
+
+                    <div class="date-calendar__weekdays" aria-hidden="true">
+                      <span>Sun</span>
+                      <span>Mon</span>
+                      <span>Tue</span>
+                      <span>Wed</span>
+                      <span>Thu</span>
+                      <span>Fri</span>
+                      <span>Sat</span>
+                    </div>
+
+                    <div class="date-calendar__grid">
+                      @for (day of editCalendarDays(); track day.date.getTime()) {
+                        <button
+                          type="button"
+                          class="date-day"
+                          [class.muted]="!day.isCurrentMonth"
+                          [class.today]="day.isToday"
+                          [class.selected]="day.isSelected"
+                          [class.in-range]="day.isInRange"
+                          (click)="selectEditCalendarDay(day)">
+                          {{ day.label }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </section>
+              </div>
+            }
+          </form>
+        } @else {
+          <div class="trip-overview-modal" aria-label="Trip overview summary">
+            <section class="overview-left">
+              <article class="overview-hero">
+                <span>Trip name</span>
+                <h3>{{ trip.name }}</h3>
+                <p>{{ modalDestinationName(trip) }} · {{ nightsFor(trip) }} nights · {{ modalTravelerLabel(trip) }}</p>
+                <p>{{ formatDateRange(trip) }}</p>
+              </article>
+
+              @if (modalHasFlightData(trip)) {
+                <article class="overview-summary-card">
+                  <div>
+                    <span class="overview-eyebrow">→ Flight</span>
+                    <h3>{{ modalFlightTitle(trip) }}</h3>
+                    <p>{{ modalFlightDetails(trip) }}</p>
+                  </div>
+                  <strong>€{{ modalFlightTotal(trip) | number:'1.0-0' }}</strong>
+                </article>
+              }
+
+              @if (modalHasHotelData(trip)) {
+                <article class="overview-summary-card">
+                  <div>
+                    <span class="overview-eyebrow">⌂ Hotel</span>
+                    <h3>{{ modalHotelName(trip) }}</h3>
+                    <p>{{ modalHotelDetails(trip) }}</p>
+                  </div>
+                  <strong>€{{ modalHotelTotal(trip) | number:'1.0-0' }}</strong>
+                </article>
+              }
+
+              @if (modalHasActivitiesData(trip)) {
+                <article class="overview-summary-card">
+                  <div>
+                    <span class="overview-eyebrow">● Activities</span>
+                    <h3>{{ modalActivitiesTitle(trip) }}</h3>
+                    <p>{{ modalActivitiesDetails(trip) }}</p>
+                  </div>
+                  <strong>€{{ modalActivitiesTotal(trip) | number:'1.0-0' }}</strong>
+                </article>
+              }
+
+              @if (!modalHasStoredDetails(trip)) {
+                <p class="modal-note">
+                  No booking details saved for this trip. Continue the planning wizard to add flights, hotels, and activities.
+                </p>
+              }
+            </section>
+
+            <aside class="overview-budget-card">
+              <h3>Budget Overview</h3>
+              <div class="budget-row">
+                <span>Budget</span>
+                <strong>{{ formatBudget(trip) }}</strong>
+              </div>
+
+              @if (modalHasStoredDetails(trip)) {
+                <div class="budget-row">
+                  <span>Total spent</span>
+                  <strong [class.over-budget]="modalRemaining(trip) < 0">€{{ modalTotalUsed(trip) | number:'1.0-0' }}</strong>
+                </div>
+
+                <div class="budget-meter" aria-label="Budget usage">
+                  <span [style.width.%]="modalUsedPercent(trip)"></span>
+                </div>
+
+                <div class="budget-meta">
+                  <span>{{ modalUsedPercent(trip) }}% used</span>
+                </div>
+
+                <dl class="cost-list">
+                  @if (modalHasFlightData(trip)) {
+                    <div>
+                      <dt><span class="dot dot--flight"></span>Flights</dt>
+                      <dd>€{{ modalFlightTotal(trip) | number:'1.0-0' }}</dd>
+                    </div>
+                  }
+                  @if (modalHasHotelData(trip)) {
+                    <div>
+                      <dt><span class="dot dot--hotel"></span>Hotel</dt>
+                      <dd>€{{ modalHotelTotal(trip) | number:'1.0-0' }}</dd>
+                    </div>
+                  }
+                  @if (modalHasActivitiesData(trip)) {
+                    <div>
+                      <dt><span class="dot dot--activities"></span>Activities</dt>
+                      <dd>€{{ modalActivitiesTotal(trip) | number:'1.0-0' }}</dd>
+                    </div>
+                  }
+                </dl>
+
+                <div class="remaining-row">
+                  <span>Remaining</span>
+                  <strong [class.over-budget]="modalRemaining(trip) < 0">
+                    {{ modalRemaining(trip) < 0 ? '-' : '' }}€{{ (modalRemaining(trip) < 0 ? -modalRemaining(trip) : modalRemaining(trip)) | number:'1.0-0' }}
+                  </strong>
+                </div>
+              }
+            </aside>
+          </div>
+
+          @if (actionError()) {
+            <p class="modal-error" role="alert">{{ actionError() }}</p>
+          }
+
+          @if (showDeleteConfirm()) {
+            <div class="delete-confirm-banner" role="alert">
+              <span>Delete <strong>{{ trip.name }}</strong>? This cannot be undone and will also remove its calendar events.</span>
+              <div class="delete-confirm-actions">
+                <button type="button" class="secondary-action" (click)="cancelDeleteTrip()" [disabled]="isActionSaving()">Cancel</button>
+                <button type="button" class="danger-action" (click)="deleteSelectedTrip()" [disabled]="isActionSaving()">
+                  {{ isActionSaving() ? 'Deleting...' : 'Yes, delete' }}
+                </button>
+              </div>
+            </div>
+          }
+
+          <div class="modal-actions modal-actions--split">
+            <button type="button" class="danger-action" (click)="confirmDeleteTrip()" [disabled]="isActionSaving() || showDeleteConfirm()">
+              Delete Trip
+            </button>
+
+            <div class="modal-main-actions">
+              <button type="button" class="secondary-action" (click)="startEditing()" [disabled]="isActionSaving()">Quick Edit</button>
+              <button type="button" class="secondary-action" (click)="editTripInWizard()" [disabled]="isActionSaving()">Edit All Details</button>
+              @if (trip.status === 'PLANNING') {
+                <button type="button" class="primary-action" (click)="continueDraft()" [disabled]="isActionSaving()">
+                  Continue Draft
+                </button>
+              } @else {
+                <button type="button" class="primary-action" (click)="closeTripModal()">Done</button>
+              }
+            </div>
+          </div>
+        }
+      </article>
+    </section>
+  }
 </main>
