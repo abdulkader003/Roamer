@@ -1,0 +1,173 @@
+<main class="overview-page">
+  <nav class="wizard-progress" aria-label="Create trip progress">
+    @for (step of steps; track step.number; let last = $last) {
+      <div
+        class="wizard-step"
+        [class.wizard-step--complete]="step.state === 'complete'"
+        [class.wizard-step--active]="step.state === 'active'">
+        @if (step.route) {
+          <a class="step-link" [routerLink]="step.route" [queryParams]="route.snapshot.queryParams">
+            <span class="step-circle">
+              @if (step.state === 'complete') {
+                <span aria-hidden="true">✓</span>
+              } @else {
+                {{ step.number }}
+              }
+            </span>
+            <span class="step-label">{{ step.label }}</span>
+          </a>
+        } @else {
+          <span class="step-link">
+            <span class="step-circle">{{ step.number }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </span>
+        }
+      </div>
+
+      @if (!last) {
+        <span class="step-line step-line--complete" aria-hidden="true"></span>
+      }
+    }
+  </nav>
+
+  <section class="overview-content">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span>›</span>
+      <a routerLink="/trips">Trips</a>
+      <span>›</span>
+      <strong>Create Trip</strong>
+    </nav>
+
+    <header class="page-header">
+      <h1>Your trip is <em>ready.</em></h1>
+      <p>Review everything below and confirm to create your trip.</p>
+    </header>
+
+    @if (isLoading()) {
+      <div class="status-card">Loading your trip overview...</div>
+    } @else if (loadError() && !hasFallbackSummary()) {
+      <div class="status-card status-card--error">{{ loadError() }}</div>
+      <button class="retry-button" type="button" (click)="loadOverview()">Retry</button>
+    } @else {
+      @if (loadError()) {
+        <div class="status-card status-card--warning">
+          {{ loadError() }} Showing the trip details saved in this browser for now.
+          <button type="button" (click)="loadOverview()">Retry</button>
+        </div>
+      }
+
+      <div class="overview-grid">
+        <section class="left-column">
+          <article class="hero-summary">
+            <span>Trip Name</span>
+            <h2>{{ tripName() }}</h2>
+            <p>{{ destinationName() }} · {{ nights() }} nights · {{ travelerLabel() }}</p>
+            <p>{{ dateRange() }}</p>
+          </article>
+
+          <article class="summary-card">
+            <div>
+              <span class="eyebrow">→ Flight</span>
+              <h3>
+                {{ flightTitle() }}
+                @if (tripTemp.selectedFlightAirline && tripTemp.selectedFlightNumber) {
+                  · {{ tripTemp.selectedFlightNumber }}
+                }
+              </h3>
+              <p>{{ flightDetails() }}</p>
+            </div>
+            <strong>{{ currencySymbol() }}{{ flightTotal() | number:'1.0-0' }}</strong>
+          </article>
+
+          <article class="summary-card">
+            <div>
+              <span class="eyebrow">⌂ Hotel</span>
+              <h3>{{ hotelName() }}</h3>
+              <p>
+                {{ hotelCity() }}
+                @if (hotelStars()) {
+                  · {{ hotelStars() }} stars
+                }
+              </p>
+            </div>
+            <strong>{{ currencySymbol() }}{{ hotelTotal() | number:'1.0-0' }}</strong>
+          </article>
+
+          <article class="summary-card">
+            <div>
+              <span class="eyebrow">● Activities</span>
+              <h3>{{ selectedActivities().length }} selected</h3>
+              <p>
+                @for (activity of selectedActivities(); track activity.name; let last = $last) {
+                  {{ activity.name }}@if (!last) {, }
+                } @empty {
+                  No activities selected
+                }
+              </p>
+            </div>
+            <strong>{{ currencySymbol() }}{{ activitiesTotal() | number:'1.0-0' }}</strong>
+          </article>
+        </section>
+
+        <aside class="budget-card">
+          <h2>Budget Overview</h2>
+          <div class="budget-row">
+            <span>Total</span>
+            <strong [class.over-budget]="remaining() < 0">{{ currencySymbol() }}{{ totalUsed() | number:'1.0-0' }}</strong>
+          </div>
+
+          <div class="budget-meter" aria-label="Budget usage">
+            <span [style.width.%]="usedPercent()"></span>
+          </div>
+
+          <div class="budget-meta">
+            <span>{{ usedPercent() }}% used</span>
+            <span>Budget: {{ currencySymbol() }}{{ budget() | number:'1.0-0' }}</span>
+          </div>
+
+          <dl class="cost-list">
+            <div>
+              <dt><span class="dot dot--flight"></span>Flights</dt>
+              <dd>{{ currencySymbol() }}{{ flightTotal() | number:'1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt><span class="dot dot--hotel"></span>Hotel</dt>
+              <dd>{{ currencySymbol() }}{{ hotelTotal() | number:'1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt><span class="dot dot--activities"></span>Activities</dt>
+              <dd>{{ currencySymbol() }}{{ activitiesTotal() | number:'1.0-0' }}</dd>
+            </div>
+          </dl>
+
+          <div class="remaining-row">
+            <span>Remaining</span>
+            <strong [class.over-budget]="remaining() < 0">
+              {{ remaining() < 0 ? '-' : '' }}{{ currencySymbol() }}{{ (remaining() < 0 ? -remaining() : remaining()) | number:'1.0-0' }}
+            </strong>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="overview-actions">
+        <a class="secondary-button" routerLink="/trips/create/activities" [queryParams]="route.snapshot.queryParams">← Back</a>
+        <div class="final-actions">
+          @if (saveError()) {
+            <span class="save-error">{{ saveError() }}</span>
+          }
+          <button class="draft-button" type="button" [disabled]="isSaving()" (click)="saveLater()">
+            Save Later
+          </button>
+          <button class="confirm-button" type="button" [disabled]="isSaving()" (click)="confirmTrip()">
+            @if (isSaving()) {
+              Saving...
+            } @else {
+              Confirm Trip
+            }
+          </button>
+        </div>
+      </footer>
+    }
+  </section>
+</main>

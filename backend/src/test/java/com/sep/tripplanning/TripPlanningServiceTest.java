@@ -7,6 +7,7 @@ import com.sep.tripplanning.dto.SelectedTripActivity;
 import com.sep.tripplanning.dto.TripActivitiesResponse;
 import com.sep.tripplanning.dto.TripBudgetResponse;
 import com.sep.tripplanning.dto.TripHotelResponse;
+import com.sep.tripplanning.dto.TripOverviewResponse;
 import com.sep.hotel.model.Hotel;
 import com.sep.hotel.repository.HotelRepository;
 import com.sep.user.AppUser;
@@ -83,7 +84,6 @@ class TripPlanningServiceTest {
     }
 
     @Test
-<<<<<<< backend/src/test/java/com/sep/tripplanning/TripPlanningServiceTest.java
     void savesSelectedHotelForOwnedTripPlanningRecord() {
         AppUser user = new AppUser();
         user.setEmail("traveler@example.com");
@@ -201,7 +201,8 @@ class TripPlanningServiceTest {
         )).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
     }
-=======
+
+    @Test
     void listsOnlyTripsForAuthenticatedUser() {
         TripPlanning tripPlanning = new TripPlanning();
         tripPlanning.setId(11L);
@@ -220,6 +221,46 @@ class TripPlanningServiceTest {
         assertThat(trips).hasSize(1);
         assertThat(trips.get(0).tripName()).isEqualTo("Business Conference");
         assertThat(trips.get(0).budget()).isEqualByComparingTo("1200.00");
->>>>>>> backend/src/test/java/com/sep/tripplanning/TripPlanningServiceTest.java
+    }
+
+    @Test
+    void loadsOverviewForOwnedTripPlanningRecord() {
+        AppUser user = new AppUser();
+        user.setEmail("traveler@example.com");
+
+        TripPlanning tripPlanning = new TripPlanning();
+        tripPlanning.setId(10L);
+        tripPlanning.setTripName("Summer in Barcelona");
+        tripPlanning.setBudget(new BigDecimal("2000.00"));
+        tripPlanning.setCurrency("EUR");
+        tripPlanning.setDuration(7);
+        tripPlanning.setTravelStyle("Mid-range");
+        tripPlanning.setUser(user);
+        tripPlanning.setSelectedHotelName("Barcelona Grand");
+        tripPlanning.setSelectedHotelCity("Barcelona");
+        tripPlanning.setSelectedHotelPricePerNight(new BigDecimal("285.00"));
+        tripPlanning.setSelectedHotelStars(5);
+        tripPlanning.setSelectedHotelRatingScore(9.1);
+        tripPlanning.setSelectedHotelRatingLabel("Superb");
+        tripPlanning.setSelectedActivities(List.of(activity("Picasso Museum", "Arts", "120.00")));
+
+        when(tripPlanningRepository.findById(10L)).thenReturn(Optional.of(tripPlanning));
+
+        TripOverviewResponse response = tripPlanningService.getOverview(10L, "traveler@example.com");
+
+        assertThat(response.tripName()).isEqualTo("Summer in Barcelona");
+        assertThat(response.selectedHotel().hotelName()).isEqualTo("Barcelona Grand");
+        assertThat(response.selectedActivities()).hasSize(1);
+        assertThat(response.totalActivitiesCost()).isEqualByComparingTo("120.00");
+    }
+
+    private TripPlanningActivity activity(String name, String category, String price) {
+        TripPlanningActivity activity = new TripPlanningActivity();
+        activity.setName(name);
+        activity.setCategory(category);
+        activity.setPrice(new BigDecimal(price));
+        activity.setDuration("2 hours");
+        activity.setCity("Barcelona");
+        return activity;
     }
 }

@@ -34,6 +34,76 @@ public record CreateTripRequest(
         BigDecimal budget,
 
         @NotNull(message = "Trip status is required")
-        TripStatus status
+        TripStatus status,
+
+        Long tripPlanningId,
+        String origin,
+        String destinationCities,
+        String currency,
+        Integer durationNights,
+        String travelStyle,
+        Integer travelers,
+        String flightId,
+        String flightTitle,
+        String flightAirline,
+        String flightNumber,
+        String flightDepartureTime,
+        String flightArrivalTime,
+        String flightDuration,
+        String flightStops,
+        String flightDetails,
+        BigDecimal flightTotal,
+        String hotelName,
+        String hotelCity,
+        Integer hotelStars,
+        String hotelDetails,
+        BigDecimal hotelTotal,
+        String activitiesTitle,
+        String activitiesDetails,
+        String activitiesJson,
+        BigDecimal activitiesTotal
 ) {
+        public CreateTripRequest(
+                String name,
+                String destination,
+                LocalDate startDate,
+                LocalDate endDate,
+                BigDecimal budget,
+                TripStatus status
+        ) {
+                this(
+                        name,
+                        destination,
+                        startDate,
+                        endDate,
+                        budget,
+                        status,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                );
+        }
 }

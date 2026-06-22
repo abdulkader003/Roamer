@@ -4,6 +4,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { Hotel } from '../../../hotels/models/hotel.model';
 import { HotelService } from '../../../hotels/services/hotel.service';
 import { TripHotelResponse, TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 import { HotelsStepComponent } from './hotels-step.component';
 
 describe('HotelsStepComponent', () => {
@@ -11,6 +12,9 @@ describe('HotelsStepComponent', () => {
   let component: HotelsStepComponent;
   let hotelService: jasmine.SpyObj<HotelService>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let tripTempService: jasmine.SpyObj<TripTempService>;
+  const imageDataUrl = (label: string) =>
+    `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Ctext x='1' y='8'%3E${label}%3C/text%3E%3C/svg%3E`;
 
   const hotelFixture: Hotel = {
     id: 77,
@@ -28,12 +32,12 @@ describe('HotelsStepComponent', () => {
     tag: 'Recommended',
     description: 'Elegant stay near the Gothic Quarter.',
     amenities: ['Free Wi-Fi', 'Pool', 'Breakfast'],
-    image: 'hotel.jpg',
+    image: imageDataUrl('h'),
   };
   const tripHotelFixture = { ...hotelFixture, tripCity: 'Barcelona' };
   const multiImageHotelFixture = {
     ...tripHotelFixture,
-    images: ['hotel-1.jpg', 'hotel-2.jpg', 'hotel-3.jpg'],
+    images: [imageDataUrl('b1'), imageDataUrl('b2'), imageDataUrl('b3')],
   };
 
   function setup(queryParams: Record<string, string | string[]> = { tripPlanningId: '10' }) {
@@ -42,6 +46,35 @@ describe('HotelsStepComponent', () => {
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', [
       'saveHotelStep',
     ]);
+    tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', ['getTripTemp', 'updateTripTemp']);
+    tripTempService.getTripTemp.and.returnValue({
+      tripPlanningId: 10,
+      tripName: 'Summer in Barcelona',
+      budget: 2000,
+      currency: 'EUR',
+      durationNights: 7,
+      travelStyle: 'Mid-range',
+      origin: 'Frankfurt (FRA)',
+      destination: 'Barcelona (BCN)',
+      destinationCities: ['Barcelona'],
+      departureDate: '2026-07-14',
+      returnDate: '2026-07-21',
+      travelers: 2,
+      selectedFlightId: '',
+      selectedFlightAirline: '',
+      selectedFlightNumber: '',
+      selectedFlightDepartureTime: '',
+      selectedFlightArrivalTime: '',
+      selectedFlightDuration: '',
+      selectedFlightStops: '',
+      selectedFlightTotal: null,
+      selectedHotelName: '',
+      selectedHotelCity: '',
+      selectedHotelStars: null,
+      selectedHotelTotal: null,
+      selectedActivities: [],
+      selectedActivitiesTotal: 0,
+    });
     hotelService.searchHotels.and.returnValue(of([hotelFixture]));
 
     TestBed.configureTestingModule({
@@ -50,6 +83,7 @@ describe('HotelsStepComponent', () => {
         provideRouter([]),
         { provide: HotelService, useValue: hotelService },
         { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: TripTempService, useValue: tripTempService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -74,6 +108,12 @@ describe('HotelsStepComponent', () => {
   it('renders loaded hotels', () => {
     expect(hotelService.searchHotels).toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Barcelona Grand');
+  });
+
+  it('describes the hotel search using the trip dates, nights, guests, and destination city', () => {
+    expect(component.subtitle()).toBe(
+      'Showing hotel options in Barcelona · 14 Jul 2026 to 21 Jul 2026 · 7 nights · 2 guests.',
+    );
   });
 
   it('highlights the selected hotel', () => {
@@ -166,6 +206,35 @@ describe('HotelsStepComponent', () => {
     expect(component.cityGroups().map((group) => group.city)).toEqual(['Barcelona', 'Paris']);
   });
 
+  it('loads hotels for every multi-city destination city', () => {
+    setup({
+      tripPlanningId: '10',
+      multiCitySegments: JSON.stringify([
+        { fromText: 'Frankfurt (FRA)', toText: 'Barcelona (BCN)', date: '2026-07-14' },
+        { fromText: 'Barcelona (BCN)', toText: 'Rome (FCO)', date: '2026-07-18' },
+      ]),
+    });
+
+    expect(hotelService.searchHotels).toHaveBeenCalledWith(
+      'Barcelona',
+      jasmine.any(String),
+      jasmine.any(String),
+      2,
+      0,
+    );
+    expect(hotelService.searchHotels).toHaveBeenCalledWith(
+      'Rome',
+      jasmine.any(String),
+      jasmine.any(String),
+      2,
+      0,
+    );
+    expect(component.selectedCities()).toEqual(['Barcelona', 'Rome']);
+    expect(component.subtitle()).toBe(
+      'Showing hotel options across Barcelona and Rome · 14 Jul 2026 to 21 Jul 2026 · 7 nights · 2 guests.',
+    );
+  });
+
   it('shows available hotels when one city search fails', () => {
     hotelService.searchHotels.and.callFake((city: string) =>
       city === 'Paris' ? throwError(() => new Error('Provider unavailable')) : of([hotelFixture]),
@@ -187,8 +256,9 @@ describe('HotelsStepComponent', () => {
       name: 'Paris Central',
       city: 'Paris',
       tripCity: 'Paris',
-      images: ['paris-1.jpg', 'paris-2.jpg'],
+      images: [imageDataUrl('p1'), imageDataUrl('p2')],
     };
+    component.selectedCities.set(['Barcelona', 'Paris']);
     component.hotels.set([multiImageHotelFixture, parisHotel]);
     fixture.detectChanges();
 
@@ -211,13 +281,13 @@ describe('HotelsStepComponent', () => {
   it('shows dots only for valid hotel images', () => {
     const hotelWithInvalidImages = {
       ...tripHotelFixture,
-      images: ['hotel-1.jpg', '', '   ', null as unknown as string, 'hotel-1.jpg', 'hotel-2.jpg'],
+      images: [imageDataUrl('b1'), '', '   ', null as unknown as string, imageDataUrl('b1'), imageDataUrl('b2')],
     };
 
     component.hotels.set([hotelWithInvalidImages]);
     fixture.detectChanges();
 
-    expect(component.cardImages(hotelWithInvalidImages)).toEqual(['hotel-1.jpg', 'hotel-2.jpg']);
+    expect(component.cardImages(hotelWithInvalidImages)).toEqual([imageDataUrl('b1'), imageDataUrl('b2')]);
     expect(fixture.nativeElement.querySelectorAll('.carousel-dot').length).toBe(2);
   });
 
@@ -244,13 +314,13 @@ describe('HotelsStepComponent', () => {
       name: 'Paris Central',
       city: 'Paris',
       tripCity: 'Paris',
-      images: ['paris-1.jpg', 'paris-2.jpg'],
+      images: [imageDataUrl('p1'), imageDataUrl('p2')],
     };
     component.hotels.set([multiImageHotelFixture, parisHotel]);
 
-    component.handleHotelImageError(multiImageHotelFixture, 'hotel-2.jpg');
+    component.handleHotelImageError(multiImageHotelFixture, imageDataUrl('b2'));
 
-    expect(component.cardImages(multiImageHotelFixture)).toEqual(['hotel-1.jpg', 'hotel-3.jpg']);
-    expect(component.cardImages(parisHotel)).toEqual(['paris-1.jpg', 'paris-2.jpg']);
+    expect(component.cardImages(multiImageHotelFixture)).toEqual([imageDataUrl('b1'), imageDataUrl('b3')]);
+    expect(component.cardImages(parisHotel)).toEqual([imageDataUrl('p1'), imageDataUrl('p2')]);
   });
 });

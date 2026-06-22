@@ -1,8 +1,10 @@
 <main class="trip-flights-page">
   <nav class="wizard-progress" aria-label="Create trip progress">
     @for (step of steps; track step.number; let last = $last) {
-      <div
+      <a
         class="wizard-step"
+        [routerLink]="step.route"
+        [queryParams]="stepQueryParams()"
         [class.wizard-step--complete]="step.state === 'complete'"
         [class.wizard-step--active]="step.state === 'active'">
         <span class="step-circle">
@@ -13,7 +15,7 @@
           }
         </span>
         <span class="step-label">{{ step.label }}</span>
-      </div>
+      </a>
 
       @if (!last) {
         <span class="step-line" [class.step-line--complete]="step.state === 'complete'" aria-hidden="true"></span>
@@ -48,7 +50,109 @@
       </div>
     }
 
-    <section class="flight-results" aria-label="Flight options">
+    @if (isMultiCity()) {
+      @for (segment of segmentFlights; track segment.segmentIndex) {
+        <section class="flight-leg" [class.flight-leg--return]="segment.segmentIndex > 0">
+          <div class="leg-heading">
+            <span>Segment {{ segment.segmentIndex + 1 }}</span>
+            <strong>{{ segment.fromText }} → {{ segment.toText }} · {{ segment.date }}</strong>
+          </div>
+        </section>
+
+        <section class="flight-results" [attr.aria-label]="'Segment ' + (segment.segmentIndex + 1) + ' flight options'">
+          @for (flight of segment.flights; track flight.id) {
+            <article class="flight-card" [class.flight-card--expanded]="isSegmentFlightExpanded(flight)">
+              <button
+                type="button"
+                class="flight-option"
+                [class.flight-option--selected]="selectedSegmentFlightIds[segment.segmentIndex] === flight.id"
+                [attr.aria-expanded]="isSegmentFlightExpanded(flight)"
+                (click)="selectSegmentFlight(segment.segmentIndex, flight)">
+                <span class="airline-logo {{ flight.airline.colorClass }}">{{ flight.airline.code }}</span>
+
+                <span class="airline-copy">
+                  <strong>{{ flight.airline.name }}</strong>
+                  <small>{{ flight.flightNumber || flight.id }}</small>
+                </span>
+
+                <span class="flight-time">
+                  <strong>{{ flight.departure.time }}</strong>
+                  <small>{{ flight.departure.airport }}</small>
+                </span>
+
+                <span class="flight-duration">
+                  <small>{{ flight.duration }}</small>
+                  <span class="duration-line"></span>
+                  <em [class.direct]="flight.stops === 0">{{ stopsLabel(flight) }}</em>
+                </span>
+
+                <span class="flight-time">
+                  <strong>{{ flight.arrival.time }}</strong>
+                  <small>{{ flight.arrival.airport }}</small>
+                </span>
+
+                <span class="flight-price">
+                  <strong>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ flight.price }}</strong>
+                  <small>per person</small>
+                  <small>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ totalPrice(flight) }} total</small>
+                </span>
+
+                <span class="select-dot" aria-hidden="true"></span>
+              </button>
+
+              @if (isSegmentFlightExpanded(flight)) {
+                <section class="flight-details" aria-label="Segment flight details">
+                  <div class="detail-block">
+                    <span>Route</span>
+                    <strong>{{ flight.departure.city }} → {{ flight.arrival.city }}</strong>
+                    <p>
+                      {{ flight.departure.airport }}
+                      @if (flight.departure.terminal) {
+                        · Terminal {{ flight.departure.terminal }}
+                      }
+                      to {{ flight.arrival.airport }}
+                      @if (flight.arrival.terminal) {
+                        · Terminal {{ flight.arrival.terminal }}
+                      }
+                    </p>
+                  </div>
+
+                  <div class="detail-block">
+                    <span>Flight</span>
+                    <strong>{{ flight.airline.name }} · {{ flight.flightNumber || flight.id }}</strong>
+                    <p>{{ flightStatus(flight) }} · {{ flight.duration }} · {{ stopsLabel(flight) }}</p>
+                  </div>
+
+                  <div class="detail-block">
+                    <span>Baggage</span>
+                    <strong>{{ baggageSummary(flight) }}</strong>
+                    <p>Cabin class: Economy · Travelers: {{ tripTemp.travelers }}</p>
+                  </div>
+
+                  <div class="detail-block detail-block--price">
+                    <span>Total</span>
+                    <strong>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ totalPrice(flight) }}</strong>
+                    <p>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ flight.price }} per traveler</p>
+                  </div>
+                </section>
+              }
+            </article>
+          } @empty {
+            @if (!isLoading && !searchError) {
+              <div class="status-card">No flights found for this segment.</div>
+            }
+          }
+        </section>
+      }
+    } @else {
+    <section class="flight-leg">
+      <div class="leg-heading">
+        <span>Outbound flight</span>
+        <strong>{{ tripTemp.departureDate || 'Departure date' }}</strong>
+      </div>
+    </section>
+
+    <section class="flight-results" aria-label="Outbound flight options">
       @for (flight of flights; track flight.id) {
         <article class="flight-card" [class.flight-card--expanded]="isFlightExpanded(flight)">
           <button
@@ -129,9 +233,104 @@
       }
     </section>
 
+    @if (isRoundTrip()) {
+      <section class="flight-leg flight-leg--return">
+        <div class="leg-heading">
+          <span>Return flight</span>
+          <strong>{{ tripTemp.returnDate || 'Return date' }}</strong>
+        </div>
+      </section>
+
+      <section class="flight-results" aria-label="Return flight options">
+        @for (flight of returnFlights; track flight.id) {
+          <article class="flight-card" [class.flight-card--expanded]="isReturnFlightExpanded(flight)">
+            <button
+              type="button"
+              class="flight-option"
+              [class.flight-option--selected]="selectedReturnFlightId === flight.id"
+              [attr.aria-expanded]="isReturnFlightExpanded(flight)"
+              (click)="selectReturnFlight(flight)">
+              <span class="airline-logo {{ flight.airline.colorClass }}">{{ flight.airline.code }}</span>
+
+              <span class="airline-copy">
+                <strong>{{ flight.airline.name }}</strong>
+                <small>{{ flight.flightNumber || flight.id }}</small>
+              </span>
+
+              <span class="flight-time">
+                <strong>{{ flight.departure.time }}</strong>
+                <small>{{ flight.departure.airport }}</small>
+              </span>
+
+              <span class="flight-duration">
+                <small>{{ flight.duration }}</small>
+                <span class="duration-line"></span>
+                <em [class.direct]="flight.stops === 0">{{ stopsLabel(flight) }}</em>
+              </span>
+
+              <span class="flight-time">
+                <strong>{{ flight.arrival.time }}</strong>
+                <small>{{ flight.arrival.airport }}</small>
+              </span>
+
+              <span class="flight-price">
+                <strong>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ flight.price }}</strong>
+                <small>per person</small>
+                <small>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ totalPrice(flight) }} total</small>
+              </span>
+
+              <span class="select-dot" aria-hidden="true"></span>
+            </button>
+
+            @if (isReturnFlightExpanded(flight)) {
+              <section class="flight-details" aria-label="Return flight details">
+                <div class="detail-block">
+                  <span>Route</span>
+                  <strong>{{ flight.departure.city }} → {{ flight.arrival.city }}</strong>
+                  <p>
+                    {{ flight.departure.airport }}
+                    @if (flight.departure.terminal) {
+                      · Terminal {{ flight.departure.terminal }}
+                    }
+                    to {{ flight.arrival.airport }}
+                    @if (flight.arrival.terminal) {
+                      · Terminal {{ flight.arrival.terminal }}
+                    }
+                  </p>
+                </div>
+
+                <div class="detail-block">
+                  <span>Flight</span>
+                  <strong>{{ flight.airline.name }} · {{ flight.flightNumber || flight.id }}</strong>
+                  <p>{{ flightStatus(flight) }} · {{ flight.duration }} · {{ stopsLabel(flight) }}</p>
+                </div>
+
+                <div class="detail-block">
+                  <span>Baggage</span>
+                  <strong>{{ baggageSummary(flight) }}</strong>
+                  <p>Cabin class: Economy · Travelers: {{ tripTemp.travelers }}</p>
+                </div>
+
+                <div class="detail-block detail-block--price">
+                  <span>Total</span>
+                  <strong>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ totalPrice(flight) }}</strong>
+                  <p>{{ flight.currency === 'EUR' ? '€' : flight.currency }}{{ flight.price }} per traveler</p>
+                </div>
+              </section>
+            }
+          </article>
+        } @empty {
+          @if (!isLoading && !searchError) {
+            <div class="status-card">No return flights found for this route.</div>
+          }
+        }
+      </section>
+    }
+    }
+
     <footer class="page-actions">
-      <a class="back-button" routerLink="/trips/create/destination">← Back</a>
-      <button class="continue-button" type="button" [disabled]="!selectedFlightId" (click)="continueToHotels()">
+      <a class="back-button" routerLink="/trips/create/destination" [queryParams]="stepQueryParams()">← Back</a>
+      <button class="continue-button" type="button" [disabled]="isMultiCity() ? !allSegmentsSelected() : (!selectedFlightId || (isRoundTrip() && !selectedReturnFlightId))" (click)="continueToHotels()">
         Continue - Choose Hotels →
       </button>
     </footer>

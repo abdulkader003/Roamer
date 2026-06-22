@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, timeout } from 'rxjs';
 
-import { Airport, Flight, SearchParams, TripType } from '../../../flights/flight.model';
+import { Airport, Flight, MultiCitySegment, SearchParams, TripType } from '../../../flights/flight.model';
 import { FlightsService } from '../../../flights/flights.service';
 import { TripTempService } from '../trip-temp.service';
 
@@ -10,6 +10,15 @@ interface WizardStep {
   number: number;
   label: string;
   state: 'complete' | 'active' | 'pending';
+  route: string;
+}
+
+interface SegmentFlights {
+  segmentIndex: number;
+  fromText: string;
+  toText: string;
+  date: string;
+  flights: Flight[];
 }
 
 @Component({
@@ -23,16 +32,17 @@ interface WizardStep {
 export class TripFlightsComponent implements OnInit {
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly flightsService = inject(FlightsService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly tripTempService = inject(TripTempService);
 
   readonly steps: WizardStep[] = [
-    { number: 1, label: 'Budget', state: 'complete' },
-    { number: 2, label: 'Destination', state: 'complete' },
-    { number: 3, label: 'Flights', state: 'active' },
-    { number: 4, label: 'Hotels', state: 'pending' },
-    { number: 5, label: 'Activities', state: 'pending' },
-    { number: 6, label: 'Overview', state: 'pending' },
+    { number: 1, label: 'Budget', state: 'complete', route: '/trips/create/budget' },
+    { number: 2, label: 'Destination', state: 'complete', route: '/trips/create/destination' },
+    { number: 3, label: 'Flights', state: 'active', route: '/trips/create/flights' },
+    { number: 4, label: 'Hotels', state: 'pending', route: '/trips/create/hotels' },
+    { number: 5, label: 'Activities', state: 'pending', route: '/trips/create/activities' },
+    { number: 6, label: 'Overview', state: 'pending', route: '/trips/create/overview' },
   ];
 
   readonly tripTemp = this.tripTempService.getTripTemp();
@@ -52,12 +62,27 @@ export class TripFlightsComponent implements OnInit {
 
   isLoading = false;
   searchError = '';
-  selectedFlightId = this.tripTemp.selectedFlightId;
+  selectedFlightId = this.tripTemp.selectedFlightId.split('|')[0] ?? '';
+  selectedReturnFlightId = this.tripTemp.selectedFlightId.split('|')[1] ?? '';
   expandedFlightId = '';
+  expandedReturnFlightId = '';
+  expandedSegmentFlightId = '';
   flights: Flight[] = [];
+  returnFlights: Flight[] = [];
+  segmentFlights: SegmentFlights[] = [];
+  selectedSegmentFlightIds: Record<number, string> = {};
 
   ngOnInit(): void {
     this.searchFlights();
+  }
+
+  stepQueryParams(): Record<string, string | number> {
+    const tripPlanningId = this.route.snapshot.queryParamMap.get('tripPlanningId')
+      ?? this.tripTemp.tripPlanningId;
+
+    return tripPlanningId
+      ? { ...this.route.snapshot.queryParams, tripPlanningId }
+      : this.route.snapshot.queryParams;
   }
 
   retrySearch(): void {
@@ -69,11 +94,36 @@ export class TripFlightsComponent implements OnInit {
     this.expandedFlightId = this.expandedFlightId === flight.id ? '' : flight.id;
 
     // Keep the wizard choice available for the following steps.
-    this.saveFlightSelection(flight);
+    this.saveFlightSelection();
+  }
+
+  selectReturnFlight(flight: Flight): void {
+    this.selectedReturnFlightId = flight.id;
+    this.expandedReturnFlightId = this.expandedReturnFlightId === flight.id ? '' : flight.id;
+
+    // Round trips are saved as one combined flight choice for the overview.
+    this.saveFlightSelection();
+  }
+
+  selectSegmentFlight(segmentIndex: number, flight: Flight): void {
+    this.selectedSegmentFlightIds = {
+      ...this.selectedSegmentFlightIds,
+      [segmentIndex]: flight.id,
+    };
+    this.expandedSegmentFlightId = this.expandedSegmentFlightId === flight.id ? '' : flight.id;
+    this.saveFlightSelection();
   }
 
   isFlightExpanded(flight: Flight): boolean {
     return this.expandedFlightId === flight.id;
+  }
+
+  isReturnFlightExpanded(flight: Flight): boolean {
+    return this.expandedReturnFlightId === flight.id;
+  }
+
+  isSegmentFlightExpanded(flight: Flight): boolean {
+    return this.expandedSegmentFlightId === flight.id;
   }
 
   baggageSummary(flight: Flight): string {
@@ -91,27 +141,82 @@ export class TripFlightsComponent implements OnInit {
     return flight.status || 'Scheduled';
   }
 
-  private saveFlightSelection(flight: Flight): void {
+  isRoundTrip(): boolean {
+    return this.tripType() === 'round-trip';
+  }
+
+  isMultiCity(): boolean {
+    return this.tripType() === 'multi-city';
+  }
+
+  private saveFlightSelection(): void {
+    if (this.isMultiCity()) {
+      this.saveMultiCityFlightSelection();
+      return;
+    }
+
+    const outboundFlight = this.selectedOutboundFlight();
+    const returnFlight = this.selectedReturnFlight();
+
+    if (!outboundFlight) {
+      return;
+    }
+
     this.tripTempService.updateTripTemp({
-      selectedFlightId: flight.id,
-      selectedFlightTotal: this.totalPrice(flight),
+      selectedFlightId: returnFlight ? `${outboundFlight.id}|${returnFlight.id}` : outboundFlight.id,
+      selectedFlightAirline: returnFlight
+        ? `${outboundFlight.airline.name} + ${returnFlight.airline.name}`
+        : outboundFlight.airline.name,
+      selectedFlightNumber: returnFlight
+        ? `${outboundFlight.flightNumber || outboundFlight.id} / ${returnFlight.flightNumber || returnFlight.id}`
+        : outboundFlight.flightNumber || outboundFlight.id,
+      selectedFlightDepartureTime: outboundFlight.departure.time,
+      selectedFlightArrivalTime: returnFlight?.arrival.time ?? outboundFlight.arrival.time,
+      selectedFlightDuration: returnFlight
+        ? `Outbound ${outboundFlight.duration} · Return ${returnFlight.duration}`
+        : outboundFlight.duration,
+      selectedFlightStops: returnFlight
+        ? `${this.stopsLabel(outboundFlight)} outbound · ${this.stopsLabel(returnFlight)} return`
+        : this.stopsLabel(outboundFlight),
+      selectedFlightTotal: this.totalPrice(outboundFlight) + (returnFlight ? this.totalPrice(returnFlight) : 0),
     });
   }
 
   continueToHotels(): void {
-    if (!this.selectedFlightId) {
-      this.searchError = 'Choose a flight to continue.';
+    if (this.isMultiCity() && !this.allSegmentsSelected()) {
+      this.searchError = 'Choose one flight for each multi-city segment to continue.';
       return;
     }
 
-    void this.router.navigate(['/hotels']);
+    if (!this.isMultiCity() && (!this.selectedFlightId || (this.isRoundTrip() && !this.selectedReturnFlightId))) {
+      this.searchError = this.isRoundTrip()
+        ? 'Choose both an outbound and a return flight to continue.'
+        : 'Choose a flight to continue.';
+      return;
+    }
+
+    void this.router.navigate(['/trips/create/hotels'], {
+      queryParams: this.stepQueryParams(),
+    });
   }
 
   routeSummary(): string {
+    if (this.isMultiCity()) {
+      const segments = this.multiCitySegmentsFromQuery();
+      const first = segments[0];
+      const last = segments[segments.length - 1];
+      const route = first && last
+        ? `${this.cityOnly(first.fromText)} → ${this.cityOnly(last.toText)}`
+        : 'Multi-city route';
+
+      return `${route} · ${segments.length} segments · ${this.tripTemp.travelers} traveler${this.tripTemp.travelers === 1 ? '' : 's'}`;
+    }
+
     const origin = this.cityOnly(this.tripTemp.origin) || 'Origin';
     const destination = this.cityOnly(this.tripTemp.destination) || 'Destination';
     const date = this.tripTemp.departureDate || 'Date';
-    return `${origin} → ${destination} · ${date} · ${this.tripTemp.travelers} traveler${this.tripTemp.travelers === 1 ? '' : 's'}`;
+    const returnDate = this.isRoundTrip() && this.tripTemp.returnDate ? ` → ${this.tripTemp.returnDate}` : '';
+    return `${origin} → ${destination}${returnDate} · ${date} · ${this.tripTemp.travelers} traveler${this.tripTemp.travelers === 1 ? '' : 's'}`;
   }
 
   totalPrice(flight: Flight): number {
@@ -125,8 +230,21 @@ export class TripFlightsComponent implements OnInit {
   private searchFlights(): void {
     const searchParams = this.buildSearchParams();
 
-    if (!searchParams.departureDate || !searchParams.from.code || !searchParams.to.code) {
-      this.searchError = 'Go back and complete your origin, destination, and departure date first.';
+    if (searchParams.tripType === 'multi-city' && !searchParams.multiCitySegments?.length) {
+      this.searchError = 'Go back and complete each multi-city origin, destination, and date first.';
+      return;
+    }
+
+    if (
+      searchParams.tripType !== 'multi-city' &&
+      (!searchParams.departureDate ||
+        !searchParams.from.code ||
+        !searchParams.to.code ||
+        (searchParams.tripType === 'round-trip' && !searchParams.returnDate))
+    ) {
+      this.searchError = searchParams.tripType === 'round-trip'
+        ? 'Go back and complete your origin, destination, departure date, and return date first.'
+        : 'Go back and complete your origin, destination, and departure date first.';
       return;
     }
 
@@ -149,33 +267,133 @@ export class TripFlightsComponent implements OnInit {
       .subscribe({
         next: (response) => {
           this.flights = response.outboundFlights?.length ? response.outboundFlights : response.flights;
-          this.searchError = this.flights.length ? '' : 'No matching flights found for this route.';
+          this.returnFlights = this.isRoundTrip() ? response.returnFlights ?? [] : [];
+          this.segmentFlights = this.isMultiCity() ? response.segmentFlights ?? [] : [];
+          this.searchError = this.hasFlightResults() ? '' : 'No matching flights found for this route.';
 
-          if (!this.selectedFlightId && this.flights.length) {
+          if (!this.isMultiCity() && !this.selectedFlightId && this.flights.length) {
             this.selectedFlightId = this.flights[0].id;
-            this.saveFlightSelection(this.flights[0]);
           }
+
+          if (this.isRoundTrip() && !this.selectedReturnFlightId && this.returnFlights.length) {
+            this.selectedReturnFlightId = this.returnFlights[0].id;
+          }
+
+          if (this.isMultiCity()) {
+            this.selectedSegmentFlightIds = this.segmentFlights.reduce<Record<number, string>>((selected, segment) => ({
+              ...selected,
+              [segment.segmentIndex]: this.selectedSegmentFlightIds[segment.segmentIndex] || segment.flights[0]?.id || '',
+            }), {});
+          }
+
+          this.saveFlightSelection();
         },
         error: (error) => {
           this.searchError = error?.error?.detail ?? error?.message ?? 'Flight search failed. Please try again.';
           this.flights = [];
+          this.returnFlights = [];
+          this.segmentFlights = [];
         },
       });
   }
 
   private buildSearchParams(): SearchParams {
+    const tripType = this.tripType();
+
     return {
-      tripType: 'one-way' as TripType,
+      tripType,
       from: this.parseAirportText(this.tripTemp.origin),
       to: this.parseAirportText(this.tripTemp.destination),
       departureDate: this.parseDateInput(this.tripTemp.departureDate),
-      returnDate: null,
+      returnDate: tripType === 'round-trip' ? this.parseDateInput(this.tripTemp.returnDate) : null,
+      multiCitySegments: tripType === 'multi-city' ? this.multiCitySegmentsFromQuery() : undefined,
       includeCityAirports: false,
       travelers: this.tripTemp.travelers,
       adults: this.tripTemp.travelers,
       children: 0,
       cabinClass: 'economy',
     };
+  }
+
+  private tripType(): TripType {
+    const routeTripType = this.route.snapshot.queryParamMap.get('tripType');
+
+    if (routeTripType === 'round-trip' || routeTripType === 'multi-city') {
+      return routeTripType;
+    }
+
+    return this.tripTemp.returnDate ? 'round-trip' : 'one-way';
+  }
+
+  private selectedOutboundFlight(): Flight | undefined {
+    return this.flights.find((flight) => flight.id === this.selectedFlightId);
+  }
+
+  private selectedReturnFlight(): Flight | undefined {
+    return this.returnFlights.find((flight) => flight.id === this.selectedReturnFlightId);
+  }
+
+  private saveMultiCityFlightSelection(): void {
+    const selectedFlights = this.selectedSegmentFlights();
+
+    if (!selectedFlights.length) {
+      return;
+    }
+
+    const firstFlight = selectedFlights[0];
+    const lastFlight = selectedFlights[selectedFlights.length - 1];
+
+    this.tripTempService.updateTripTemp({
+      selectedFlightId: selectedFlights.map((flight) => flight.id).join('|'),
+      selectedFlightAirline: selectedFlights.map((flight) => flight.airline.name).join(' + '),
+      selectedFlightNumber: selectedFlights.map((flight) => flight.flightNumber || flight.id).join(' / '),
+      selectedFlightDepartureTime: firstFlight.departure.time,
+      selectedFlightArrivalTime: lastFlight.arrival.time,
+      selectedFlightDuration: selectedFlights
+        .map((flight, index) => `Segment ${index + 1} ${flight.duration}`)
+        .join(' · '),
+      selectedFlightStops: selectedFlights
+        .map((flight, index) => `Segment ${index + 1} ${this.stopsLabel(flight)}`)
+        .join(' · '),
+      selectedFlightTotal: selectedFlights.reduce((total, flight) => total + this.totalPrice(flight), 0),
+    });
+  }
+
+  private selectedSegmentFlights(): Flight[] {
+    return this.segmentFlights
+      .map((segment) => segment.flights.find((flight) => flight.id === this.selectedSegmentFlightIds[segment.segmentIndex]))
+      .filter((flight): flight is Flight => !!flight);
+  }
+
+  allSegmentsSelected(): boolean {
+    return this.segmentFlights.length > 0
+      && this.segmentFlights.every((segment) => !!this.selectedSegmentFlightIds[segment.segmentIndex]);
+  }
+
+  private hasFlightResults(): boolean {
+    return this.isMultiCity()
+      ? this.segmentFlights.some((segment) => segment.flights.length > 0)
+      : this.flights.length > 0;
+  }
+
+  private multiCitySegmentsFromQuery(): MultiCitySegment[] {
+    const rawSegments = this.route.snapshot.queryParamMap.get('multiCitySegments');
+
+    if (!rawSegments) {
+      return [];
+    }
+
+    try {
+      const segments = JSON.parse(rawSegments) as Array<{ fromText: string; toText: string; date: string }>;
+
+      return segments.map((segment) => ({
+        fromText: segment.fromText,
+        toText: segment.toText,
+        date: this.parseDateInput(segment.date),
+      }));
+    } catch {
+      return [];
+    }
   }
 
   private parseAirportText(value: string): Airport {

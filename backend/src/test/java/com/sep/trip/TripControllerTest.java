@@ -62,6 +62,29 @@ class TripControllerTest {
     }
 
     @Test
+    void updateTripUsesAuthenticatedEmailTripIdAndRequest() {
+        CreateTripRequest request = request();
+        TripResponse savedTrip = response();
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(tripService.updateTrip("traveler@example.com", 11L, request)).thenReturn(savedTrip);
+
+        TripResponse response = tripController.updateTrip(authentication, 11L, request);
+
+        assertThat(response).isEqualTo(savedTrip);
+        verify(tripService).updateTrip("traveler@example.com", 11L, request);
+    }
+
+    @Test
+    void deleteTripUsesAuthenticatedEmailAndTripId() {
+        when(authentication.getName()).thenReturn("traveler@example.com");
+
+        ResponseEntity<Void> response = tripController.deleteTrip(authentication, 11L);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        verify(tripService).deleteTrip("traveler@example.com", 11L);
+    }
+
+    @Test
     void illegalArgumentsBecomeClientSafeBadRequests() {
         ResponseEntity<Map<String, String>> response =
                 tripController.handleIllegalArgument(new IllegalArgumentException("Invalid trip dates"));

@@ -3,6 +3,7 @@ package com.sep.trip;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Persistence access for user-owned trips.
@@ -13,6 +14,8 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
      * into the authenticated user's response.
      */
     List<Trip> findAllByOwnerIdOrderByStartDateAsc(Long ownerId);
+
+    Optional<Trip> findByIdAndOwnerId(Long id, Long ownerId);
 
     void deleteAllByOwnerId(Long ownerId);
 }

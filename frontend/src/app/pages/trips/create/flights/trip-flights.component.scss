@@ -27,6 +27,13 @@
   flex-direction: column;
   gap: 6px;
   color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.wizard-step:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .step-circle {
@@ -158,6 +165,32 @@
 .flight-results {
   display: grid;
   gap: 12px;
+}
+
+.flight-leg {
+  margin: 18px 0 10px;
+}
+
+.flight-leg--return {
+  margin-top: 24px;
+}
+
+.leg-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  strong {
+    color: var(--text-primary);
+    letter-spacing: 0;
+    text-transform: none;
+  }
 }
 
 .flight-card {

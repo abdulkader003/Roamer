@@ -53,7 +53,6 @@ class TripPlanningControllerTest {
     }
 
     @Test
-<<<<<<< backend/src/test/java/com/sep/tripplanning/TripPlanningControllerTest.java
     void rejectsInvalidHotelSelectionBeforeSaving() throws Exception {
         mockMvc.perform(post("/api/trip-planning/10/hotel")
                         .principal(new UsernamePasswordAuthenticationToken(
@@ -172,7 +171,8 @@ class TripPlanningControllerTest {
                 org.mockito.ArgumentMatchers.eq("traveler@example.com")
         );
     }
-=======
+
+    @Test
     void listsTripsForAuthenticatedUser() throws Exception {
         mockMvc.perform(get("/api/trip-planning")
                         .principal(new UsernamePasswordAuthenticationToken(
@@ -182,6 +182,17 @@ class TripPlanningControllerTest {
                 .andExpect(status().isOk());
 
         verify(tripPlanningService).findTripsForUser("traveler@example.com");
->>>>>>> backend/src/test/java/com/sep/tripplanning/TripPlanningControllerTest.java
+    }
+
+    @Test
+    void forwardsOverviewRequestToService() throws Exception {
+        mockMvc.perform(get("/api/trip-planning/10/overview")
+                        .principal(new UsernamePasswordAuthenticationToken(
+                                "traveler@example.com",
+                                null
+                        )))
+                .andExpect(status().isOk());
+
+        verify(tripPlanningService).getOverview(10L, "traveler@example.com");
     }
 }
