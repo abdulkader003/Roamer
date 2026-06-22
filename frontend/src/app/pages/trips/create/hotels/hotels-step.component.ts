@@ -5,6 +5,7 @@ import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
 import { Hotel } from '../../../hotels/models/hotel.model';
 import { HotelService } from '../../../hotels/services/hotel.service';
 import { TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripTempService } from '../trip-temp.service';
 
 interface TripStep {
   label: string;
@@ -26,17 +27,19 @@ interface TripPlanningHotel extends Hotel {
 export class HotelsStepComponent implements OnInit {
   private readonly hotelService = inject(HotelService);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly tripTempService = inject(TripTempService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly tripTemp = this.tripTempService.getTripTemp();
 
   readonly steps: TripStep[] = [
     { label: 'Budget', route: '/trips/create/budget' },
     { label: 'Destination', route: '/trips/create/destination' },
-    { label: 'Flights' },
+    { label: 'Flights', route: '/trips/create/flights' },
     { label: 'Hotels', route: '/trips/create/hotels' },
     { label: 'Activities', route: '/trips/create/activities' },
-    { label: 'Overview' },
+    { label: 'Overview', route: '/trips/create/overview' },
   ];
   readonly hotels = signal<TripPlanningHotel[]>([]);
   readonly selectedHotel = signal<TripPlanningHotel | null>(null);
@@ -50,16 +53,15 @@ export class HotelsStepComponent implements OnInit {
   readonly imageIndexes = signal<Record<string, number>>({});
   readonly failedImageUrls = signal<Record<string, string[]>>({});
 
-  readonly nights = 7;
-  readonly guests = 2;
-  readonly checkIn = this.formatDate(this.addDays(new Date(), 30));
-  readonly checkOut = this.formatDate(this.addDays(new Date(), 37));
+  readonly nights = Math.max(this.tripTemp.durationNights ?? 0, 0);
+  readonly guests = Math.max(this.tripTemp.travelers || 1, 1);
+  readonly checkIn = this.tripTemp.departureDate || this.formatDate(this.addDays(new Date(), 30));
+  readonly checkOut = this.tripTemp.returnDate || this.formatDate(this.addDays(new Date(), 30 + Math.max(this.nights, 1)));
   readonly fallbackHotelImage =
     'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 520%22%3E%3Crect width=%22800%22 height=%22520%22 fill=%22%23eef4fb%22/%3E%3Cpath d=%22M130 390h540L535 245l-95 105-70-75z%22 fill=%22%23c9d8eb%22/%3E%3Ccircle cx=%22595%22 cy=%22150%22 r=%2245%22 fill=%22%23dbe6f4%22/%3E%3Ctext x=%22400%22 y=%22455%22 text-anchor=%22middle%22 fill=%22%2370879f%22 font-family=%22Arial,sans-serif%22 font-size=%2232%22 font-weight=%22700%22%3EHotel image unavailable%3C/text%3E%3C/svg%3E';
 
   ngOnInit(): void {
-    const tripPlanningId = Number(this.route.snapshot.queryParamMap.get('tripPlanningId'));
-    this.tripPlanningId.set(Number.isFinite(tripPlanningId) && tripPlanningId > 0 ? tripPlanningId : null);
+    this.tripPlanningId.set(this.readTripPlanningId());
     this.selectedCities.set(this.readSelectedCities());
     this.loadHotels();
   }
@@ -190,6 +192,12 @@ export class HotelsStepComponent implements OnInit {
 
     this.isSaving.set(true);
     this.saveError.set('');
+    this.tripTempService.updateTripTemp({
+      selectedHotelName: hotel.name,
+      selectedHotelCity: hotel.tripCity || hotel.city,
+      selectedHotelStars: hotel.stars ?? null,
+      selectedHotelTotal: this.totalPrice(hotel),
+    });
 
     this.tripPlanningService
       .saveHotelStep(tripPlanningId, { hotelId: hotel.id })
@@ -231,8 +239,28 @@ export class HotelsStepComponent implements OnInit {
     return tripPlanningId ? { tripPlanningId } : undefined;
   }
 
+  private readTripPlanningId(): number | null {
+    const routeTripPlanningId = Number(this.route.snapshot.queryParamMap.get('tripPlanningId'));
+
+    if (Number.isFinite(routeTripPlanningId) && routeTripPlanningId > 0) {
+      this.tripTempService.updateTripTemp({ tripPlanningId: routeTripPlanningId });
+      return routeTripPlanningId;
+    }
+
+    return this.tripTempService.getTripTemp().tripPlanningId ?? null;
+  }
+
   subtitle(): string {
-    return `${this.selectedCities().join(', ')} · ${this.nights} nights · ${this.guests} guests`;
+    const cityText = this.cityListText(this.selectedCities());
+    const locationText = this.isMultiCityTrip() ? `across ${cityText}` : `in ${cityText}`;
+    const dateText = this.dateRangeText();
+    const parts = [
+      dateText,
+      this.pluralize(this.nights, 'night'),
+      this.pluralize(this.guests, 'guest'),
+    ].filter(Boolean);
+
+    return `Showing hotel options ${locationText}${parts.length ? ` · ${parts.join(' · ')}` : ''}.`;
   }
 
   isMultiCityTrip(): boolean {
@@ -325,11 +353,77 @@ export class HotelsStepComponent implements OnInit {
   private readSelectedCities(): string[] {
     const cityParams = this.route.snapshot.queryParamMap.getAll('city');
     const citiesParam = this.route.snapshot.queryParamMap.get('cities');
-    const rawCities = cityParams.length ? cityParams : citiesParam?.split(',') ?? [];
-    const selectedCities = rawCities.map((city) => city.trim()).filter(Boolean);
+    const multiCitySegmentsParam = this.route.snapshot.queryParamMap.get('multiCitySegments');
+    const tripTemp = this.tripTempService.getTripTemp();
+    const rawCities = cityParams.length
+      ? cityParams
+      : citiesParam?.split(',') ?? this.destinationCitiesFromMultiCitySegments(multiCitySegmentsParam);
+    const selectedCities = rawCities.map((city) => this.cityOnly(city)).filter(Boolean);
 
-    // Keeps Barcelona fallback until Destination/Flights state is connected.
-    return selectedCities.length ? Array.from(new Set(selectedCities)) : ['Barcelona'];
+    if (selectedCities.length) {
+      return Array.from(new Set(selectedCities));
+    }
+
+    if (tripTemp.destinationCities.length) {
+      return Array.from(new Set(tripTemp.destinationCities.map((city) => this.cityOnly(city)).filter(Boolean)));
+    }
+
+    const destinationCity = this.cityOnly(tripTemp.destination);
+    return destinationCity ? [destinationCity] : ['Barcelona'];
+  }
+
+  private destinationCitiesFromMultiCitySegments(rawSegments: string | null): string[] {
+    if (!rawSegments) {
+      return [];
+    }
+
+    try {
+      const segments = JSON.parse(rawSegments) as Array<{ toText?: string }>;
+      return segments.map((segment) => segment.toText ?? '');
+    } catch {
+      return [];
+    }
+  }
+
+  private cityOnly(value: string): string {
+    return value.replace(/\s*\([A-Za-z]{3}\)$/, '').trim();
+  }
+
+  private cityListText(cities: string[]): string {
+    if (cities.length <= 1) {
+      return cities[0] ?? 'your destination';
+    }
+
+    return `${cities.slice(0, -1).join(', ')} and ${cities[cities.length - 1]}`;
+  }
+
+  private dateRangeText(): string {
+    const checkIn = this.formatDisplayDate(this.checkIn);
+    const checkOut = this.formatDisplayDate(this.checkOut);
+
+    return checkIn && checkOut ? `${checkIn} to ${checkOut}` : '';
+  }
+
+  private pluralize(count: number, label: string): string {
+    return `${count} ${label}${count === 1 ? '' : 's'}`;
+  }
+
+  private formatDisplayDate(value: string): string {
+    if (!value) {
+      return '';
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date);
   }
 
   private addDays(date: Date, days: number): Date {

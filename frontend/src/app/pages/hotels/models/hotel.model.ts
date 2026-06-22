@@ -34,4 +34,5 @@ export interface CalendarEvent {
   startTime?: string;
   endTime?: string;
   description?: string;
+  tripId?: number;
 }

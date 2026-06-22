@@ -7,6 +7,7 @@ import com.sep.tripplanning.dto.SelectedTripActivity;
 import com.sep.tripplanning.dto.TripActivitiesResponse;
 import com.sep.tripplanning.dto.TripBudgetResponse;
 import com.sep.tripplanning.dto.TripHotelResponse;
+import com.sep.tripplanning.dto.TripOverviewResponse;
 import com.sep.hotel.model.Hotel;
 import com.sep.hotel.repository.HotelRepository;
 import com.sep.user.AppUser;
@@ -111,6 +112,23 @@ public class TripPlanningService {
 
     }
 
+    @Transactional(readOnly = true)
+    public TripOverviewResponse getOverview(Long tripPlanningId, String authenticatedEmail) {
+        TripPlanning tripPlanning = findOwnedTripPlanning(tripPlanningId, authenticatedEmail);
+
+        return new TripOverviewResponse(
+                tripPlanning.getId(),
+                tripPlanning.getTripName(),
+                tripPlanning.getBudget(),
+                tripPlanning.getCurrency(),
+                tripPlanning.getDuration(),
+                tripPlanning.getTravelStyle(),
+                tripPlanning.getSelectedHotelName() != null ? toHotelResponse(tripPlanning) : null,
+                selectedActivities(tripPlanning),
+                totalActivitiesCost(tripPlanning)
+        );
+    }
+
     private TripBudgetResponse toResponse(TripPlanning tripPlanning) {
         return new TripBudgetResponse(
                 tripPlanning.getId(),
@@ -148,7 +166,29 @@ public class TripPlanningService {
     }
 
     private TripActivitiesResponse toActivitiesResponse(TripPlanning tripPlanning) {
-        List<SelectedTripActivity> activities = tripPlanning.getSelectedActivities().stream()
+        List<SelectedTripActivity> activities = selectedActivities(tripPlanning);
+
+        return new TripActivitiesResponse(
+                tripPlanning.getId(),
+                activities,
+                totalActivitiesCost(tripPlanning),
+                activities.size()
+        );
+    }
+
+    private TripPlanning findOwnedTripPlanning(Long tripPlanningId, String authenticatedEmail) {
+        TripPlanning tripPlanning = tripPlanningRepository.findById(tripPlanningId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip planning record not found"));
+
+        if (!tripPlanning.getUser().getEmail().equalsIgnoreCase(authenticatedEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip planning record belongs to another user");
+        }
+
+        return tripPlanning;
+    }
+
+    private List<SelectedTripActivity> selectedActivities(TripPlanning tripPlanning) {
+        return tripPlanning.getSelectedActivities().stream()
                 .map(activity -> new SelectedTripActivity(
                         activity.getName(),
                         activity.getCategory(),
@@ -157,15 +197,11 @@ public class TripPlanningService {
                         activity.getCity()
                 ))
                 .toList();
-        BigDecimal totalCost = activities.stream()
+    }
+
+    private BigDecimal totalActivitiesCost(TripPlanning tripPlanning) {
+        return selectedActivities(tripPlanning).stream()
                 .map(SelectedTripActivity::price)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return new TripActivitiesResponse(
-                tripPlanning.getId(),
-                activities,
-                totalCost,
-                activities.size()
-        );
     }
 }

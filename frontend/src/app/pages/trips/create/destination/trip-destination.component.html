@@ -1,8 +1,10 @@
 <main class="destination-page">
   <nav class="wizard-progress" aria-label="Create trip progress">
     @for (step of steps; track step.number; let last = $last) {
-      <div
+      <a
         class="wizard-step"
+        [routerLink]="step.route"
+        [queryParams]="stepQueryParams()"
         [class.wizard-step--complete]="step.state === 'complete'"
         [class.wizard-step--active]="step.state === 'active'">
         <span class="step-circle">
@@ -13,7 +15,7 @@
           }
         </span>
         <span class="step-label">{{ step.label }}</span>
-      </div>
+      </a>
 
       @if (!last) {
         <span class="step-line" [class.step-line--complete]="step.state === 'complete'" aria-hidden="true"></span>
@@ -249,7 +251,7 @@
       }
 
       <footer class="page-actions">
-        <a class="back-button" routerLink="/trips/create/budget">← Back</a>
+        <a class="back-button" routerLink="/trips/create/budget" [queryParams]="stepQueryParams()">← Back</a>
         <button class="continue-button" type="submit">Continue - Search Flights →</button>
       </footer>
     </form>

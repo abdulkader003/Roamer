@@ -18,13 +18,41 @@ describe('BudgetComponent', () => {
       'saveBudgetStep',
     ]);
     tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', [
+      'getTripTemp',
       'updateTripTemp',
     ]);
+    tripTempService.getTripTemp.and.returnValue({
+      tripName: '',
+      budget: null,
+      currency: 'EUR',
+      durationNights: 0,
+      travelStyle: 'Mid-range',
+      origin: '',
+      destination: '',
+      destinationCities: [],
+      departureDate: '',
+      returnDate: '',
+      travelers: 2,
+      selectedFlightId: '',
+      selectedFlightAirline: '',
+      selectedFlightNumber: '',
+      selectedFlightDepartureTime: '',
+      selectedFlightArrivalTime: '',
+      selectedFlightDuration: '',
+      selectedFlightStops: '',
+      selectedFlightTotal: null,
+      selectedHotelName: '',
+      selectedHotelCity: '',
+      selectedHotelStars: null,
+      selectedHotelTotal: null,
+      selectedActivities: [],
+      selectedActivitiesTotal: 0,
+    });
 
     await TestBed.configureTestingModule({
       imports: [BudgetComponent],
       providers: [
-        provideRouter([]),
+        provideRouter([{ path: 'trips/create/destination', component: BudgetComponent }]),
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: TripTempService, useValue: tripTempService },
       ],
@@ -36,7 +64,13 @@ describe('BudgetComponent', () => {
     fixture.detectChanges();
   });
 
-  it('disables continue until a trip name is entered', () => {
+  it('starts with zero nights and zero manual budget', () => {
+    expect(component.budgetForm.controls.nights.value).toBe(0);
+    expect(component.budgetForm.controls.totalBudget.value).toBe(0);
+    expect(component.recommendedBudget()).toBe(0);
+  });
+
+  it('disables continue until required budget details are entered', () => {
     const recommendedButton = fixture.nativeElement.querySelector(
       '.recommended-continue-button',
     ) as HTMLButtonElement;
@@ -50,13 +84,23 @@ describe('BudgetComponent', () => {
     component.budgetForm.controls.tripName.setValue('Summer in Italy');
     fixture.detectChanges();
 
+    expect(recommendedButton.disabled).toBeTrue();
+    expect(manualButton.disabled).toBeTrue();
+
+    component.budgetForm.controls.nights.setValue(7);
+    component.budgetForm.controls.totalBudget.setValue(2450);
+    component.selectTravelStyle('mid-range');
+    fixture.detectChanges();
+
     expect(recommendedButton.disabled).toBeFalse();
     expect(manualButton.disabled).toBeFalse();
   });
 
   it('disables only manual continue when the manual budget is not greater than zero', () => {
     component.budgetForm.controls.tripName.setValue('Summer in Italy');
+    component.budgetForm.controls.nights.setValue(7);
     component.budgetForm.controls.totalBudget.setValue(0);
+    component.selectTravelStyle('mid-range');
     fixture.detectChanges();
 
     const recommendedButton = fixture.nativeElement.querySelector(
@@ -78,11 +122,11 @@ describe('BudgetComponent', () => {
     expect(tripPlanningService.saveBudgetStep).not.toHaveBeenCalled();
   });
 
-  it('does not reduce the duration below one night', () => {
-    component.budgetForm.controls.nights.setValue(1);
+  it('does not reduce the duration below zero nights', () => {
+    component.budgetForm.controls.nights.setValue(0);
     component.adjustNights(-1);
 
-    expect(component.budgetForm.controls.nights.value).toBe(1);
+    expect(component.budgetForm.controls.nights.value).toBe(0);
   });
 
   it('recommends a budget based on travel style and duration', () => {
@@ -94,6 +138,7 @@ describe('BudgetComponent', () => {
 
   it('keeps a manually edited budget independent from recommendations', () => {
     component.budgetForm.controls.totalBudget.setValue(1234);
+    component.budgetForm.controls.nights.setValue(7);
     component.adjustNights(1);
     component.selectTravelStyle('luxury');
 
@@ -114,7 +159,9 @@ describe('BudgetComponent', () => {
     const saveResult = new Subject<TripBudgetResponse>();
     tripPlanningService.saveBudgetStep.and.returnValue(saveResult);
     component.budgetForm.controls.tripName.setValue('Summer in Italy');
+    component.budgetForm.controls.nights.setValue(7);
     component.budgetForm.controls.totalBudget.setValue(0);
+    component.selectTravelStyle('mid-range');
 
     component.continueWithRecommendedBudget();
 
@@ -137,13 +184,16 @@ describe('BudgetComponent', () => {
     saveResult.complete();
 
     expect(component.savedTripPlanningId()).toBe(10);
-    expect(navigateSpy).toHaveBeenCalledWith(['/trips/create/destination']);
+    expect(navigateSpy).toHaveBeenCalledWith(['/trips/create/destination'], {
+      queryParams: { tripPlanningId: 10 },
+    });
   });
 
   it('sends the user-entered budget through the manual flow', () => {
     tripPlanningService.saveBudgetStep.and.returnValue(new Subject<TripBudgetResponse>());
     component.budgetForm.controls.tripName.setValue('Summer in Italy');
     component.budgetForm.controls.totalBudget.setValue(1234);
+    component.budgetForm.controls.nights.setValue(7);
 
     component.continueWithManualBudget();
 
@@ -168,6 +218,8 @@ describe('BudgetComponent', () => {
       throwError(() => new Error('Backend unavailable')),
     );
     component.budgetForm.controls.tripName.setValue('Summer in Italy');
+    component.budgetForm.controls.totalBudget.setValue(1234);
+    component.budgetForm.controls.nights.setValue(7);
 
     component.continueWithManualBudget();
     fixture.detectChanges();
@@ -180,6 +232,8 @@ describe('BudgetComponent', () => {
   it('disables continue while saving', () => {
     tripPlanningService.saveBudgetStep.and.returnValue(new Subject<TripBudgetResponse>());
     component.budgetForm.controls.tripName.setValue('Summer in Italy');
+    component.budgetForm.controls.nights.setValue(7);
+    component.selectTravelStyle('mid-range');
 
     component.continueWithRecommendedBudget();
     fixture.detectChanges();

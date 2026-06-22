@@ -16,6 +16,9 @@ public class CalendarEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "trip_id")
+    private Long tripId;
+
     private String title;
 
     @Column(length = 1000)
@@ -35,6 +38,14 @@ public class CalendarEvent {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getTripId() {
+        return tripId;
+    }
+
+    public void setTripId(Long tripId) {
+        this.tripId = tripId;
     }
 
     public String getTitle() {

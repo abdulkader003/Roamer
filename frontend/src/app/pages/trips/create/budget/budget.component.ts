@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -30,7 +30,7 @@ interface TripStep {
   styleUrl: './budget.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BudgetComponent {
+export class BudgetComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly tripPlanningService = inject(TripPlanningService);
@@ -40,13 +40,13 @@ export class BudgetComponent {
   readonly steps: TripStep[] = [
     { label: 'Budget', route: '/trips/create/budget' },
     { label: 'Destination', route: '/trips/create/destination' },
-    { label: 'Flights' },
+    { label: 'Flights', route: '/trips/create/flights' },
     { label: 'Hotels', route: '/trips/create/hotels' },
     { label: 'Activities', route: '/trips/create/activities' },
-    { label: 'Overview' },
+    { label: 'Overview', route: '/trips/create/overview' },
   ];
   readonly selectedTravelStyle = signal<TravelStyle>('mid-range');
-  readonly recommendedBudget = signal(2450);
+  readonly recommendedBudget = signal(0);
   readonly recommendationUpdated = signal(false);
   readonly isSaving = signal(false);
   readonly saveError = signal('');
@@ -79,10 +79,14 @@ export class BudgetComponent {
 
   readonly budgetForm = this.formBuilder.nonNullable.group({
     tripName: ['', [Validators.required, Validators.pattern(/\S/)]],
-    totalBudget: [2450, [Validators.required, Validators.min(1)]],
+    totalBudget: [0, [Validators.required, Validators.min(1)]],
     currency: ['EUR'],
-    nights: [7, [Validators.min(1)]],
+    nights: [0, [Validators.min(1)]],
   });
+
+  ngOnInit(): void {
+    this.restoreBudgetDraft();
+  }
 
   budgetPerNight(): number {
     const budget = Number(this.budgetForm.controls.totalBudget.value) || 0;
@@ -91,14 +95,14 @@ export class BudgetComponent {
   }
 
   adjustNights(change: number): void {
-    const nights = Math.max(1, this.budgetForm.controls.nights.value + change);
+    const nights = Math.max(0, this.budgetForm.controls.nights.value + change);
     this.budgetForm.controls.nights.setValue(nights);
     this.applyRecommendedBudget();
   }
 
   updateDuration(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const nights = Math.max(1, Math.floor(Number(input.value) || 1));
+    const nights = Math.max(0, Math.floor(Number(input.value) || 0));
 
     this.budgetForm.controls.nights.setValue(nights);
     input.value = String(nights);
@@ -178,6 +182,21 @@ export class BudgetComponent {
     return step.route && this.routeExists(step.route) ? step.route : null;
   }
 
+  stepQueryParams(): { tripPlanningId: number } | undefined {
+    const tripPlanningId = this.savedTripPlanningId();
+    return tripPlanningId ? { tripPlanningId } : undefined;
+  }
+
+  persistBudgetDraft(budget = this.budgetForm.controls.totalBudget.value): void {
+    this.tripTempService.updateTripTemp({
+      tripName: this.budgetForm.controls.tripName.value.trim(),
+      budget,
+      currency: this.budgetForm.controls.currency.value,
+      durationNights: this.budgetForm.controls.nights.value,
+      travelStyle: this.selectedTravelStyleTitle(),
+    });
+  }
+
   continueWithRecommendedBudget(): void {
     if (this.recommendedFlowInvalid() || this.isSaving()) {
       this.budgetForm.controls.tripName.markAsTouched();
@@ -215,18 +234,13 @@ export class BudgetComponent {
 
     this.isSaving.set(true);
     this.saveError.set('');
-    this.tripTempService.updateTripTemp({
-      tripName: request.tripName,
-      budget,
-      currency,
-      durationNights: request.duration,
-      travelStyle: request.travelStyle,
-    });
+    this.persistBudgetDraft(budget);
 
     // Both flows save through the same backend endpoint.
     this.tripPlanningService.saveBudgetStep(request).subscribe({
       next: (response) => {
         this.savedTripPlanningId.set(response.id);
+        this.tripTempService.updateTripTemp({ tripPlanningId: response.id });
         this.isSaving.set(false);
         this.navigateAfterBudgetSave(response.id);
 
@@ -250,6 +264,24 @@ export class BudgetComponent {
     if (this.routeExists('/trips/create/hotels')) {
       void this.router.navigate(['/trips/create/hotels'], { queryParams: { tripPlanningId } });
     }
+  }
+
+  private restoreBudgetDraft(): void {
+    const tripTemp = this.tripTempService.getTripTemp();
+    const restoredStyle = this.travelStyles.find(
+      (style) => style.title === tripTemp.travelStyle || style.id === tripTemp.travelStyle,
+    );
+
+    this.budgetForm.patchValue({
+      tripName: tripTemp.tripName,
+      totalBudget: tripTemp.budget ?? 0,
+      currency: tripTemp.currency,
+      nights: tripTemp.durationNights,
+    });
+
+    this.selectedTravelStyle.set(restoredStyle?.id ?? 'mid-range');
+    this.savedTripPlanningId.set(tripTemp.tripPlanningId ?? null);
+    this.applyRecommendedBudget();
   }
 
   private routeExists(route: string): boolean {

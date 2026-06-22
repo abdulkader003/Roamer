@@ -27,6 +27,13 @@
   flex-direction: column;
   gap: 6px;
   color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.wizard-step:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .step-circle {

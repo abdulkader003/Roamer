@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TripTempService } from '../trip-temp.service';
 
 interface WizardStep {
   number: number;
   label: string;
   state: 'complete' | 'active' | 'pending';
+  route: string;
 }
 
 interface Airport {
@@ -44,15 +45,16 @@ interface CalendarDay {
 })
 export class TripDestinationComponent implements OnInit {
   private readonly tripTempService = inject(TripTempService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly steps: WizardStep[] = [
-    { number: 1, label: 'Budget', state: 'complete' },
-    { number: 2, label: 'Destination', state: 'active' },
-    { number: 3, label: 'Flights', state: 'pending' },
-    { number: 4, label: 'Hotels', state: 'pending' },
-    { number: 5, label: 'Activities', state: 'pending' },
-    { number: 6, label: 'Overview', state: 'pending' },
+    { number: 1, label: 'Budget', state: 'complete', route: '/trips/create/budget' },
+    { number: 2, label: 'Destination', state: 'active', route: '/trips/create/destination' },
+    { number: 3, label: 'Flights', state: 'pending', route: '/trips/create/flights' },
+    { number: 4, label: 'Hotels', state: 'pending', route: '/trips/create/hotels' },
+    { number: 5, label: 'Activities', state: 'pending', route: '/trips/create/activities' },
+    { number: 6, label: 'Overview', state: 'pending', route: '/trips/create/overview' },
   ];
 
   readonly tripTypes: { id: TripType; label: string }[] = [
@@ -160,6 +162,10 @@ export class TripDestinationComponent implements OnInit {
       { fromText: tripTemp.origin, toText: tripTemp.destination, date: tripTemp.departureDate },
       { fromText: tripTemp.destination, toText: '', date: tripTemp.returnDate },
     ];
+  }
+
+  stepQueryParams(): Record<string, string | number> {
+    return this.withTripPlanningQueryParams(this.route.snapshot.queryParams);
   }
 
   setTripType(tripType: TripType): void {
@@ -497,17 +503,18 @@ export class TripDestinationComponent implements OnInit {
       this.tripTempService.updateTripTemp({
         origin: segments[0].fromText,
         destination: segments[segments.length - 1].toText,
+        destinationCities: this.uniqueCities(segments.map((segment) => segment.toText)),
         departureDate: segments[0].date,
         returnDate: segments[segments.length - 1].date,
         travelers: this.travelers,
       });
 
       void this.router.navigate(['/trips/create/flights'], {
-        queryParams: {
+        queryParams: this.withTripPlanningQueryParams({
           tripType: this.tripType,
           travelers: this.travelers,
           multiCitySegments: JSON.stringify(segments),
-        },
+        }),
       });
       return;
     }
@@ -524,21 +531,41 @@ export class TripDestinationComponent implements OnInit {
     this.tripTempService.updateTripTemp({
       origin,
       destination,
+      destinationCities: this.uniqueCities([destination]),
       departureDate: this.departureDate,
       returnDate,
       travelers: this.travelers,
     });
 
     void this.router.navigate(['/trips/create/flights'], {
-      queryParams: {
+      queryParams: this.withTripPlanningQueryParams({
         from: origin,
         to: destination,
         departureDate: this.departureDate,
         returnDate,
         travelers: this.travelers,
         tripType: this.tripType,
-      },
+      }),
     });
+  }
+
+  private withTripPlanningQueryParams(queryParams: Record<string, string | number>): Record<string, string | number> {
+    const tripPlanningId = this.route.snapshot.queryParamMap.get('tripPlanningId')
+      ?? this.tripTempService.getTripTemp().tripPlanningId;
+
+    return tripPlanningId ? { ...queryParams, tripPlanningId } : queryParams;
+  }
+
+  private uniqueCities(values: string[]): string[] {
+    return Array.from(new Set(
+      values
+        .map((value) => this.cityOnly(value))
+        .filter(Boolean),
+    ));
+  }
+
+  private cityOnly(value: string): string {
+    return value.replace(/\s*\([A-Za-z]{3}\)$/, '').trim();
   }
 
   private syncDatePickerState(value: string): void {

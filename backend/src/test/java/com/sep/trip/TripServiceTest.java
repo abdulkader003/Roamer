@@ -1,5 +1,6 @@
 package com.sep.trip;
 
+import com.sep.event.CalendarEventRepository;
 import com.sep.trip.dto.CreateTripRequest;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
@@ -31,12 +32,15 @@ class TripServiceTest {
     @Mock
     private AppUserRepository appUserRepository;
 
+    @Mock
+    private CalendarEventRepository calendarEventRepository;
+
     private TripService tripService;
     private AppUser owner;
 
     @BeforeEach
     void setUp() {
-        tripService = new TripService(tripRepository, appUserRepository);
+        tripService = new TripService(tripRepository, appUserRepository, calendarEventRepository);
         owner = new AppUser();
         owner.setId(7L);
         owner.setEmail("traveler@example.com");
@@ -110,6 +114,59 @@ class TripServiceTest {
 
         assertThat(response.name()).isEqualTo("Summer Getaway");
         assertThat(response.destination()).isEqualTo("Rome, Italy");
+    }
+
+    @Test
+    void updateTripChangesOnlyAuthenticatedUsersTrip() {
+        Trip trip = trip("Old Name");
+        CreateTripRequest request = new CreateTripRequest(
+                "Updated Name",
+                "Barcelona",
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 6),
+                new BigDecimal("1800.00"),
+                TripStatus.PLANNING
+        );
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findByIdAndOwnerId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        TripResponse response = tripService.updateTrip("traveler@example.com", 11L, request);
+
+        assertThat(response.name()).isEqualTo("Updated Name");
+        assertThat(response.destination()).isEqualTo("Barcelona");
+        assertThat(response.status()).isEqualTo(TripStatus.PLANNING);
+        verify(tripRepository).findByIdAndOwnerId(11L, 7L);
+    }
+
+    @Test
+    void updateTripRejectsTripsNotOwnedByAuthenticatedUser() {
+        CreateTripRequest request = request(
+                LocalDate.of(2026, 7, 15),
+                LocalDate.of(2026, 7, 22)
+        );
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findByIdAndOwnerId(99L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripService.updateTrip("traveler@example.com", 99L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Trip was not found.");
+
+        verify(tripRepository, never()).save(any(Trip.class));
+    }
+
+    @Test
+    void deleteTripRemovesOnlyAuthenticatedUsersTrip() {
+        Trip trip = trip("Summer Getaway");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findByIdAndOwnerId(11L, 7L)).thenReturn(Optional.of(trip));
+
+        tripService.deleteTrip("traveler@example.com", 11L);
+
+        verify(tripRepository).delete(trip);
     }
 
     @Test
