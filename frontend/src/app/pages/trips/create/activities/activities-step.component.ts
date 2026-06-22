@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
@@ -169,13 +170,7 @@ export class ActivitiesStepComponent implements OnInit {
     this.saveError.set('');
 
     const request = {
-      activities: this.selectedActivities().map(({ name, category, price, duration, city }) => ({
-        name,
-        category,
-        price,
-        duration,
-        city,
-      })),
+      activities: this.selectedActivities().map((activity) => this.toSaveableActivity(activity)),
     };
     this.tripTempService.updateTripTemp({
       selectedActivities: request.activities,
@@ -193,8 +188,8 @@ export class ActivitiesStepComponent implements OnInit {
           }
           // Keeps Overview navigation safe until the route exists.
         },
-        error: () => {
-          this.saveError.set('Could not save your activities. Please try again.');
+        error: (error: unknown) => {
+          this.saveError.set(this.saveActivitiesErrorMessage(error));
         },
       });
   }
@@ -221,6 +216,57 @@ export class ActivitiesStepComponent implements OnInit {
     }
 
     return this.tripTempService.getTripTemp().tripPlanningId ?? null;
+  }
+
+  private saveActivitiesErrorMessage(error: unknown): string {
+    if (!(error instanceof HttpErrorResponse)) {
+      return 'Could not save your activities. Please try again.';
+    }
+
+    if (error.status === 0) {
+      return 'Could not reach the backend. Make sure it is running on port 8080.';
+    }
+
+    if (error.status === 401 || error.status === 403) {
+      return 'Your login session cannot save these activities. Please log in again.';
+    }
+
+    if (error.status === 404) {
+      return 'This trip planning session was not found. Start again from the Budget step.';
+    }
+
+    const message = this.backendErrorMessage(error);
+    return message || `Could not save your activities. Backend returned ${error.status}.`;
+  }
+
+  private backendErrorMessage(error: HttpErrorResponse): string {
+    const errorBody = error.error as { detail?: unknown; message?: unknown; title?: unknown } | string | null;
+
+    if (typeof errorBody === 'string') {
+      return errorBody;
+    }
+
+    if (typeof errorBody?.message === 'string') {
+      return errorBody.message;
+    }
+
+    if (typeof errorBody?.detail === 'string') {
+      return errorBody.detail;
+    }
+
+    return typeof errorBody?.title === 'string' ? errorBody.title : '';
+  }
+
+  private toSaveableActivity(activity: TripActivityCard): SelectedTripActivity {
+    return {
+      name: this.cleanText(activity.name) || 'Selected activity',
+      category: this.cleanText(activity.category) || 'Leisure',
+      price: Math.max(0, Math.round(Number(activity.price) || 0)),
+      // The backend requires a non-empty duration. Some real event rows only
+      // provide a date/time, so we store a clear fallback instead of failing.
+      duration: this.cleanText(activity.duration) || this.cleanText(activity.timeRange) || 'See event time',
+      city: this.cleanText(activity.city) || this.cleanText(activity.tripCity) || this.cityListText(this.selectedCities()),
+    };
   }
 
   subtitle(): string {

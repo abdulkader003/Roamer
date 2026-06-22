@@ -274,6 +274,39 @@ describe('ActivitiesStepComponent', () => {
     saveResult.complete();
   });
 
+  it('fills required activity fields before saving real events with missing duration', () => {
+    const activity = component.activities()[0];
+    component.activities.set([
+      {
+        ...activity,
+        duration: '',
+        timeRange: '18:30 - 20:00',
+      },
+      ...component.activities().slice(1),
+    ]);
+    component.toggleActivity(component.activities()[0]);
+    tripPlanningService.saveActivitiesStep.and.returnValue(of({
+      tripPlanningId: 10,
+      selectedActivities: [],
+      totalActivitiesCost: 0,
+      selectedActivitiesCount: 0,
+    }));
+
+    component.continueToOverview();
+
+    expect(tripPlanningService.saveActivitiesStep).toHaveBeenCalledWith(10, {
+      activities: [
+        {
+          name: 'Picasso Museum',
+          category: 'Arts & Culture',
+          price: 28,
+          duration: '18:30 - 20:00',
+          city: 'Barcelona',
+        },
+      ],
+    });
+  });
+
   it('allows continuing with zero activities', () => {
     tripPlanningService.saveActivitiesStep.and.returnValue(of({
       tripPlanningId: 10,
