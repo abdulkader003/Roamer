@@ -21,6 +21,205 @@ import {
 } from '../../services/profile.service';
 import { ProfileStateService } from '../../services/profile-state.service';
 
+
+const WORLD_COUNTRIES = [
+  'Afghanistan',
+  'Albania',
+  'Algeria',
+  'Andorra',
+  'Angola',
+  'Antigua and Barbuda',
+  'Argentina',
+  'Armenia',
+  'Australia',
+  'Austria',
+  'Azerbaijan',
+  'Bahamas',
+  'Bahrain',
+  'Bangladesh',
+  'Barbados',
+  'Belarus',
+  'Belgium',
+  'Belize',
+  'Benin',
+  'Bhutan',
+  'Bolivia',
+  'Bosnia and Herzegovina',
+  'Botswana',
+  'Brazil',
+  'Brunei',
+  'Bulgaria',
+  'Burkina Faso',
+  'Burundi',
+  'Cabo Verde',
+  'Cambodia',
+  'Cameroon',
+  'Canada',
+  'Central African Republic',
+  'Chad',
+  'Chile',
+  'China',
+  'Colombia',
+  'Comoros',
+  'Congo',
+  'Costa Rica',
+  "Cote d\'Ivoire",
+  'Croatia',
+  'Cuba',
+  'Cyprus',
+  'Czechia',
+  'Democratic Republic of the Congo',
+  'Denmark',
+  'Djibouti',
+  'Dominica',
+  'Dominican Republic',
+  'Ecuador',
+  'Egypt',
+  'El Salvador',
+  'Equatorial Guinea',
+  'Eritrea',
+  'Estonia',
+  'Eswatini',
+  'Ethiopia',
+  'Fiji',
+  'Finland',
+  'France',
+  'Gabon',
+  'Gambia',
+  'Georgia',
+  'Germany',
+  'Ghana',
+  'Greece',
+  'Grenada',
+  'Guatemala',
+  'Guinea',
+  'Guinea-Bissau',
+  'Guyana',
+  'Haiti',
+  'Honduras',
+  'Hungary',
+  'Iceland',
+  'India',
+  'Indonesia',
+  'Iran',
+  'Iraq',
+  'Ireland',
+  'Israel',
+  'Italy',
+  'Jamaica',
+  'Japan',
+  'Jordan',
+  'Kazakhstan',
+  'Kenya',
+  'Kiribati',
+  'Kuwait',
+  'Kyrgyzstan',
+  'Laos',
+  'Latvia',
+  'Lebanon',
+  'Lesotho',
+  'Liberia',
+  'Libya',
+  'Liechtenstein',
+  'Lithuania',
+  'Luxembourg',
+  'Madagascar',
+  'Malawi',
+  'Malaysia',
+  'Maldives',
+  'Mali',
+  'Malta',
+  'Marshall Islands',
+  'Mauritania',
+  'Mauritius',
+  'Mexico',
+  'Micronesia',
+  'Moldova',
+  'Monaco',
+  'Mongolia',
+  'Montenegro',
+  'Morocco',
+  'Mozambique',
+  'Myanmar',
+  'Namibia',
+  'Nauru',
+  'Nepal',
+  'Netherlands',
+  'New Zealand',
+  'Nicaragua',
+  'Niger',
+  'Nigeria',
+  'North Korea',
+  'North Macedonia',
+  'Norway',
+  'Oman',
+  'Pakistan',
+  'Palau',
+  'Palestine',
+  'Panama',
+  'Papua New Guinea',
+  'Paraguay',
+  'Peru',
+  'Philippines',
+  'Poland',
+  'Portugal',
+  'Qatar',
+  'Romania',
+  'Russia',
+  'Rwanda',
+  'Saint Kitts and Nevis',
+  'Saint Lucia',
+  'Saint Vincent and the Grenadines',
+  'Samoa',
+  'San Marino',
+  'Sao Tome and Principe',
+  'Saudi Arabia',
+  'Senegal',
+  'Serbia',
+  'Seychelles',
+  'Sierra Leone',
+  'Singapore',
+  'Slovakia',
+  'Slovenia',
+  'Solomon Islands',
+  'Somalia',
+  'South Africa',
+  'South Korea',
+  'South Sudan',
+  'Spain',
+  'Sri Lanka',
+  'Sudan',
+  'Suriname',
+  'Sweden',
+  'Switzerland',
+  'Syria',
+  'Tajikistan',
+  'Tanzania',
+  'Thailand',
+  'Timor-Leste',
+  'Togo',
+  'Tonga',
+  'Trinidad and Tobago',
+  'Tunisia',
+  'Turkey',
+  'Turkmenistan',
+  'Tuvalu',
+  'Uganda',
+  'Ukraine',
+  'United Arab Emirates',
+  'United Kingdom',
+  'United States',
+  'Uruguay',
+  'Uzbekistan',
+  'Vanuatu',
+  'Vatican City',
+  'Venezuela',
+  'Vietnam',
+  'Yemen',
+  'Zambia',
+  'Zimbabwe'
+] as const;
+
 @Component({
   selector: 'app-profile',
   standalone: true,
@@ -60,9 +259,12 @@ export class ProfileComponent implements OnInit {
   deleteError = '';
   airportSearchMessage = '';
   airportSuggestions: AirportOption[] = [];
+  visitedCountries: string[] = [];
+  selectedVisitedCountry = '';
   private selectedHomeAirport: AirportOption | null = null;
 
   readonly maxPictureSizeMb = 2;
+  readonly countryOptions = WORLD_COUNTRIES;
 
   readonly profileForm = this.fb.nonNullable.group({
     username: ['', [
@@ -75,6 +277,10 @@ export class ProfileComponent implements OnInit {
     lastName: ['', [Validators.maxLength(80)]],
     phoneNumber: ['', [
       Validators.pattern(/^[+0-9 ()-]*$/),
+      Validators.maxLength(30)
+    ]],
+    passportNumber: ['', [
+      Validators.pattern(/^[A-Za-z0-9 -]*$/),
       Validators.maxLength(30)
     ]],
     homeAirport: ['', [Validators.maxLength(120)]]
@@ -127,6 +333,19 @@ export class ProfileComponent implements OnInit {
       .join('') || 'RO';
   }
 
+  get unvisitedCountryOptions(): readonly string[] {
+    const visited = new Set(this.visitedCountries);
+    return this.countryOptions.filter((country) => !visited.has(country));
+  }
+
+  get worldVisitedPercentage(): number {
+    return Math.round((this.visitedCountries.length / this.countryOptions.length) * 100);
+  }
+
+  get worldVisitedProgress(): number {
+    return Math.min(100, this.worldVisitedPercentage);
+  }
+
   loadProfile(): void {
     this.isLoading = true;
     this.profileError = '';
@@ -170,6 +389,7 @@ export class ProfileComponent implements OnInit {
       firstName: formValue.firstName.trim(),
       lastName: formValue.lastName.trim(),
       phoneNumber: formValue.phoneNumber.trim(),
+      passportNumber: formValue.passportNumber.trim(),
       homeAirport: homeAirportCode
     };
 
@@ -328,7 +548,7 @@ export class ProfileComponent implements OnInit {
       });
   }
 
-  fieldHasError(controlName: 'username' | 'firstName' | 'lastName' | 'phoneNumber' | 'homeAirport'): boolean {
+  fieldHasError(controlName: 'username' | 'firstName' | 'lastName' | 'phoneNumber' | 'passportNumber' | 'homeAirport'): boolean {
     const control = this.profileForm.controls[controlName];
     return control.invalid && (control.dirty || control.touched);
   }
@@ -379,6 +599,47 @@ export class ProfileComponent implements OnInit {
     this.showConfirmPassword = !this.showConfirmPassword;
   }
 
+  onVisitedCountrySelected(event: Event): void {
+    this.selectedVisitedCountry = (event.target as HTMLInputElement).value;
+  }
+
+  canAddVisitedCountry(): boolean {
+    return this.resolveVisitedCountry(this.selectedVisitedCountry) !== null;
+  }
+
+  addVisitedCountry(): void {
+    const country = this.resolveVisitedCountry(this.selectedVisitedCountry);
+
+    if (!country) {
+      return;
+    }
+
+    this.visitedCountries = [...this.visitedCountries, country];
+    this.selectedVisitedCountry = '';
+    this.saveVisitedCountries();
+  }
+
+  removeVisitedCountry(country: string): void {
+    this.visitedCountries = this.visitedCountries.filter((visitedCountry) => visitedCountry !== country);
+    this.saveVisitedCountries();
+  }
+
+  private resolveVisitedCountry(value: string): string | null {
+    const normalizedValue = this.normalizeCountryName(value);
+
+    if (!normalizedValue) {
+      return null;
+    }
+
+    const country = this.countryOptions.find((option) => this.normalizeCountryName(option) === normalizedValue);
+
+    if (!country || this.visitedCountries.includes(country)) {
+      return null;
+    }
+
+    return country;
+  }
+
   private applyProfile(profile: UserProfile): void {
     this.profile = profile;
     this.profileState.setProfile(profile);
@@ -391,11 +652,13 @@ export class ProfileComponent implements OnInit {
       firstName: profile.firstName || '',
       lastName: profile.lastName || '',
       phoneNumber: profile.phoneNumber || '',
+      passportNumber: profile.passportNumber || '',
       homeAirport: airport ? this.airportOptions.formatAirport(airport) : profile.homeAirport || ''
     }, { emitEvent: false });
 
     this.airportSuggestions = [];
     this.airportSearchMessage = '';
+    this.loadVisitedCountries();
   }
 
   private setupAirportSearch(): void {
@@ -426,6 +689,38 @@ export class ProfileComponent implements OnInit {
     this.airportSearchMessage = query && this.airportSuggestions.length === 0
       ? 'No matching airports found.'
       : '';
+  }
+
+  private loadVisitedCountries(): void {
+    const allowedCountries = new Set<string>(this.countryOptions);
+
+    try {
+      const storedCountries = JSON.parse(localStorage.getItem(this.visitedCountriesStorageKey()) || '[]');
+      this.visitedCountries = Array.isArray(storedCountries)
+        ? storedCountries.filter((country): country is string => typeof country === 'string' && allowedCountries.has(country))
+        : [];
+    } catch {
+      this.visitedCountries = [];
+    }
+
+    this.selectedVisitedCountry = '';
+  }
+
+  private saveVisitedCountries(): void {
+    localStorage.setItem(this.visitedCountriesStorageKey(), JSON.stringify(this.visitedCountries));
+  }
+
+  private visitedCountriesStorageKey(): string {
+    const identity = this.profile?.email || this.authService.email() || 'anonymous';
+    return `sep.profile.visitedCountries.${identity.toLowerCase()}`;
+  }
+
+  private normalizeCountryName(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
   }
 
   private resolveHomeAirportCodeForSave(): string | null {

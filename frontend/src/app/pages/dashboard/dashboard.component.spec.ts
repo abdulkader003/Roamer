@@ -4,6 +4,7 @@ import { of, Subject, throwError } from 'rxjs';
 
 import { AuthService } from '../../services/auth';
 import { ThemeService } from '../../services/theme.service';
+import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { DashboardComponent, DESTINATION_WEATHER_CITIES } from './dashboard.component';
 
@@ -19,14 +20,31 @@ function weatherFor(cities: readonly string[]): WeatherDto[] {
   }));
 }
 
+function tripResponse(overrides: Partial<TripResponse>): TripResponse {
+  return {
+    id: 1,
+    name: 'Paris Summer',
+    destination: 'Paris, France',
+    startDate: '2026-06-15',
+    endDate: '2026-06-22',
+    budget: 1200,
+    status: 'UPCOMING',
+    createdAt: '2026-01-01T00:00:00Z',
+    ...overrides
+  };
+}
+
 describe('DashboardComponent weather rotation', () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let component: DashboardComponent;
   let weatherService: jasmine.SpyObj<WeatherService>;
+  let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
 
   beforeEach(async () => {
     weatherService = jasmine.createSpyObj<WeatherService>('WeatherService', ['getWeather']);
     weatherService.getWeather.and.callFake((cities: readonly string[]) => of(weatherFor(cities)));
+    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips']);
+    tripPlanningService.listSavedTrips.and.returnValue(of([]));
     spyOn(window, 'fetch').and.resolveTo(new Response('[]', { status: 200 }));
 
     await TestBed.configureTestingModule({
@@ -34,6 +52,7 @@ describe('DashboardComponent weather rotation', () => {
       providers: [
         provideRouter([]),
         { provide: WeatherService, useValue: weatherService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: AuthService, useValue: { authHeader: () => ({}) } },
         { provide: ThemeService, useValue: {} }
       ]
@@ -56,6 +75,24 @@ describe('DashboardComponent weather rotation', () => {
     expect(component.weather()).toHaveSize(3);
     expect(component.weather().every((item) => item.temperatureC !== null && !item.error)).toBeTrue();
     expect(weatherService.getWeather).toHaveBeenCalledWith(['Bangkok', 'Paris', 'London']);
+  }));
+
+  it('loads up to 3 planned trips from the saved trips API sorted by date', fakeAsync(() => {
+    tripPlanningService.listSavedTrips.and.returnValue(of([
+      tripResponse({ id: 2, name: 'Draft Rome', destination: 'Rome, Italy', status: 'PLANNING', startDate: '2026-08-10' }),
+      tripResponse({ id: 3, name: 'Tokyo Spring', destination: 'Tokyo, Japan', status: 'UPCOMING', startDate: '2026-04-05' }),
+      tripResponse({ id: 1, name: 'Paris Summer', destination: 'Paris, France', status: 'UPCOMING', startDate: '2026-06-15' }),
+      tripResponse({ id: 4, name: 'Late Berlin', destination: 'Berlin, Germany', status: 'PLANNING', startDate: '2026-11-20' })
+    ]));
+
+    fixture.detectChanges();
+    tick();
+
+    expect(tripPlanningService.listSavedTrips).toHaveBeenCalled();
+    expect(component.upcomingTripCount()).toBe(4);
+    expect(component.trips().map((trip) => trip.name)).toEqual(['Tokyo Spring', 'Paris Summer', 'Draft Rome']);
+    expect(component.trips()[0].budget).toBe('€1,200');
+    expect(component.trips()[2].status).toBe('pending');
   }));
 
   it('rotates after 20 seconds and requests weather for the next 3 cities', fakeAsync(() => {

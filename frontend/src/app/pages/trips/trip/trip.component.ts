@@ -8,7 +8,6 @@ import { TripTemp, TripTempService } from '../create/trip-temp.service';
 
 interface TripEditForm {
   name: string;
-  destination: string;
   startDate: string;
   endDate: string;
   budget: number;
@@ -620,13 +619,13 @@ export class TripComponent implements OnInit {
   private buildUpdateRequest(trip: TripResponse, status: TripResponse['status']): CreateTripRequest | null {
     const form = this.editTripForm;
 
-    if (!form || !form.name.trim() || !form.destination.trim() || !form.startDate || !form.endDate) {
+    if (!form || !form.name.trim() || !form.startDate || !form.endDate) {
       return null;
     }
 
     const request: CreateTripRequest = {
       name: form.name.trim(),
-      destination: form.destination.trim(),
+      destination: trip.destination,
       startDate: form.startDate,
       endDate: form.endDate,
       budget: Number(form.budget) || 0,
@@ -676,7 +675,6 @@ export class TripComponent implements OnInit {
   private toEditForm(trip: TripResponse): TripEditForm {
     return {
       name: trip.name,
-      destination: trip.destination,
       startDate: trip.startDate,
       endDate: trip.endDate,
       budget: trip.budget,

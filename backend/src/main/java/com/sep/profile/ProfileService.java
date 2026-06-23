@@ -68,6 +68,7 @@ public class ProfileService {
         user.setFirstName(cleanOptionalText(request.firstName()));
         user.setLastName(cleanOptionalText(request.lastName()));
         user.setPhoneNumber(cleanOptionalText(request.phoneNumber()));
+        user.setPassportNumber(cleanOptionalText(request.passportNumber()));
         user.setHomeAirport(normalizeAirport(request.homeAirport()));
 
         return toResponse(userRepository.save(user));
@@ -194,6 +195,7 @@ public class ProfileService {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getPhoneNumber(),
+                user.getPassportNumber(),
                 user.getHomeAirport(),
                 user.isVerified(),
                 hasProfilePicture,

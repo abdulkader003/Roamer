@@ -63,8 +63,8 @@
         </div>
         <div>
           <p class="stat-label">Upcoming Trips</p>
-          <p class="stat-value">2</p>
-          <p class="stat-sub">Next 30 days</p>
+          <p class="stat-value">{{ upcomingTripCount() }}</p>
+          <p class="stat-sub">Confirmed & drafts</p>
         </div>
       </div>
     </div>
@@ -76,9 +76,16 @@
       <div class="section-card trips-card">
         <div class="section-header">
           <span class="section-title">Upcoming Trips</span>
-          <a href="#" class="view-all">View All</a>
+          <a routerLink="/trips" class="view-all">View All</a>
         </div>
-        @for (trip of trips(); track trip.name) {
+        @if (isTripsLoading()) {
+          <div class="dashboard-trip-state">Loading trips...</div>
+        } @else if (tripsError()) {
+          <div class="dashboard-trip-state dashboard-trip-state--error">{{ tripsError() }}</div>
+        } @else if (trips().length === 0) {
+          <div class="dashboard-trip-state">No planned trips yet.</div>
+        } @else {
+        @for (trip of trips(); track trip.id) {
           <div class="trip-row">
             <img [src]="trip.image" [alt]="trip.name" class="trip-img" />
             <div class="trip-info">
@@ -99,6 +106,7 @@
               <p class="trip-budget-sub">Budget</p>
             </div>
           </div>
+        }
         }
       </div>
 
@@ -125,9 +133,19 @@
                   <p class="weather-city">{{ currentWeather.city }}</p>
                   <p class="weather-condition">{{ currentWeather.error || currentWeather.condition || 'Current forecast' }}</p>
                 </div>
-                <div class="weather-details">
-                  <span>Humidity {{ currentWeather.humidity ?? '--' }}%</span>
-                  <span>Wind {{ currentWeather.windKph ?? '--' }} km/h</span>
+                <div class="weather-details" aria-label="Weather details">
+                  <div class="weather-metric">
+                    <span>Humidity</span>
+                    <strong>{{ currentWeather.humidity ?? '--' }}%</strong>
+                  </div>
+                  <div class="weather-metric">
+                    <span>Wind</span>
+                    <strong>{{ currentWeather.windKph ?? '--' }} km/h</strong>
+                  </div>
+                  <div class="weather-metric">
+                    <span>Sky</span>
+                    <strong>{{ currentWeather.error ? '--' : currentWeather.condition || '--' }}</strong>
+                  </div>
                 </div>
               </div>
             }
