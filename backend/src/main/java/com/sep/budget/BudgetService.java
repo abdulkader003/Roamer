@@ -1,6 +1,9 @@
 package com.sep.budget;
 
 import com.sep.budget.dto.BudgetSummaryResponse;
+import com.sep.budget.dto.BudgetReportResponse;
+import com.sep.budget.dto.SpendingDataPointResponse;
+import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.CategoryBudgetResponse;
 import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
@@ -14,8 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.TreeMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -130,6 +137,97 @@ public class BudgetService {
                 expense.getDescription(),
                 expense.getDate()
         );
+    }
+
+    /**
+     * User Story #7 — full budget report for export (PDF/CSV).
+     */
+    @Transactional(readOnly = true)
+    public BudgetReportResponse getReport(String userEmail) {
+        BudgetSummaryResponse summary = getSummary(userEmail);
+        List<CategoryBudgetResponse> categories = getCategoryBudgets(userEmail);
+        List<TripBudgetRowResponse> trips = getTripBudgetRows(userEmail);
+
+        return new BudgetReportResponse(
+                summary.totalBudget(),
+                summary.totalSpent(),
+                summary.remainingBalance(),
+                summary.usagePercentage(),
+                categories,
+                trips
+        );
+    }
+
+    /**
+     * User Story #2 — spending grouped by month or year for the line chart.
+     */
+    @Transactional(readOnly = true)
+    public List<SpendingDataPointResponse> getSpendingOverTime(String userEmail, String view) {
+        if (!"monthly".equalsIgnoreCase(view) && !"yearly".equalsIgnoreCase(view)) {
+            throw new IllegalArgumentException("View must be either monthly or yearly.");
+        }
+
+        AppUser owner = findOwner(userEmail);
+
+        List<Expense> expenses = expenseRepository.findAllByTripOwnerIdOrderByDateDesc(owner.getId());
+
+        boolean isYearly = "yearly".equalsIgnoreCase(view);
+
+        DateTimeFormatter monthlyFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
+
+        if (isYearly) {
+            TreeMap<Integer, BigDecimal> groupedByYear = new TreeMap<>();
+
+            for (Expense expense : expenses) {
+                groupedByYear.merge(expense.getDate().getYear(), expense.getAmount(), BigDecimal::add);
+            }
+
+            return groupedByYear.entrySet().stream()
+                    .map(entry -> new SpendingDataPointResponse(String.valueOf(entry.getKey()), entry.getValue()))
+                    .toList();
+        }
+
+        TreeMap<YearMonth, BigDecimal> groupedByMonth = new TreeMap<>();
+
+        for (Expense expense : expenses) {
+            groupedByMonth.merge(YearMonth.from(expense.getDate()), expense.getAmount(), BigDecimal::add);
+        }
+
+        return groupedByMonth.entrySet().stream()
+                .map(entry -> new SpendingDataPointResponse(entry.getKey().format(monthlyFormatter), entry.getValue()))
+                .toList();
+    }
+
+    /**
+     * User Story #3 — spending split by category as percentages for the donut chart.
+     */
+    @Transactional(readOnly = true)
+    public List<SpendingDistributionResponse> getSpendingDistribution(String userEmail) {
+        AppUser owner = findOwner(userEmail);
+
+        List<Expense> expenses = expenseRepository.findAllByTripOwnerIdOrderByDateDesc(owner.getId());
+
+        BigDecimal totalSpent = expenses.stream()
+                .map(Expense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<ExpenseCategory, BigDecimal> spentByCategory = expenses.stream()
+                .collect(Collectors.groupingBy(
+                        Expense::getCategory,
+                        Collectors.reducing(BigDecimal.ZERO, Expense::getAmount, BigDecimal::add)
+                ));
+
+        return Arrays.stream(ExpenseCategory.values())
+                .map(category -> {
+                    BigDecimal amount = spentByCategory.getOrDefault(category, BigDecimal.ZERO);
+                    int percentage = totalSpent.signum() == 0
+                            ? 0
+                            : amount.multiply(BigDecimal.valueOf(100))
+                                    .divide(totalSpent, 0, RoundingMode.HALF_UP)
+                                    .intValue();
+                    return new SpendingDistributionResponse(category, amount, percentage);
+                })
+                .toList();
     }
 
     /**

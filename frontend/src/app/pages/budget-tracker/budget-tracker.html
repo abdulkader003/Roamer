@@ -12,9 +12,10 @@
           type="button"
           class="export-button"
           aria-haspopup="menu"
+          [disabled]="isLoading || isExporting"
           [attr.aria-expanded]="isExportMenuOpen"
           (click)="toggleExportMenu()">
-          Export Report
+          {{ isExporting ? 'Exporting...' : 'Export Report' }}
         </button>
         @if (isExportMenuOpen) {
           <div class="export-menu" role="menu">
@@ -27,11 +28,22 @@
           </div>
         }
       </div>
-      <button type="button" class="add-expense-button" (click)="openExpenseForm()">
+      <button type="button" class="add-expense-button" [disabled]="isLoading" (click)="openExpenseForm()">
         + Add Manual Expense
       </button>
     </div>
   </div>
+
+  @if (isLoading) {
+    <section class="section-card budget-state-card" aria-live="polite">
+      <div class="budget-state-title">Loading budget data...</div>
+    </section>
+  } @else if (loadError) {
+    <section class="section-card budget-state-card budget-state-card--error" role="alert">
+      <div class="budget-state-title">{{ loadError }}</div>
+      <button type="button" class="secondary-button" (click)="loadAllData()">Try Again</button>
+    </section>
+  } @else {
 
   <!-- ═══ User Story #1 — Budget Summary ═══ -->
   <section class="section-card">
@@ -354,6 +366,40 @@
             </div>
           </label>
 
+          <label class="form-field">
+            <span>Trip</span>
+            <div class="expense-trip-menu">
+              <button
+                type="button"
+                class="expense-trip-button"
+                aria-haspopup="listbox"
+                [attr.aria-expanded]="isExpenseTripMenuOpen"
+                (click)="toggleExpenseTripMenu()">
+                <span>{{ selectedExpenseTripLabel }}</span>
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M5 7.5L10 12.5L15 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+
+              @if (isExpenseTripMenuOpen) {
+                <div class="expense-trip-options" role="listbox" [attr.aria-activedescendant]="selectedExpenseTripOptionId">
+                  @for (trip of trips; track trip.tripId) {
+                    <button
+                      type="button"
+                      class="expense-trip-option"
+                      role="option"
+                      [id]="'expense-trip-' + trip.tripId"
+                      [class.active]="expenseDraft.tripId === trip.tripId"
+                      [attr.aria-selected]="expenseDraft.tripId === trip.tripId"
+                      (click)="selectExpenseTrip(trip.tripId)">
+                      {{ trip.name }} - {{ trip.destination }}
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </label>
+
           <div class="expense-form-actions">
             <button type="button" class="secondary-button" (click)="closeExpenseForm()">Cancel</button>
             <button type="submit" class="primary-button">Save Expense</button>
@@ -432,5 +478,7 @@
       </table>
     </div>
   </section>
+
+  }
 
 </div>
