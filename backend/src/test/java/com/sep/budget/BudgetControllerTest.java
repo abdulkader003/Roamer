@@ -1,9 +1,12 @@
 package com.sep.budget;
 
 import com.sep.budget.dto.BudgetSummaryResponse;
+import com.sep.budget.dto.BudgetReportResponse;
 import com.sep.budget.dto.CategoryBudgetResponse;
 import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
+import com.sep.budget.dto.SpendingDataPointResponse;
+import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.TripBudgetRowResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -97,6 +100,53 @@ class BudgetControllerTest {
 
         assertThat(response).containsExactly(category);
         verify(budgetService).getCategoryBudgets("traveler@example.com");
+    }
+
+    @Test
+    void spendingOverTimeUsesAuthenticatedEmailAndView() {
+        SpendingDataPointResponse point = new SpendingDataPointResponse("Jan 2026", new BigDecimal("42.00"));
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(budgetService.getSpendingOverTime("traveler@example.com", "monthly")).thenReturn(List.of(point));
+
+        List<SpendingDataPointResponse> response = budgetController.getSpendingOverTime(authentication, "monthly");
+
+        assertThat(response).containsExactly(point);
+        verify(budgetService).getSpendingOverTime("traveler@example.com", "monthly");
+    }
+
+    @Test
+    void distributionUsesAuthenticatedEmail() {
+        SpendingDistributionResponse distribution = new SpendingDistributionResponse(
+                ExpenseCategory.FOOD,
+                new BigDecimal("42.00"),
+                100
+        );
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(budgetService.getSpendingDistribution("traveler@example.com")).thenReturn(List.of(distribution));
+
+        List<SpendingDistributionResponse> response = budgetController.getSpendingDistribution(authentication);
+
+        assertThat(response).containsExactly(distribution);
+        verify(budgetService).getSpendingDistribution("traveler@example.com");
+    }
+
+    @Test
+    void reportUsesAuthenticatedEmail() {
+        BudgetReportResponse report = new BudgetReportResponse(
+                new BigDecimal("1500.00"),
+                new BigDecimal("300.00"),
+                new BigDecimal("1200.00"),
+                20,
+                List.of(),
+                List.of()
+        );
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(budgetService.getReport("traveler@example.com")).thenReturn(report);
+
+        BudgetReportResponse response = budgetController.getReport(authentication);
+
+        assertThat(response).isEqualTo(report);
+        verify(budgetService).getReport("traveler@example.com");
     }
 
     @Test

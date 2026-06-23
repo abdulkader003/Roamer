@@ -31,6 +31,24 @@
   transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 
+.budget-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 96px;
+}
+
+.budget-state-card--error {
+  border-color: var(--status-over-budget-border);
+}
+
+.budget-state-title {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 800;
+}
+
 /* ── Summary grid (User Story #1) ── */
 .summary-grid {
   display: grid;
@@ -911,12 +929,14 @@
   border-color: var(--accent-border);
 }
 
-.expense-category-menu {
+.expense-category-menu,
+.expense-trip-menu {
   position: relative;
   width: 100%;
 }
 
-.expense-category-button {
+.expense-category-button,
+.expense-trip-button {
   width: 100%;
   min-height: 42px;
   display: flex;
@@ -937,7 +957,9 @@
 }
 
 .expense-category-button:hover,
-.expense-category-button:focus-visible {
+.expense-category-button:focus-visible,
+.expense-trip-button:hover,
+.expense-trip-button:focus-visible {
   outline: none;
   border-color: var(--accent-border);
   background: var(--accent-bg);
@@ -945,18 +967,21 @@
   box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-.expense-category-button svg {
+.expense-category-button svg,
+.expense-trip-button svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   transition: transform 0.18s ease;
 }
 
-.expense-category-button[aria-expanded='true'] svg {
+.expense-category-button[aria-expanded='true'] svg,
+.expense-trip-button[aria-expanded='true'] svg {
   transform: rotate(180deg);
 }
 
-.expense-category-options {
+.expense-category-options,
+.expense-trip-options {
   position: absolute;
   top: calc(100% + 7px);
   left: 0;
@@ -970,7 +995,8 @@
   animation: expenseCategoryMenuReveal 0.16s ease both;
 }
 
-.expense-category-option {
+.expense-category-option,
+.expense-trip-option {
   width: 100%;
   border: none;
   border-radius: 8px;
@@ -987,15 +1013,23 @@
 }
 
 .expense-category-option:hover,
-.expense-category-option:focus-visible {
+.expense-category-option:focus-visible,
+.expense-trip-option:hover,
+.expense-trip-option:focus-visible {
   outline: none;
   background: var(--surface-hover);
   color: var(--accent);
 }
 
-.expense-category-option.active {
+.expense-category-option.active,
+.expense-trip-option.active {
   background: var(--accent-bg);
   color: var(--accent);
+}
+
+.expense-trip-options {
+  max-height: 190px;
+  overflow-y: auto;
 }
 
 @keyframes expenseCategoryMenuReveal {
@@ -1249,7 +1283,7 @@
 
 .trip-filter-options {
   position: absolute;
-  top: calc(100% + 7px);
+  bottom: calc(100% + 7px);
   right: 0;
   z-index: 30;
   width: max-content;
@@ -1293,7 +1327,7 @@
 @keyframes tripFilterMenuReveal {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

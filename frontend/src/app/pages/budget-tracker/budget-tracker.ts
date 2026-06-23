@@ -1,6 +1,45 @@
-import { Component, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { forkJoin } from 'rxjs';
+
+type SpendingPoint = { label: string; amount: number };
+type DistributionCategory = { name: string; amount: number; color: string };
+type CategoryBudget = {
+  name: string;
+  spent: number;
+  budget: number;
+  percentage: number;
+  status: 'Normal' | 'Near Limit' | 'Over Budget';
+  statusClass: 'normal' | 'near-limit' | 'over-limit';
+};
+type TripBudget = {
+  tripId: number;
+  name: string;
+  destination: string;
+  budget: number;
+  spent: number;
+  remaining: number;
+  status: 'Under Budget' | 'Near Limit' | 'Over Budget';
+};
+type BudgetReport = {
+  totalBudget: number;
+  totalSpent: number;
+  remainingBalance: number;
+  usagePercentage: number;
+  categories: Array<{
+    category: string;
+    spent: number;
+    budget: number;
+    percentage: number;
+    isNearLimit?: boolean;
+    nearLimit?: boolean;
+    isOverLimit?: boolean;
+    overLimit?: boolean;
+  }>;
+  trips: TripBudget[];
+};
 
 @Component({
   selector: 'app-budget-tracker',
@@ -9,19 +48,23 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './budget-tracker.html',
   styleUrl: './budget-tracker.css'
 })
-export class BudgetTracker {
-  private readonly nearLimitThreshold = 75;
+export class BudgetTracker implements OnInit {
+  private readonly apiBase = '/api/budget';
 
-  // Mock data for User Story #1 — Budget Summary
-  totalBudget = 5000;
-  totalSpent = 3200;
+  isLoading = true;
+  loadError = '';
+  isExporting = false;
+
+  // ── User Story #1 — Budget Summary ──
+  totalBudget = 0;
+  totalSpent = 0;
 
   get remainingBalance(): number {
     return this.totalBudget - this.totalSpent;
   }
 
   get usagePercentage(): number {
-    return Math.round((this.totalSpent / this.totalBudget) * 100);
+    return this.totalBudget === 0 ? 0 : Math.round((this.totalSpent / this.totalBudget) * 100);
   }
 
   get usageProgressWidth(): number {
@@ -43,28 +86,8 @@ export class BudgetTracker {
   // ── User Story #2 — Spending Overview Chart ──
   chartView: 'monthly' | 'yearly' = 'monthly';
 
-  monthlySpending = [
-    { label: 'Jan', amount: 220 },
-    { label: 'Feb', amount: 340 },
-    { label: 'Mar', amount: 280 },
-    { label: 'Apr', amount: 410 },
-    { label: 'May', amount: 360 },
-    { label: 'Jun', amount: 500 },
-    { label: 'Jul', amount: 640 },
-    { label: 'Aug', amount: 590 },
-    { label: 'Sep', amount: 300 },
-    { label: 'Oct', amount: 250 },
-    { label: 'Nov', amount: 180 },
-    { label: 'Dec', amount: 130 }
-  ];
-
-  yearlySpending = [
-    { label: '2022', amount: 2800 },
-    { label: '2023', amount: 3400 },
-    { label: '2024', amount: 4100 },
-    { label: '2025', amount: 4600 },
-    { label: '2026', amount: 3200 }
-  ];
+  monthlySpending: SpendingPoint[] = [];
+  yearlySpending: SpendingPoint[] = [];
 
   // Chart drawing constants (viewBox 0 0 720 320)
   readonly chartWidth = 720;
@@ -75,6 +98,7 @@ export class BudgetTracker {
 
   setChartView(view: 'monthly' | 'yearly'): void {
     this.chartView = view;
+    this.loadSpendingChart(view);
   }
 
   get chartData() {
@@ -82,8 +106,9 @@ export class BudgetTracker {
   }
 
   get chartMax(): number {
+    if (!this.chartData.length) return 100;
     const max = Math.max(...this.chartData.map(d => d.amount));
-    return Math.ceil((max * 1.12) / 100) * 100;
+    return Math.ceil((max * 1.12) / 100) * 100 || 100;
   }
 
   get chartAxisStartX(): number {
@@ -111,6 +136,7 @@ export class BudgetTracker {
 
   get chartPoints() {
     const data = this.chartData;
+    if (!data.length) return [];
     const innerWidth = this.chartWidth - this.chartPaddingX * 2;
     const innerHeight = this.chartHeight - this.chartPaddingTop - this.chartPaddingBottom;
     const max = this.chartMax;
@@ -150,13 +176,23 @@ export class BudgetTracker {
   }
 
   // ── User Story #3 — Spending Distribution (Donut Chart) ──
-  categories = [
-    { name: 'Flights', amount: 1200, color: 'var(--budget-chart-flights)' },
-    { name: 'Hotels', amount: 900, color: 'var(--budget-chart-hotels)' },
-    { name: 'Food', amount: 650, color: 'var(--budget-chart-food)' },
-    { name: 'Transport', amount: 300, color: 'var(--budget-chart-transport)' },
-    { name: 'Activities', amount: 150, color: 'var(--budget-chart-activities)' }
-  ];
+  categories: DistributionCategory[] = [];
+
+  private readonly categoryColors: Record<string, string> = {
+    FLIGHTS: 'var(--budget-chart-flights)',
+    HOTELS: 'var(--budget-chart-hotels)',
+    FOOD: 'var(--budget-chart-food)',
+    TRANSPORT: 'var(--budget-chart-transport)',
+    ACTIVITIES: 'var(--budget-chart-activities)'
+  };
+
+  private readonly categoryNames: Record<string, string> = {
+    FLIGHTS: 'Flights',
+    HOTELS: 'Hotels',
+    FOOD: 'Food',
+    TRANSPORT: 'Transport',
+    ACTIVITIES: 'Activities'
+  };
 
   private donutRadius = 70;
   donutStrokeWidth = 34;
@@ -191,41 +227,25 @@ export class BudgetTracker {
   }
 
   // ── User Story #4 — Budget by Category ──
-  categoryBudgets = [
-    { name: 'Flights', spent: 1200, budget: 1400 },
-    { name: 'Hotels', spent: 900, budget: 1000 },
-    { name: 'Food', spent: 650, budget: 800 },
-    { name: 'Transport', spent: 300, budget: 600 },
-    { name: 'Activities', spent: 150, budget: 500 }
-  ];
+  categoryBudgets: CategoryBudget[] = [];
 
   get categoryBudgetRows() {
-    return this.categoryBudgets.map(c => {
-      const percentage = Math.min(Math.round((c.spent / c.budget) * 100), 100);
-      const rawPercentage = (c.spent / c.budget) * 100;
-      const status = rawPercentage >= 100 ? 'Over Budget' : rawPercentage >= this.nearLimitThreshold ? 'Near Limit' : 'Normal';
-      const statusClass = rawPercentage >= 100 ? 'over-limit' : rawPercentage >= this.nearLimitThreshold ? 'near-limit' : 'normal';
-
-      return {
-        ...c,
-        percentage,
-        status,
-        statusClass
-      };
-    });
+    return this.categoryBudgets;
   }
 
   // -- User Story 5 -- Add Manual Expense --
   isExpenseFormOpen = false;
   isExpenseCategoryMenuOpen = false;
   isExpenseDatePickerOpen = false;
+  isExpenseTripMenuOpen = false;
   expenseCalendarMonth = new Date();
 
   expenseDraft = {
     amount: '',
     category: 'Flights',
     description: '',
-    date: ''
+    date: '',
+    tripId: null as number | null
   };
 
   expenseCategories = ['Flights', 'Hotels', 'Food', 'Transport', 'Activities'];
@@ -233,6 +253,15 @@ export class BudgetTracker {
 
   get selectedExpenseCategoryOptionId(): string {
     return `expense-category-${this.expenseDraft.category.toLowerCase()}`;
+  }
+
+  get selectedExpenseTripOptionId(): string {
+    return this.expenseDraft.tripId ? `expense-trip-${this.expenseDraft.tripId}` : '';
+  }
+
+  get selectedExpenseTripLabel(): string {
+    const trip = this.trips.find(t => t.tripId === this.expenseDraft.tripId);
+    return trip ? `${trip.name} - ${trip.destination}` : 'Select trip';
   }
 
   get expenseDateLabel(): string {
@@ -273,10 +302,12 @@ export class BudgetTracker {
       amount: '',
       category: 'Flights',
       description: '',
-      date: this.formatDateValue(new Date())
+      date: this.formatDateValue(new Date()),
+      tripId: this.trips[0]?.tripId ?? null
     };
     this.isExpenseCategoryMenuOpen = false;
     this.isExpenseDatePickerOpen = false;
+    this.isExpenseTripMenuOpen = false;
     this.expenseCalendarMonth = new Date();
     this.isExpenseFormOpen = true;
   }
@@ -284,6 +315,7 @@ export class BudgetTracker {
   closeExpenseForm(): void {
     this.isExpenseCategoryMenuOpen = false;
     this.isExpenseDatePickerOpen = false;
+    this.isExpenseTripMenuOpen = false;
     this.isExpenseFormOpen = false;
   }
 
@@ -296,10 +328,14 @@ export class BudgetTracker {
     if (!target?.closest('.expense-date-picker')) {
       this.isExpenseDatePickerOpen = false;
     }
+    if (!target?.closest('.expense-trip-menu')) {
+      this.isExpenseTripMenuOpen = false;
+    }
   }
 
   toggleExpenseCategoryMenu(): void {
     this.isExpenseCategoryMenuOpen = !this.isExpenseCategoryMenuOpen;
+    this.isExpenseTripMenuOpen = false;
   }
 
   selectExpenseCategory(category: string): void {
@@ -307,8 +343,20 @@ export class BudgetTracker {
     this.isExpenseCategoryMenuOpen = false;
   }
 
+  toggleExpenseTripMenu(): void {
+    this.isExpenseTripMenuOpen = !this.isExpenseTripMenuOpen;
+    this.isExpenseCategoryMenuOpen = false;
+    this.isExpenseDatePickerOpen = false;
+  }
+
+  selectExpenseTrip(tripId: number): void {
+    this.expenseDraft.tripId = tripId;
+    this.isExpenseTripMenuOpen = false;
+  }
+
   toggleExpenseDatePicker(): void {
     this.isExpenseDatePickerOpen = !this.isExpenseDatePickerOpen;
+    this.isExpenseTripMenuOpen = false;
     const selected = this.parseDateString(this.expenseDraft.date);
     if (selected) {
       this.expenseCalendarMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
@@ -348,28 +396,37 @@ export class BudgetTracker {
 
   saveExpense(): void {
     const amount = Number(this.expenseDraft.amount);
-
-    if (!amount || amount <= 0 || !this.expenseDraft.category) {
+    if (!amount || amount <= 0 || !this.expenseDraft.category || !this.expenseDraft.date) {
       return;
     }
 
-    this.totalSpent += amount;
+    const categoryKey = this.expenseDraft.category.toUpperCase();
 
-    const categoryBudget = this.categoryBudgets.find(c => c.name === this.expenseDraft.category);
-    if (categoryBudget) {
-      categoryBudget.spent += amount;
+    const payload = {
+      tripId: this.expenseDraft.tripId,
+      category: categoryKey,
+      amount: amount,
+      description: this.expenseDraft.description || null,
+      date: this.expenseDraft.date
+    };
+
+    if (!payload.tripId) {
+      alert('No trip found. Please create a trip first.');
+      return;
     }
 
-    const donutCategory = this.categories.find(c => c.name === this.expenseDraft.category);
-    if (donutCategory) {
-      donutCategory.amount += amount;
-    }
-
-    if (this.monthlySpending.length > 0) {
-      this.monthlySpending[this.monthlySpending.length - 1].amount += amount;
-    }
-
-    this.closeExpenseForm();
+    this.http.post(`${this.apiBase}/expenses`, payload, { headers: this.getHeaders() }).subscribe({
+      next: () => {
+        this.closeExpenseForm();
+        this.loadAllData();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loadError = 'Failed to save expense. Please try again.';
+        this.cdr.detectChanges();
+        alert(this.loadError);
+      }
+    });
   }
 
   // -- User Story 6 -- Recent Trip Budgets --
@@ -395,6 +452,9 @@ export class BudgetTracker {
     if (!target?.closest('.expense-date-picker')) {
       this.isExpenseDatePickerOpen = false;
     }
+    if (!target?.closest('.expense-trip-menu')) {
+      this.isExpenseTripMenuOpen = false;
+    }
   }
 
   @HostListener('document:keydown.escape')
@@ -402,6 +462,7 @@ export class BudgetTracker {
     this.isTripFilterOpen = false;
     this.isExpenseCategoryMenuOpen = false;
     this.isExpenseDatePickerOpen = false;
+    this.isExpenseTripMenuOpen = false;
   }
 
   get selectedTripStatusLabel(): string {
@@ -421,31 +482,13 @@ export class BudgetTracker {
     this.isTripFilterOpen = false;
   }
 
-  trips = [
-    { name: 'Summer Getaway', destination: 'Barcelona, Spain', budget: 1800, spent: 1200 },
-    { name: 'Winter Escape', destination: 'Vienna, Austria', budget: 1200, spent: 1100 },
-    { name: 'Business Trip', destination: 'Berlin, Germany', budget: 900, spent: 950 },
-    { name: 'Weekend Trip', destination: 'Amsterdam, Netherlands', budget: 600, spent: 320 },
-    { name: 'Family Vacation', destination: 'Rome, Italy', budget: 2200, spent: 1850 }
-  ];
-
-  private getTripStatus(budget: number, spent: number): 'Under Budget' | 'Near Limit' | 'Over Budget' {
-    const percentage = (spent / budget) * 100;
-    if (percentage >= 100) return 'Over Budget';
-    if (percentage >= this.nearLimitThreshold) return 'Near Limit';
-    return 'Under Budget';
-  }
+  trips: TripBudget[] = [];
 
   get tripRows() {
-    return this.trips.map(t => {
-      const status = this.getTripStatus(t.budget, t.spent);
-      return {
-        ...t,
-        remaining: t.budget - t.spent,
-        status,
-        statusClass: status === 'Over Budget' ? 'over-limit' : status === 'Near Limit' ? 'near-limit' : 'normal'
-      };
-    });
+    return this.trips.map(t => ({
+      ...t,
+      statusClass: t.status === 'Over Budget' ? 'over-limit' : t.status === 'Near Limit' ? 'near-limit' : 'normal'
+    }));
   }
 
   get filteredTripRows() {
@@ -467,15 +510,40 @@ export class BudgetTracker {
   }
 
   exportReport(format: 'pdf' | 'csv'): void {
-    if (format === 'csv') {
-      this.exportAsCsv();
-    } else {
-      this.exportAsPdf();
+    this.isExporting = true;
+    this.loadError = '';
+    const reportWindow = format === 'pdf' ? window.open('', '_blank') : null;
+
+    if (format === 'pdf' && !reportWindow) {
+      this.isExporting = false;
+      this.loadError = 'Failed to open the PDF report window. Please allow popups and try again.';
+      this.closeExportMenu();
+      this.cdr.detectChanges();
+      return;
     }
-    this.closeExportMenu();
+
+    this.http.get<BudgetReport>(`${this.apiBase}/report`, { headers: this.getHeaders() }).subscribe({
+      next: report => {
+        if (format === 'csv') {
+          this.exportAsCsv(report);
+        } else {
+          this.exportAsPdf(report, reportWindow);
+        }
+        this.isExporting = false;
+        this.closeExportMenu();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isExporting = false;
+        this.loadError = 'Failed to export budget report. Please try again.';
+        this.closeExportMenu();
+        reportWindow?.close();
+        this.cdr.detectChanges();
+      }
+    });
   }
 
-  private exportAsCsv(): void {
+  private exportAsCsv(report: BudgetReport): void {
     const lines: string[] = [];
     const csvCell = (value: string | number): string => {
       const text = String(value);
@@ -484,23 +552,23 @@ export class BudgetTracker {
     const csvRow = (values: Array<string | number>): string => values.map(csvCell).join(',');
 
     lines.push(csvRow(['Budget Summary']));
-    lines.push(csvRow(['Total Budget', `EUR ${this.totalBudget}`]));
-    lines.push(csvRow(['Total Spent', `EUR ${this.totalSpent}`]));
-    lines.push(csvRow(['Remaining Balance', `EUR ${this.remainingBalance}`]));
-    lines.push(csvRow(['Budget Usage', `${this.usagePercentage}%`]));
+    lines.push(csvRow(['Total Budget', this.formatReportMoney(report.totalBudget)]));
+    lines.push(csvRow(['Total Spent', this.formatReportMoney(report.totalSpent)]));
+    lines.push(csvRow(['Remaining Balance', this.formatReportMoney(report.remainingBalance)]));
+    lines.push(csvRow(['Budget Usage', `${Number(report.usagePercentage)}%`]));
     lines.push('');
 
     lines.push(csvRow(['Category Breakdown']));
     lines.push(csvRow(['Category', 'Spent', 'Budget', 'Percentage']));
-    this.categoryBudgetRows.forEach(c => {
-      lines.push(csvRow([c.name, `EUR ${c.spent}`, `EUR ${c.budget}`, `${c.percentage}%`]));
+    this.mapCategoryBudgets(report.categories).forEach(c => {
+      lines.push(csvRow([c.name, this.formatReportMoney(c.spent), this.formatReportMoney(c.budget), `${c.percentage}%`]));
     });
     lines.push('');
 
     lines.push(csvRow(['Trip List']));
     lines.push(csvRow(['Trip Name', 'Destination', 'Budget', 'Spent', 'Remaining', 'Status']));
-    this.tripRows.forEach(t => {
-      lines.push(csvRow([t.name, t.destination, `EUR ${t.budget}`, `EUR ${t.spent}`, `EUR ${t.remaining}`, t.status]));
+    this.mapTrips(report.trips).forEach(t => {
+      lines.push(csvRow([t.name, t.destination, this.formatReportMoney(t.budget), this.formatReportMoney(t.spent), this.formatReportMoney(t.remaining), t.status]));
     });
 
     const csvContent = lines.join('\n');
@@ -515,18 +583,15 @@ export class BudgetTracker {
     URL.revokeObjectURL(url);
   }
 
-  private exportAsPdf(): void {
-    const reportWindow = window.open('', '_blank');
-    if (!reportWindow) {
-      return;
-    }
+  private exportAsPdf(report: BudgetReport, reportWindow: Window | null): void {
+    if (!reportWindow) return;
 
-    const categoryRowsHtml = this.categoryBudgetRows
-      .map(c => `<tr><td>${c.name}</td><td>EUR ${c.spent}</td><td>EUR ${c.budget}</td><td>${c.percentage}%</td></tr>`)
+    const categoryRowsHtml = this.mapCategoryBudgets(report.categories)
+      .map(c => `<tr><td>${this.escapeHtml(c.name)}</td><td>${this.formatReportMoney(c.spent)}</td><td>${this.formatReportMoney(c.budget)}</td><td>${c.percentage}%</td></tr>`)
       .join('');
 
-    const tripRowsHtml = this.tripRows
-      .map(t => `<tr><td>${t.name}</td><td>${t.destination}</td><td>EUR ${t.budget}</td><td>EUR ${t.spent}</td><td>EUR ${t.remaining}</td><td>${t.status}</td></tr>`)
+    const tripRowsHtml = this.mapTrips(report.trips)
+      .map(t => `<tr><td>${this.escapeHtml(t.name)}</td><td>${this.escapeHtml(t.destination)}</td><td>${this.formatReportMoney(t.budget)}</td><td>${this.formatReportMoney(t.spent)}</td><td>${this.formatReportMoney(t.remaining)}</td><td>${this.escapeHtml(t.status)}</td></tr>`)
       .join('');
 
     reportWindow.document.write(`
@@ -545,17 +610,15 @@ export class BudgetTracker {
         </head>
         <body>
           <h1>Budget Report</h1>
-          <p class="summary-line">Total Budget: EUR ${this.totalBudget}</p>
-          <p class="summary-line">Total Spent: EUR ${this.totalSpent}</p>
-          <p class="summary-line">Remaining Balance: EUR ${this.remainingBalance}</p>
-          <p class="summary-line">Budget Usage: ${this.usagePercentage}%</p>
-
+          <p class="summary-line">Total Budget: ${this.formatReportMoney(report.totalBudget)}</p>
+          <p class="summary-line">Total Spent: ${this.formatReportMoney(report.totalSpent)}</p>
+          <p class="summary-line">Remaining Balance: ${this.formatReportMoney(report.remainingBalance)}</p>
+          <p class="summary-line">Budget Usage: ${Number(report.usagePercentage)}%</p>
           <h2>Category Breakdown</h2>
           <table>
             <thead><tr><th>Category</th><th>Spent</th><th>Budget</th><th>Percentage</th></tr></thead>
             <tbody>${categoryRowsHtml}</tbody>
           </table>
-
           <h2>Trip List</h2>
           <table>
             <thead><tr><th>Trip Name</th><th>Destination</th><th>Budget</th><th>Spent</th><th>Remaining</th><th>Status</th></tr></thead>
@@ -567,5 +630,127 @@ export class BudgetTracker {
     reportWindow.document.close();
     reportWindow.focus();
     reportWindow.print();
+  }
+
+  // ── HTTP / Data Loading ──
+  constructor(
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  ngOnInit(): void {
+    this.loadAllData();
+  }
+
+  private getHeaders(): HttpHeaders {
+    const token = localStorage.getItem('sep.auth.token');
+    return token ? new HttpHeaders({ Authorization: `Bearer ${token}` }) : new HttpHeaders();
+  }
+
+  loadAllData(): void {
+    this.isLoading = true;
+    this.loadError = '';
+
+    forkJoin({
+      summary: this.http.get<any>(`${this.apiBase}/summary`, { headers: this.getHeaders() }),
+      monthly: this.http.get<any[]>(`${this.apiBase}/spending-over-time?view=monthly`, { headers: this.getHeaders() }),
+      yearly: this.http.get<any[]>(`${this.apiBase}/spending-over-time?view=yearly`, { headers: this.getHeaders() }),
+      distribution: this.http.get<any[]>(`${this.apiBase}/distribution`, { headers: this.getHeaders() }),
+      categories: this.http.get<any[]>(`${this.apiBase}/categories`, { headers: this.getHeaders() }),
+      trips: this.http.get<TripBudget[]>(`${this.apiBase}/trips`, { headers: this.getHeaders() })
+    }).subscribe({
+      next: data => {
+        this.totalBudget = Number(data.summary.totalBudget);
+        this.totalSpent = Number(data.summary.totalSpent);
+        this.monthlySpending = this.mapSpendingPoints(data.monthly);
+        this.yearlySpending = this.mapSpendingPoints(data.yearly);
+        this.categories = this.mapDistribution(data.distribution);
+        this.categoryBudgets = this.mapCategoryBudgets(data.categories);
+        this.trips = this.mapTrips(data.trips);
+        this.expenseDraft.tripId = this.trips.some(trip => trip.tripId === this.expenseDraft.tripId)
+          ? this.expenseDraft.tripId
+          : this.trips[0]?.tripId ?? null;
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoading = false;
+        this.loadError = 'Failed to load budget data. Please try again.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private loadSpendingChart(view: 'monthly' | 'yearly'): void {
+    this.http.get<any[]>(`${this.apiBase}/spending-over-time?view=${view}`, { headers: this.getHeaders() }).subscribe({
+      next: data => {
+        const points = this.mapSpendingPoints(data);
+        if (view === 'monthly') {
+          this.monthlySpending = points;
+        } else {
+          this.yearlySpending = points;
+        }
+      },
+      error: () => {
+        this.loadError = 'Failed to load spending chart data. Please try again.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private mapSpendingPoints(data: any[]): SpendingPoint[] {
+    return data.map(d => ({ label: d.label, amount: Number(d.amount) }));
+  }
+
+  private mapDistribution(data: any[]): DistributionCategory[] {
+    return data.map(d => ({
+      name: this.categoryNames[d.category] ?? d.category,
+      amount: Number(d.amount),
+      color: this.categoryColors[d.category] ?? '#999'
+    }));
+  }
+
+  private mapCategoryBudgets(data: any[]): CategoryBudget[] {
+    return data.map(d => {
+      const isOverLimit = Boolean(d.isOverLimit ?? d.overLimit);
+      const isNearLimit = Boolean(d.isNearLimit ?? d.nearLimit);
+      const percentage = Number.isFinite(Number(d.percentage)) ? Number(d.percentage) : 0;
+      const status = isOverLimit ? 'Over Budget' : isNearLimit ? 'Near Limit' : 'Normal';
+      const statusClass = isOverLimit ? 'over-limit' : isNearLimit ? 'near-limit' : 'normal';
+
+      return {
+        name: this.categoryNames[d.category] ?? d.category,
+        spent: Number(d.spent),
+        budget: Number(d.budget),
+        percentage: Math.min(Math.max(percentage, 0), 100),
+        status,
+        statusClass
+      };
+    });
+  }
+
+  private mapTrips(data: TripBudget[]): TripBudget[] {
+    return data.map(t => ({
+      tripId: t.tripId,
+      name: t.name,
+      destination: t.destination,
+      budget: Number(t.budget),
+      spent: Number(t.spent),
+      remaining: Number(t.remaining),
+      status: t.status
+    }));
+  }
+
+  private escapeHtml(value: string | number | null | undefined): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private formatReportMoney(value: string | number | null | undefined): string {
+    return `${Number(value ?? 0).toFixed(2)} EUR`;
   }
 }

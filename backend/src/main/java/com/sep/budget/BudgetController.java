@@ -1,6 +1,9 @@
 package com.sep.budget;
 
 import com.sep.budget.dto.BudgetSummaryResponse;
+import com.sep.budget.dto.BudgetReportResponse;
+import com.sep.budget.dto.SpendingDataPointResponse;
+import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.CategoryBudgetResponse;
 import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
@@ -11,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,6 +53,33 @@ public class BudgetController {
     @GetMapping("/trips")
     public List<TripBudgetRowResponse> getTripBudgetRows(Authentication authentication) {
         return budgetService.getTripBudgetRows(authentication.getName());
+    }
+
+    /**
+     * User Story #7 — full budget report for export.
+     */
+    @GetMapping("/report")
+    public BudgetReportResponse getReport(Authentication authentication) {
+        return budgetService.getReport(authentication.getName());
+    }
+
+    /**
+     * User Story #2 — spending grouped by month or year for the line chart.
+     */
+    @GetMapping("/spending-over-time")
+    public List<SpendingDataPointResponse> getSpendingOverTime(
+            Authentication authentication,
+            @RequestParam(defaultValue = "monthly") String view
+    ) {
+        return budgetService.getSpendingOverTime(authentication.getName(), view);
+    }
+
+    /**
+     * User Story #3 — spending split by category as percentages for the donut chart.
+     */
+    @GetMapping("/distribution")
+    public List<SpendingDistributionResponse> getSpendingDistribution(Authentication authentication) {
+        return budgetService.getSpendingDistribution(authentication.getName());
     }
 
     /**
