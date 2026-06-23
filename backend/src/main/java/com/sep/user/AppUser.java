@@ -32,6 +32,9 @@ public class AppUser {
     @Column(length = 30)
     private String phoneNumber;
 
+    @Column(name = "passport_number", length = 30)
+    private String passportNumber;
+
     @Column(length = 20)
     private String homeAirport;
 
@@ -102,6 +105,10 @@ public class AppUser {
         return phoneNumber;
     }
 
+    public String getPassportNumber() {
+        return passportNumber;
+    }
+
     public String getHomeAirport() {
         return homeAirport;
     }
@@ -160,6 +167,10 @@ public class AppUser {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public void setPassportNumber(String passportNumber) {
+        this.passportNumber = passportNumber;
     }
 
     public void setHomeAirport(String homeAirport) {

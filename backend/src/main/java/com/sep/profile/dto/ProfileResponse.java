@@ -9,6 +9,7 @@ public record ProfileResponse(
         String firstName,
         String lastName,
         String phoneNumber,
+        String passportNumber,
         String homeAirport,
         boolean verified,
         boolean hasProfilePicture,

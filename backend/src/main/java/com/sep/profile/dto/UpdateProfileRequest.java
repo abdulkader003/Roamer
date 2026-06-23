@@ -19,6 +19,10 @@ public record UpdateProfileRequest(
         @Pattern(regexp = "^$|^[+0-9 ()-]{6,30}$", message = "Phone number format is invalid.")
         String phoneNumber,
 
+        @Size(max = 30, message = "Passport number must be 30 characters or less.")
+        @Pattern(regexp = "^[A-Za-z0-9 -]*$", message = "Passport number format is invalid.")
+        String passportNumber,
+
         @Pattern(regexp = "^$|^[A-Za-z]{3}$", message = "Home airport must be a 3-letter airport code.")
         String homeAirport
 ) {

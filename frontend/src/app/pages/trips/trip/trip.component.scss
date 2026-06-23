@@ -548,7 +548,13 @@
 
 .trip-edit-form {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+  padding: clamp(14px, 2vw, 18px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-secondary) 62%, transparent), transparent),
+    var(--surface-primary);
 
   label {
     display: grid;
@@ -572,10 +578,56 @@
   }
 }
 
+.quick-edit-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 2px;
+
+  div {
+    min-width: 0;
+  }
+
+  strong {
+    display: block;
+    overflow: hidden;
+    margin-top: 4px;
+    color: var(--text-primary);
+    font-size: 18px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  p {
+    max-width: 230px;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.45;
+    text-align: right;
+  }
+}
+
+.edit-primary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(140px, 0.55fr);
+  gap: 12px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.edit-date-grid {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-secondary) 58%, transparent);
 }
 
 .date-edit-field {
@@ -926,8 +978,18 @@
   }
 
   .summary-grid,
+  .edit-primary-row,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quick-edit-intro {
+    flex-direction: column;
+
+    p {
+      max-width: none;
+      text-align: left;
+    }
   }
 
   .modal-actions,

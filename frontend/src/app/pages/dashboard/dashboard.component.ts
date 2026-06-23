@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, compu
 import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
+import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { TripTempService } from '../trips/create/trip-temp.service';
 
@@ -37,6 +38,7 @@ const WEATHER_ROTATION_INTERVAL_MS = 20000;
 const VISIBLE_WEATHER_CITY_COUNT = 3;
 
 interface Trip {
+  id: number;
   name: string;
   dates: string;
   budget: string;
@@ -83,6 +85,7 @@ export class DashboardComponent implements OnDestroy {
   private themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
   private readonly weatherService = inject(WeatherService);
+  private readonly tripPlanningService = inject(TripPlanningService);
   private readonly tripTempService = inject(TripTempService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
@@ -100,22 +103,10 @@ export class DashboardComponent implements OnDestroy {
     })
   );
 
-  trips = signal<Trip[]>([
-    {
-      name: 'Paris, France',
-      dates: '15 Jun – 22 Jun, 2024',
-      budget: '€1,200',
-      status: 'confirmed',
-      image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=200&q=80',
-    },
-    {
-      name: 'Zermatt, Switzerland',
-      dates: '08 Jul – 14 Jul, 2024',
-      budget: '€1,800',
-      status: 'pending',
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&q=80',
-    },
-  ]);
+  trips = signal<Trip[]>([]);
+  upcomingTripCount = signal(0);
+  isTripsLoading = signal(false);
+  tripsError = signal('');
 
   experiences = signal<Experience[]>([
     { name: 'Sunset Yacht Party', location: 'Dubai, UAE', price: '€120.00', image: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&q=80' },
@@ -144,9 +135,35 @@ export class DashboardComponent implements OnDestroy {
   ]);
 
   ngOnInit(): void {
+    this.loadUpcomingTrips();
     void this.loadCalendarEventDates();
     this.loadWeather();
     this.weatherRotationIntervalId = setInterval(() => this.rotateWeatherCities(), WEATHER_ROTATION_INTERVAL_MS);
+  }
+
+  loadUpcomingTrips(): void {
+    this.isTripsLoading.set(true);
+    this.tripsError.set('');
+
+    this.tripPlanningService.listSavedTrips().subscribe({
+      next: (savedTrips) => {
+        const plannedTrips = [...savedTrips]
+          .sort((first, second) => this.tripSortValue(first) - this.tripSortValue(second));
+
+        this.upcomingTripCount.set(plannedTrips.length);
+        this.trips.set(plannedTrips.slice(0, 3).map((trip) => this.toDashboardTrip(trip)));
+        this.isTripsLoading.set(false);
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Failed to load dashboard trips:', error);
+        this.trips.set([]);
+        this.upcomingTripCount.set(0);
+        this.tripsError.set('Trips are unavailable right now.');
+        this.isTripsLoading.set(false);
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -379,6 +396,77 @@ export class DashboardComponent implements OnDestroy {
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const day = `${date.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private toDashboardTrip(trip: TripResponse): Trip {
+    return {
+      id: trip.id,
+      name: trip.name,
+      dates: this.formatTripDates(trip),
+      budget: this.formatTripBudget(trip),
+      status: trip.status === 'UPCOMING' ? 'confirmed' : 'pending',
+      image: this.tripImageFor(trip)
+    };
+  }
+
+  private formatTripBudget(trip: TripResponse): string {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: trip.currency || 'EUR',
+      maximumFractionDigits: 0
+    }).format(trip.budget);
+  }
+
+  private formatTripDates(trip: TripResponse): string {
+    const startDate = this.parseDateOnly(trip.startDate);
+    const endDate = this.parseDateOnly(trip.endDate);
+
+    if (!startDate || !endDate) {
+      return trip.destination;
+    }
+
+    const startLabel = startDate.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short'
+    });
+    const endLabel = endDate.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    return `${startLabel} - ${endLabel}`;
+  }
+
+  private parseDateOnly(value: string): Date | null {
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private tripSortValue(trip: TripResponse): number {
+    return this.parseDateOnly(trip.startDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  private tripImageFor(trip: TripResponse): string {
+    const destination = trip.destination.toLowerCase();
+
+    if (destination.includes('paris')) {
+      return 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=200&q=80';
+    }
+
+    if (destination.includes('switzerland') || destination.includes('zermatt')) {
+      return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&q=80';
+    }
+
+    if (destination.includes('rome') || destination.includes('italy')) {
+      return 'https://images.unsplash.com/photo-1529260830199-42c24126f198?w=200&q=80';
+    }
+
+    if (destination.includes('tokyo') || destination.includes('japan')) {
+      return 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=200&q=80';
+    }
+
+    return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=200&q=80';
   }
 
 }

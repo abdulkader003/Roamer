@@ -96,17 +96,27 @@
 
         @if (isEditing() && editTripForm) {
           <form class="trip-edit-form" #editForm="ngForm" (ngSubmit)="saveTripEdits()">
-            <label>
-              <span>Trip name</span>
-              <input name="name" [(ngModel)]="editTripForm.name" required maxlength="120" />
-            </label>
+            <div class="quick-edit-intro">
+              <div>
+                <span class="modal-eyebrow">Quick edit</span>
+                <strong>{{ trip.destination }}</strong>
+              </div>
+              <p>Change the trip name, dates, or budget.</p>
+            </div>
 
-            <label>
-              <span>Destination</span>
-              <input name="destination" [(ngModel)]="editTripForm.destination" required maxlength="120" />
-            </label>
+            <div class="edit-primary-row">
+              <label>
+                <span>Trip name</span>
+                <input name="name" [(ngModel)]="editTripForm.name" required maxlength="120" />
+              </label>
 
-            <div class="form-grid">
+              <label>
+                <span>Budget</span>
+                <input type="number" name="budget" [(ngModel)]="editTripForm.budget" min="0" required />
+              </label>
+            </div>
+
+            <div class="form-grid edit-date-grid">
               <label class="date-edit-field" [class.open]="activeEditDatePicker() === 'startDate'">
                 <span>Start date</span>
                 <input type="hidden" name="startDate" [(ngModel)]="editTripForm.startDate" required />
@@ -133,11 +143,6 @@
                 </button>
               </label>
             </div>
-
-            <label>
-              <span>Budget</span>
-              <input type="number" name="budget" [(ngModel)]="editTripForm.budget" min="0" required />
-            </label>
 
             @if (actionError()) {
               <p class="modal-error" role="alert">{{ actionError() }}</p>

@@ -1,9 +1,10 @@
 <section class="profile-page">
   <div class="profile-header">
-    <div>
-      <a class="breadcrumb" routerLink="/dashboard">Dashboard</a>
-      <h1>Profile</h1>
-      <p>Manage your account details, profile picture, password, and account access.</p>
+    <a class="breadcrumb" routerLink="/dashboard">Dashboard</a>
+    <div class="header-copy">
+      <span class="page-kicker">Account settings</span>
+      <h1>Profile command center</h1>
+      <p>Manage the traveler details, airport preferences, picture, and password used across your trips.</p>
     </div>
   </div>
 
@@ -21,84 +22,167 @@
   } @else if (profile; as currentProfile) {
     <div class="profile-grid">
       <section class="profile-panel profile-summary" id="profile-picture">
-        <div class="avatar-block">
-          <div class="avatar-frame" [class.avatar-frame--loading]="isPictureLoading">
-            @if (profileImageUrl) {
-              <img [src]="profileImageUrl" [alt]="displayName + ' profile picture'" (error)="onProfileImageError()" />
-            } @else {
-              <span>{{ avatarInitials }}</span>
-            }
-          </div>
+        <div class="profile-summary-main">
+          <div class="avatar-block">
+            <div class="avatar-frame" [class.avatar-frame--loading]="isPictureLoading">
+              @if (profileImageUrl) {
+                <img [src]="profileImageUrl" [alt]="displayName + ' profile picture'" (error)="onProfileImageError()" />
+              } @else {
+                <span>{{ avatarInitials }}</span>
+              }
+            </div>
 
-          <div class="avatar-actions">
-            <label class="picture-button picture-button--primary" [class.picture-button--busy]="isUploadingPicture">
-              <span class="picture-button__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
-              </span>
-              <span>
-                {{ isUploadingPicture ? 'Uploading...' : currentProfile.hasProfilePicture ? 'Replace picture' : 'Upload picture' }}
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                (change)="onPictureSelected($event)"
-                [disabled]="isUploadingPicture" />
-            </label>
-
-            @if (currentProfile.hasProfilePicture) {
-              <button
-                type="button"
-                class="picture-button picture-button--muted"
-                (click)="deleteProfilePicture()"
-                [disabled]="isDeletingPicture">
+            <div class="avatar-actions">
+              <label class="picture-button picture-button--primary" [class.picture-button--busy]="isUploadingPicture">
                 <span class="picture-button__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
                   </svg>
                 </span>
-                <span>{{ isDeletingPicture ? 'Deleting...' : 'Delete picture' }}</span>
-              </button>
+                <span>
+                  {{ isUploadingPicture ? 'Uploading...' : currentProfile.hasProfilePicture ? 'Replace picture' : 'Upload picture' }}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  (change)="onPictureSelected($event)"
+                  [disabled]="isUploadingPicture" />
+              </label>
+
+              @if (currentProfile.hasProfilePicture) {
+                <button
+                  type="button"
+                  class="picture-button picture-button--muted"
+                  (click)="deleteProfilePicture()"
+                  [disabled]="isDeletingPicture">
+                  <span class="picture-button__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                    </svg>
+                  </span>
+                  <span>{{ isDeletingPicture ? 'Deleting...' : 'Delete picture' }}</span>
+                </button>
+              }
+            </div>
+
+            @if (pictureError) {
+              <p class="message message--error">{{ pictureError }}</p>
+            }
+          </div>
+
+          <div class="compact-profile" aria-label="Traveler profile summary">
+            <div class="compact-profile__heading">
+              <div>
+                <span class="identity-kicker">Traveler profile</span>
+                <h2>{{ displayName }}</h2>
+              </div>
+              <span class="compact-status" [class.compact-status--pending]="!currentProfile.verified">
+                {{ currentProfile.verified ? 'Verified' : 'Pending' }}
+              </span>
+            </div>
+
+            <div class="compact-contact">
+              <span>@{{ currentProfile.username }}</span>
+              <strong>{{ currentProfile.email }}</strong>
+            </div>
+
+            <div class="compact-meta" aria-label="Travel profile details">
+              <div>
+                <span>Home airport</span>
+                <strong>{{ profileForm.controls.homeAirport.value || 'No home airport' }}</strong>
+              </div>
+              <div>
+                <span>Passport number</span>
+                <strong>{{ profileForm.controls.passportNumber.value || currentProfile.passportNumber || 'No passport number' }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="world-progress-card" aria-label="Visited countries tracker">
+            <div class="world-progress-header">
+              <div>
+                <span class="identity-kicker">World progress</span>
+                <h3>Countries visited</h3>
+              </div>
+              <strong>{{ worldVisitedPercentage }}%</strong>
+            </div>
+
+            <div class="world-progress-meter" aria-hidden="true">
+              <span [style.width.%]="worldVisitedProgress"></span>
+            </div>
+
+            <p class="world-progress-copy">
+              {{ visitedCountries.length }} of {{ countryOptions.length }} countries marked as visited.
+            </p>
+
+            <label class="country-picker" for="visited-country">
+              Add a country
+              <div class="country-add-row">
+                <input
+                  id="visited-country"
+                  type="text"
+                  list="visited-country-options"
+                  autocomplete="off"
+                  placeholder="Type a country name"
+                  [value]="selectedVisitedCountry"
+                  (input)="onVisitedCountrySelected($event)"
+                  (keydown.enter)="$event.preventDefault(); addVisitedCountry()" />
+                <datalist id="visited-country-options">
+                  @for (country of unvisitedCountryOptions; track country) {
+                    <option [value]="country"></option>
+                  }
+                </datalist>
+                <button type="button" class="secondary-button" (click)="addVisitedCountry()" [disabled]="!canAddVisitedCountry()">Add</button>
+              </div>
+            </label>
+
+            @if (visitedCountries.length) {
+              <div class="visited-country-list" aria-label="Visited countries">
+                @for (country of visitedCountries; track country) {
+                  <button type="button" class="visited-country-chip" (click)="removeVisitedCountry(country)" [attr.aria-label]="'Remove ' + country">
+                    <span>{{ country }}</span>
+                    <strong aria-hidden="true">×</strong>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="visited-empty">Start with your first stamp.</p>
             }
           </div>
         </div>
 
-        @if (pictureError) {
-          <p class="message message--error">{{ pictureError }}</p>
-        }
-
-        <div class="identity-block">
-          <h2>{{ displayName }}</h2>
-          <p>{{ currentProfile.email }}</p>
-          <div class="profile-tags">
-            <span>{{ currentProfile.username }}</span>
-            @if (currentProfile.verified) {
-              <span class="verified-tag">Verified</span>
-            }
-          </div>
-        </div>
       </section>
 
       <section class="profile-panel" id="profile-details">
         <div class="panel-heading">
           <div>
-            <h2>Edit Profile</h2>
-            <p>Update safe personal details. Password changes are handled separately.</p>
+            <span class="section-eyebrow">Personal information</span>
+            <h2>Edit profile</h2>
+            <p>Update the account details used across your travel plans and reservations.</p>
           </div>
         </div>
 
         <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
-          <label>
-            Username
-            <input type="text" formControlName="username" autocomplete="username" />
-            @if (fieldHasError('username')) {
-              <span class="field-error">Use 3-40 letters, numbers, dots, underscores, or hyphens.</span>
-            }
-          </label>
+          <div class="form-row">
+            <label>
+              Username
+              <input type="text" formControlName="username" autocomplete="username" />
+              @if (fieldHasError('username')) {
+                <span class="field-error">Use 3-40 letters, numbers, dots, underscores, or hyphens.</span>
+              }
+            </label>
+
+            <label>
+              Passport number
+              <input type="text" formControlName="passportNumber" autocomplete="off" />
+              @if (fieldHasError('passportNumber')) {
+                <span class="field-error">Use letters, numbers, spaces, or hyphens only.</span>
+              }
+            </label>
+          </div>
 
           <div class="form-row">
             <label>
@@ -126,7 +210,6 @@
                 <span class="field-error">Enter a valid phone number.</span>
               }
             </label>
-
             <label class="airport-field">
               Home airport
               <input
@@ -178,10 +261,17 @@
         </form>
       </section>
 
-      <section class="profile-panel" id="security">
-        <div class="panel-heading">
+      <section class="profile-panel security-panel" id="security">
+        <div class="security-intro">
+          <div class="security-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="M9 12l2 2 4-5" />
+            </svg>
+          </div>
           <div>
-            <h2>Change Password</h2>
+            <span class="section-eyebrow">Security settings</span>
+            <h2>Change password</h2>
             <p>Use your current password before choosing a new one.</p>
           </div>
         </div>

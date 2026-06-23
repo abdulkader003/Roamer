@@ -65,6 +65,7 @@ class ProfileServiceTest {
     void getProfileReturnsOnlyCurrentUserDataWithoutPictureBytes() {
         user.setFirstName("Ada");
         user.setLastName("Lovelace");
+        user.setPassportNumber("X1234567");
         user.setProfilePicture("image".getBytes(StandardCharsets.UTF_8));
         user.setProfilePictureContentType("image/png");
 
@@ -75,6 +76,7 @@ class ProfileServiceTest {
         assertThat(response.email()).isEqualTo("traveler@example.com");
         assertThat(response.username()).isEqualTo("traveler");
         assertThat(response.firstName()).isEqualTo("Ada");
+        assertThat(response.passportNumber()).isEqualTo("X1234567");
         assertThat(response.hasProfilePicture()).isTrue();
     }
 
@@ -87,13 +89,36 @@ class ProfileServiceTest {
         when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
         when(userRepository.findByUsernameIgnoreCase("taken")).thenReturn(Optional.of(otherUser));
 
-        UpdateProfileRequest request = new UpdateProfileRequest("taken", "Ada", "", "", "");
+        UpdateProfileRequest request = new UpdateProfileRequest("taken", "Ada", "", "", "", "");
 
         assertThatThrownBy(() -> profileService.updateProfile("traveler@example.com", request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Username is already taken.");
 
         verify(userRepository, never()).save(any(AppUser.class));
+    }
+
+    @Test
+    void updateProfileSavesPassportNumber() {
+        when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByUsernameIgnoreCase("traveler")).thenReturn(Optional.of(user));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                "traveler",
+                "Ada",
+                "Lovelace",
+                "+49 123456",
+                "P1",
+                "ber"
+        );
+
+        ProfileResponse response = profileService.updateProfile("traveler@example.com", request);
+
+        assertThat(user.getPhoneNumber()).isEqualTo("+49 123456");
+        assertThat(user.getPassportNumber()).isEqualTo("P1");
+        assertThat(response.passportNumber()).isEqualTo("P1");
+        verify(userRepository).save(user);
     }
 
     @Test
