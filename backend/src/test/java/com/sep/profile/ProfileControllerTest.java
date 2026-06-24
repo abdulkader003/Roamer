@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
 import java.util.Map;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -33,13 +34,14 @@ class ProfileControllerTest {
     }
 
     @Test
-    void updateProfileReturnsSavedPassportNumber() {
+    void updateProfileReturnsSavedAchievements() {
         UpdateProfileRequest request = new UpdateProfileRequest(
                 "traveler",
                 "Ada",
                 "Lovelace",
                 "+49 123456",
                 "P1",
+                List.of("BEACH_LOVER", "WORLD_TRAVELER"),
                 "BER"
         );
         ProfileResponse savedProfile = new ProfileResponse(
@@ -50,6 +52,7 @@ class ProfileControllerTest {
                 "Lovelace",
                 "+49 123456",
                 "P1",
+                List.of("BEACH_LOVER", "WORLD_TRAVELER"),
                 "BER",
                 true,
                 false,
@@ -62,7 +65,7 @@ class ProfileControllerTest {
         ResponseEntity<ProfileResponse> response = profileController.updateProfile(authentication, request);
 
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().passportNumber()).isEqualTo("P1");
+        assertThat(response.getBody().travelAchievements()).containsExactly("BEACH_LOVER", "WORLD_TRAVELER");
         verify(profileService).updateProfile("traveler@example.com", request);
     }
 

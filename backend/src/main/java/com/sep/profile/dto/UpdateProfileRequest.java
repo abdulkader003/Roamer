@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public record UpdateProfileRequest(
         @NotBlank(message = "Username is required.")
         @Size(min = 3, max = 40, message = "Username must be between 3 and 40 characters.")
@@ -22,6 +24,8 @@ public record UpdateProfileRequest(
         @Size(max = 30, message = "Passport number must be 30 characters or less.")
         @Pattern(regexp = "^[A-Za-z0-9 -]*$", message = "Passport number format is invalid.")
         String passportNumber,
+
+        List<String> travelAchievements,
 
         @Pattern(regexp = "^$|^[A-Za-z]{3}$", message = "Home airport must be a 3-letter airport code.")
         String homeAirport

@@ -21,6 +21,10 @@ import {
 } from '../../services/profile.service';
 import { ProfileStateService } from '../../services/profile-state.service';
 
+type TravelAchievementOption = {
+  key: string;
+  label: string;
+};
 
 const WORLD_COUNTRIES = [
   'Afghanistan',
@@ -220,6 +224,19 @@ const WORLD_COUNTRIES = [
   'Zimbabwe'
 ] as const;
 
+const TRAVEL_ACHIEVEMENTS: TravelAchievementOption[] = [
+  { key: 'BEACH_LOVER', label: '🏖 Beach Lover' },
+  { key: 'MOUNTAIN_EXPLORER', label: '🏔 Mountain Explorer' },
+  { key: 'FREQUENT_FLYER', label: '✈️ Frequent Flyer' },
+  { key: 'WORLD_TRAVELER', label: '🌍 World Traveler' },
+  { key: 'CULTURE_SEEKER', label: '🏛 Culture Seeker' },
+  { key: 'FOOD_EXPLORER', label: '🍜 Food Explorer' },
+  { key: 'BACKPACKER', label: '🎒 Backpacker' },
+  { key: 'RELAXATION_TRAVELER', label: '🧘 Relaxation Traveler' },
+  { key: 'TRAVEL_PHOTOGRAPHER', label: '📸 Travel Photographer' },
+  { key: 'NATURE_EXPLORER', label: '🌿 Nature Explorer' }
+];
+
 @Component({
   selector: 'app-profile',
   standalone: true,
@@ -261,10 +278,12 @@ export class ProfileComponent implements OnInit {
   airportSuggestions: AirportOption[] = [];
   visitedCountries: string[] = [];
   selectedVisitedCountry = '';
+  selectedTravelAchievements: string[] = [];
   private selectedHomeAirport: AirportOption | null = null;
 
   readonly maxPictureSizeMb = 2;
   readonly countryOptions = WORLD_COUNTRIES;
+  readonly travelAchievementOptions = TRAVEL_ACHIEVEMENTS;
 
   readonly profileForm = this.fb.nonNullable.group({
     username: ['', [
@@ -277,10 +296,6 @@ export class ProfileComponent implements OnInit {
     lastName: ['', [Validators.maxLength(80)]],
     phoneNumber: ['', [
       Validators.pattern(/^[+0-9 ()-]*$/),
-      Validators.maxLength(30)
-    ]],
-    passportNumber: ['', [
-      Validators.pattern(/^[A-Za-z0-9 -]*$/),
       Validators.maxLength(30)
     ]],
     homeAirport: ['', [Validators.maxLength(120)]]
@@ -346,6 +361,10 @@ export class ProfileComponent implements OnInit {
     return Math.min(100, this.worldVisitedPercentage);
   }
 
+  achievementLabel(key: string): string {
+    return this.travelAchievementOptions.find((option) => option.key === key)?.label ?? key;
+  }
+
   loadProfile(): void {
     this.isLoading = true;
     this.profileError = '';
@@ -389,7 +408,7 @@ export class ProfileComponent implements OnInit {
       firstName: formValue.firstName.trim(),
       lastName: formValue.lastName.trim(),
       phoneNumber: formValue.phoneNumber.trim(),
-      passportNumber: formValue.passportNumber.trim(),
+      travelAchievements: this.selectedTravelAchievements,
       homeAirport: homeAirportCode
     };
 
@@ -548,7 +567,7 @@ export class ProfileComponent implements OnInit {
       });
   }
 
-  fieldHasError(controlName: 'username' | 'firstName' | 'lastName' | 'phoneNumber' | 'passportNumber' | 'homeAirport'): boolean {
+  fieldHasError(controlName: 'username' | 'firstName' | 'lastName' | 'phoneNumber' | 'homeAirport'): boolean {
     const control = this.profileForm.controls[controlName];
     return control.invalid && (control.dirty || control.touched);
   }
@@ -624,6 +643,16 @@ export class ProfileComponent implements OnInit {
     this.saveVisitedCountries();
   }
 
+  toggleTravelAchievement(key: string): void {
+    this.selectedTravelAchievements = this.selectedTravelAchievements.includes(key)
+      ? this.selectedTravelAchievements.filter((achievement) => achievement !== key)
+      : [...this.selectedTravelAchievements, key];
+  }
+
+  isTravelAchievementSelected(key: string): boolean {
+    return this.selectedTravelAchievements.includes(key);
+  }
+
   private resolveVisitedCountry(value: string): string | null {
     const normalizedValue = this.normalizeCountryName(value);
 
@@ -652,9 +681,9 @@ export class ProfileComponent implements OnInit {
       firstName: profile.firstName || '',
       lastName: profile.lastName || '',
       phoneNumber: profile.phoneNumber || '',
-      passportNumber: profile.passportNumber || '',
       homeAirport: airport ? this.airportOptions.formatAirport(airport) : profile.homeAirport || ''
     }, { emitEvent: false });
+    this.selectedTravelAchievements = this.normalizeTravelAchievements(profile.travelAchievements ?? []);
 
     this.airportSuggestions = [];
     this.airportSearchMessage = '';
@@ -740,6 +769,14 @@ export class ProfileComponent implements OnInit {
     }
 
     return null;
+  }
+
+  private normalizeTravelAchievements(values: string[]): string[] {
+    const allowed = new Set(this.travelAchievementOptions.map((option) => option.key));
+    return values
+      .map((value) => value.trim().toUpperCase())
+      .filter((value) => allowed.has(value))
+      .filter((value, index, array) => array.indexOf(value) === index);
   }
 
   private isExactAirportSelection(value: string, airport: AirportOption): boolean {

@@ -35,6 +35,9 @@ public class AppUser {
     @Column(name = "passport_number", length = 30)
     private String passportNumber;
 
+    @Column(name = "travel_achievements", length = 1024)
+    private String travelAchievements;
+
     @Column(length = 20)
     private String homeAirport;
 
@@ -109,6 +112,10 @@ public class AppUser {
         return passportNumber;
     }
 
+    public String getTravelAchievements() {
+        return travelAchievements;
+    }
+
     public String getHomeAirport() {
         return homeAirport;
     }
@@ -171,6 +178,10 @@ public class AppUser {
 
     public void setPassportNumber(String passportNumber) {
         this.passportNumber = passportNumber;
+    }
+
+    public void setTravelAchievements(String travelAchievements) {
+        this.travelAchievements = travelAchievements;
     }
 
     public void setHomeAirport(String homeAirport) {

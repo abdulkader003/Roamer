@@ -17,6 +17,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,6 +67,7 @@ class ProfileServiceTest {
         user.setFirstName("Ada");
         user.setLastName("Lovelace");
         user.setPassportNumber("X1234567");
+        user.setTravelAchievements("BEACH_LOVER,FOOD_EXPLORER");
         user.setProfilePicture("image".getBytes(StandardCharsets.UTF_8));
         user.setProfilePictureContentType("image/png");
 
@@ -77,6 +79,7 @@ class ProfileServiceTest {
         assertThat(response.username()).isEqualTo("traveler");
         assertThat(response.firstName()).isEqualTo("Ada");
         assertThat(response.passportNumber()).isEqualTo("X1234567");
+        assertThat(response.travelAchievements()).containsExactly("BEACH_LOVER", "FOOD_EXPLORER");
         assertThat(response.hasProfilePicture()).isTrue();
     }
 
@@ -89,7 +92,7 @@ class ProfileServiceTest {
         when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
         when(userRepository.findByUsernameIgnoreCase("taken")).thenReturn(Optional.of(otherUser));
 
-        UpdateProfileRequest request = new UpdateProfileRequest("taken", "Ada", "", "", "", "");
+        UpdateProfileRequest request = new UpdateProfileRequest("taken", "Ada", "", "", "", List.of(), "");
 
         assertThatThrownBy(() -> profileService.updateProfile("traveler@example.com", request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -99,7 +102,7 @@ class ProfileServiceTest {
     }
 
     @Test
-    void updateProfileSavesPassportNumber() {
+    void updateProfileSavesPassportNumberAndAchievements() {
         when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
         when(userRepository.findByUsernameIgnoreCase("traveler")).thenReturn(Optional.of(user));
         when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -110,6 +113,7 @@ class ProfileServiceTest {
                 "Lovelace",
                 "+49 123456",
                 "P1",
+                List.of("BEACH_LOVER", "FOOD_EXPLORER"),
                 "ber"
         );
 
@@ -117,7 +121,35 @@ class ProfileServiceTest {
 
         assertThat(user.getPhoneNumber()).isEqualTo("+49 123456");
         assertThat(user.getPassportNumber()).isEqualTo("P1");
+        assertThat(user.getTravelAchievements()).isEqualTo("BEACH_LOVER,FOOD_EXPLORER");
         assertThat(response.passportNumber()).isEqualTo("P1");
+        assertThat(response.travelAchievements()).containsExactly("BEACH_LOVER", "FOOD_EXPLORER");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateProfileLeavesPassportNumberUntouchedWhenFormOmitsIt() {
+        user.setPassportNumber("X1234567");
+
+        when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByUsernameIgnoreCase("traveler")).thenReturn(Optional.of(user));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                "traveler",
+                "Ada",
+                "Lovelace",
+                "+49 123456",
+                "",
+                List.of("WORLD_TRAVELER"),
+                "ber"
+        );
+
+        ProfileResponse response = profileService.updateProfile("traveler@example.com", request);
+
+        assertThat(user.getPassportNumber()).isEqualTo("X1234567");
+        assertThat(response.passportNumber()).isEqualTo("X1234567");
+        assertThat(response.travelAchievements()).containsExactly("WORLD_TRAVELER");
         verify(userRepository).save(user);
     }
 
