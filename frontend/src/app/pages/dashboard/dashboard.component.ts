@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, computed, signal, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
 import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { TripTempService } from '../trips/create/trip-temp.service';
+import { BudgetApiService, BudgetCategoryResponse, BudgetSummaryResponse } from '../../services/budget-api.service';
 
 
 export const DESTINATION_WEATHER_CITIES = [
@@ -55,10 +57,9 @@ interface Experience {
 
 interface BudgetItem {
   label: string;
-  amount: string;
+  spent: number;
+  budget: number;
   color: string;
-  dashArray: string;
-  dashOffset: string;
 }
 
 interface CalendarDay {
@@ -85,6 +86,7 @@ export class DashboardComponent implements OnDestroy {
   private themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
   private readonly weatherService = inject(WeatherService);
+  private readonly budgetApiService = inject(BudgetApiService);
   private readonly tripPlanningService = inject(TripPlanningService);
   private readonly tripTempService = inject(TripTempService);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -124,18 +126,34 @@ export class DashboardComponent implements OnDestroy {
   calDays = signal<CalendarDay[]>(this.buildCurrentMonthCalendarDays(this.visibleCalendarMonth()));
   eventDates = signal<Set<string>>(new Set());
 
-  budgetItems = signal<BudgetItem[]>([
-    { label: 'Flights',       amount: '€850', color: '#1A56DB', dashArray: '117.5 209', dashOffset: '0' },
-    { label: 'Accommodation', amount: '€900', color: '#0EA5E9', dashArray: '124.4 202', dashOffset: '-117.5' },
-    { label: 'Activities',    amount: '€300', color: '#7C3AED', dashArray: '41.5 285',  dashOffset: '-241.9' },
-    { label: 'Events',        amount: '€200', color: '#F59E0B', dashArray: '27.7 299',  dashOffset: '-283.4' },
-    { label: 'Attractions',   amount: '€200', color: '#0F9D58', dashArray: '27.7 299',  dashOffset: '-311.1' },
-    { label: 'Beaches',       amount: '€150', color: '#10B981', dashArray: '20.7 306',  dashOffset: '-338.8' },
-    { label: 'Parties',       amount: '€100', color: '#EC4899', dashArray: '13.8 313',  dashOffset: '-359.5' },
-  ]);
+  totalBudget = 0;
+  totalSpent = 0;
+  remainingBalance = 0;
+  usagePercentage = 0;
+
+  budgetItems = signal<BudgetItem[]>([]);
+
+  private readonly budgetCategoryLabels: Record<string, string> = {
+    FLIGHTS: 'Flights',
+    HOTELS: 'Hotels',
+    FOOD: 'Food',
+    ACTIVITIES: 'Activities',
+    OTHERS: 'Others',
+  };
+
+  private readonly budgetCategoryColors: Record<string, string> = {
+    FLIGHTS: 'var(--budget-chart-flights)',
+    HOTELS: 'var(--budget-chart-hotels)',
+    FOOD: 'var(--budget-chart-food)',
+    ACTIVITIES: 'var(--budget-chart-activities)',
+    OTHERS: 'var(--budget-chart-others)',
+  };
+
+  private readonly budgetCategoryOrder = ['FLIGHTS', 'HOTELS', 'FOOD', 'ACTIVITIES', 'OTHERS'];
 
   ngOnInit(): void {
     this.loadUpcomingTrips();
+    this.loadBudgetOverview();
     void this.loadCalendarEventDates();
     this.loadWeather();
     this.weatherRotationIntervalId = setInterval(() => this.rotateWeatherCities(), WEATHER_ROTATION_INTERVAL_MS);
@@ -161,6 +179,30 @@ export class DashboardComponent implements OnDestroy {
         this.upcomingTripCount.set(0);
         this.tripsError.set('Trips are unavailable right now.');
         this.isTripsLoading.set(false);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private loadBudgetOverview(): void {
+    forkJoin({
+      summary: this.budgetApiService.getSummary(),
+      categories: this.budgetApiService.getCategoryBudgets(),
+    }).subscribe({
+      next: ({ summary, categories }) => {
+        this.applyBudgetSummary(summary);
+        this.budgetItems.set(this.mapBudgetItems(categories));
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Failed to load dashboard budget overview:', error);
+        this.applyBudgetSummary({
+          totalBudget: 0,
+          totalSpent: 0,
+          remainingBalance: 0,
+          usagePercentage: 0,
+        });
+        this.budgetItems.set([]);
         this.cdr.detectChanges();
       }
     });
@@ -398,6 +440,12 @@ export class DashboardComponent implements OnDestroy {
     return `${year}-${month}-${day}`;
   }
 
+  formatMoney(value: number): string {
+    return new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 0
+    }).format(value);
+  }
+
   private toDashboardTrip(trip: TripResponse): Trip {
     return {
       id: trip.id,
@@ -445,6 +493,71 @@ export class DashboardComponent implements OnDestroy {
 
   private tripSortValue(trip: TripResponse): number {
     return this.parseDateOnly(trip.startDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  get budgetCenterLabel(): string {
+    return 'Prices';
+  }
+
+  get budgetUsageSubLabel(): string {
+    if (this.totalBudget <= 0) {
+      return 'No budget set yet';
+    }
+
+    return `${this.usagePercentage}% of budget used`;
+  }
+
+  get remainingBalanceLabel(): string {
+    return this.remainingBalance >= 0 ? 'Left to spend' : 'Over budget';
+  }
+
+  private applyBudgetSummary(summary: BudgetSummaryResponse): void {
+    this.totalBudget = Number(summary.totalBudget ?? 0);
+    this.totalSpent = Number(summary.totalSpent ?? 0);
+    this.remainingBalance = Number(summary.remainingBalance ?? this.totalBudget - this.totalSpent);
+    this.usagePercentage = Number(summary.usagePercentage ?? 0);
+  }
+
+  private mapBudgetItems(categories: BudgetCategoryResponse[]): BudgetItem[] {
+    const sorted = [...categories].sort((first, second) => {
+      const firstIndex = this.budgetCategoryOrder.indexOf(this.normalizeBudgetCategoryKey(String(first.category ?? '')));
+      const secondIndex = this.budgetCategoryOrder.indexOf(this.normalizeBudgetCategoryKey(String(second.category ?? '')));
+      return (firstIndex === -1 ? Number.MAX_SAFE_INTEGER : firstIndex) - (secondIndex === -1 ? Number.MAX_SAFE_INTEGER : secondIndex);
+    });
+
+    return sorted.map((category) => {
+      const key = this.normalizeBudgetCategoryKey(String(category.category ?? ''));
+      return {
+        label: this.budgetCategoryLabels[key] ?? String(category.category ?? ''),
+        spent: Number(category.spent ?? 0),
+        budget: Number(category.budget ?? 0),
+        color: this.budgetCategoryColors[key] ?? '#999'
+      };
+    });
+  }
+
+  private normalizeBudgetCategoryKey(category: string): string {
+    return category.toUpperCase();
+  }
+
+  budgetSegmentDashArray(spent: number): string {
+    const circumference = 2 * Math.PI * 52;
+    const total = this.totalSpent > 0 ? this.totalSpent : this.budgetItems().reduce((sum, item) => sum + item.spent, 0);
+    const ratio = total > 0 ? spent / total : 0;
+    const dash = Math.max(0, Math.min(1, ratio)) * circumference;
+    return `${dash} ${circumference - dash}`;
+  }
+
+  budgetSegmentDashOffset(index: number): string {
+    const circumference = 2 * Math.PI * 52;
+    const items = this.budgetItems();
+    const total = this.totalSpent > 0 ? this.totalSpent : items.reduce((sum, item) => sum + item.spent, 0);
+    if (total <= 0) {
+      return '0';
+    }
+
+    const beforeTotal = items.slice(0, Math.max(index, 0)).reduce((sum, item) => sum + item.spent, 0);
+    return `${-(beforeTotal / total) * circumference}`;
   }
 
   private tripImageFor(trip: TripResponse): string {

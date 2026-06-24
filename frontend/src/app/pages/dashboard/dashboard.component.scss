@@ -678,6 +678,12 @@
   gap: 24px;
 }
 
+.section-subtitle {
+  margin: -6px 0 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .donut-wrap {
   position: relative;
   width: 140px;
@@ -696,13 +702,13 @@
 
 .donut-amount {
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 850;
 }
 
 .donut-label {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .donut-track {
@@ -711,7 +717,7 @@
 
 .legend-row {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   padding: 5px 0;
@@ -722,6 +728,15 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
+.legend-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
 }
 
 .legend-name {
