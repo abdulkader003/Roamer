@@ -224,8 +224,14 @@
 
   <!-- User Story 4 -- Budget by Category -->
   <section class="section-card">
-    <div class="category-section-header">
-      <h2 class="section-title">Budget by Category</h2>
+    <div class="section-header category-section-header">
+      <div class="section-title-block">
+        <h2 class="section-title">Budget by Category</h2>
+        <p class="section-subtitle">Set a dedicated budget for each spending type.</p>
+      </div>
+      <button type="button" class="secondary-button category-budget-open" [disabled]="isLoading" (click)="openCategoryBudgetForm()">
+        Edit Budgets
+      </button>
     </div>
 
     <div class="category-grid">
@@ -252,6 +258,35 @@
       }
     </div>
   </section>
+
+  @if (isCategoryBudgetFormOpen) {
+    <div class="expense-modal-backdrop" (click)="closeCategoryBudgetForm()">
+      <div class="expense-modal category-budget-modal" (click)="$event.stopPropagation()">
+        <div class="expense-modal-header">
+          <h3>{{ categoryBudgetFormTitle }}</h3>
+          <button type="button" class="modal-close-button" aria-label="Close category budget form" (click)="closeCategoryBudgetForm()">&times;</button>
+        </div>
+
+        <p class="category-budget-copy">
+          Enter the amount you want to reserve for each category.
+        </p>
+
+        <div class="category-budget-list">
+          @for (draft of categoryBudgetDrafts; track draft.categoryKey) {
+            <label class="form-field category-budget-row">
+              <span>{{ draft.name }}</span>
+              <input type="number" min="0" step="0.01" [(ngModel)]="draft.budget" [name]="'categoryBudget-' + draft.categoryKey">
+            </label>
+          }
+        </div>
+
+        <div class="expense-form-actions">
+          <button type="button" class="secondary-button" (click)="closeCategoryBudgetForm()">Cancel</button>
+          <button type="button" class="primary-button" (click)="saveCategoryBudget()">Save Budgets</button>
+        </div>
+      </div>
+    </div>
+  }
 
   <section class="section-card manual-expenses-card">
     <div class="section-header manual-expenses-header">
@@ -558,10 +593,14 @@
           <h3>{{ selectedTripDetails.name }}</h3>
           <button type="button" class="modal-close-button" aria-label="Close trip prices" (click)="closeTripPrices()">&times;</button>
         </div>
+        <p class="trip-price-copy">Core trip costs and smaller side expenses in one compact view.</p>
 
         <div class="trip-price-summary">
           @for (row of tripBreakdownRows; track row.label) {
-            <div class="trip-price-row" [class.trip-price-row--negative]="row.label === 'Remaining' && row.amount < 0">
+            <div
+              class="trip-price-row"
+              [class.trip-price-row--negative]="row.label === 'Remaining' && row.amount < 0"
+              [class.trip-price-row--total]="row.label === 'Total Used'">
               <span>{{ row.label }}</span>
               <strong>€{{ row.amount | number:'1.0-0' }}</strong>
             </div>

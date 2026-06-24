@@ -15,6 +15,9 @@ public record TripBudgetRowResponse(
         String status,
         BigDecimal flightTotal,
         BigDecimal hotelTotal,
-        BigDecimal activitiesTotal
+        BigDecimal foodTotal,
+        BigDecimal transportTotal,
+        BigDecimal activitiesTotal,
+        BigDecimal othersTotal
 ) {
 }

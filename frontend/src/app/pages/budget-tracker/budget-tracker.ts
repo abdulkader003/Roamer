@@ -7,12 +7,18 @@ import { forkJoin } from 'rxjs';
 type SpendingPoint = { label: string; amount: number };
 type DistributionCategory = { name: string; amount: number; color: string };
 type CategoryBudget = {
+  categoryKey: string;
   name: string;
   spent: number;
   budget: number;
   percentage: number;
   status: 'Normal' | 'Near Limit' | 'Over Budget';
   statusClass: 'normal' | 'near-limit' | 'over-limit';
+};
+type CategoryBudgetDraft = {
+  categoryKey: string;
+  name: string;
+  budget: string;
 };
 type TripBudget = {
   tripId: number;
@@ -24,7 +30,10 @@ type TripBudget = {
   status: 'Under Budget' | 'Near Limit' | 'Over Budget';
   flightTotal?: number;
   hotelTotal?: number;
+  foodTotal?: number;
+  transportTotal?: number;
   activitiesTotal?: number;
+  othersTotal?: number;
 };
 type ManualExpense = {
   id: number;
@@ -195,16 +204,16 @@ export class BudgetTracker implements OnInit {
     FLIGHTS: 'var(--budget-chart-flights)',
     HOTELS: 'var(--budget-chart-hotels)',
     FOOD: 'var(--budget-chart-food)',
-    TRANSPORT: 'var(--budget-chart-transport)',
-    ACTIVITIES: 'var(--budget-chart-activities)'
+    ACTIVITIES: 'var(--budget-chart-activities)',
+    OTHERS: 'var(--budget-chart-others)'
   };
 
   private readonly categoryNames: Record<string, string> = {
     FLIGHTS: 'Flights',
     HOTELS: 'Hotels',
     FOOD: 'Food',
-    TRANSPORT: 'Transport',
-    ACTIVITIES: 'Activities'
+    ACTIVITIES: 'Activities',
+    OTHERS: 'Others'
   };
 
   private donutRadius = 70;
@@ -241,6 +250,8 @@ export class BudgetTracker implements OnInit {
 
   // ── User Story #4 — Budget by Category ──
   categoryBudgets: CategoryBudget[] = [];
+  isCategoryBudgetFormOpen = false;
+  categoryBudgetDrafts: CategoryBudgetDraft[] = [];
 
   // ── User Story #5 — Manual Expenses List / Edit ──
   manualExpenses: ManualExpense[] = [];
@@ -254,6 +265,60 @@ export class BudgetTracker implements OnInit {
 
   get categoryBudgetRows() {
     return this.categoryBudgets;
+  }
+
+  get categoryBudgetFormTitle(): string {
+    return 'Edit Category Budgets';
+  }
+
+  openCategoryBudgetForm(): void {
+    this.categoryBudgetDrafts = this.categoryBudgets.map(category => ({
+      categoryKey: category.categoryKey,
+      name: category.name,
+      budget: String(category.budget ?? 0)
+    }));
+    this.isCategoryBudgetFormOpen = true;
+  }
+
+  closeCategoryBudgetForm(): void {
+    this.isCategoryBudgetFormOpen = false;
+    this.categoryBudgetDrafts = [];
+  }
+
+  saveCategoryBudget(): void {
+    if (!this.categoryBudgetDrafts.length) {
+      return;
+    }
+
+    const updates = this.categoryBudgetDrafts.map(draft => ({
+      draft,
+      budget: Number(draft.budget)
+    }));
+
+    if (updates.some(update => Number.isNaN(update.budget) || update.budget < 0)) {
+      return;
+    }
+
+    forkJoin(
+      updates.map(update =>
+        this.http.put(
+          `${this.apiBase}/categories/${update.draft.categoryKey}`,
+          { budget: update.budget },
+          { headers: this.getHeaders() }
+        )
+      )
+    ).subscribe({
+      next: () => {
+        this.closeCategoryBudgetForm();
+        this.loadAllData();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loadError = 'Failed to save category budget. Please try again.';
+        this.cdr.detectChanges();
+        alert(this.loadError);
+      }
+    });
   }
 
   // -- User Story 5 -- Add Manual Expense --
@@ -271,7 +336,7 @@ export class BudgetTracker implements OnInit {
     tripId: null as number | null
   };
 
-  expenseCategories = ['Flights', 'Hotels', 'Food', 'Transport', 'Activities'];
+  expenseCategories = ['Flights', 'Hotels', 'Food', 'Activities', 'Others'];
   readonly expenseCalendarWeekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   get selectedExpenseCategoryOptionId(): string {
@@ -542,6 +607,7 @@ export class BudgetTracker implements OnInit {
     this.isExpenseDatePickerOpen = false;
     this.isExpenseTripMenuOpen = false;
     this.deleteConfirmationExpense = null;
+    this.closeCategoryBudgetForm();
   }
 
   get selectedTripStatusLabel(): string {
@@ -575,7 +641,9 @@ export class BudgetTracker implements OnInit {
     return [
       { label: 'Flight', amount: this.selectedTripDetails.flightTotal ?? 0 },
       { label: 'Hotel', amount: this.selectedTripDetails.hotelTotal ?? 0 },
+      { label: 'Food', amount: this.selectedTripDetails.foodTotal ?? 0 },
       { label: 'Activities', amount: this.selectedTripDetails.activitiesTotal ?? 0 },
+      { label: 'Others', amount: this.selectedTripDetails.othersTotal ?? 0 },
       { label: 'Total Used', amount: this.selectedTripDetails.spent },
       { label: 'Remaining', amount: this.selectedTripDetails.remaining }
     ];
@@ -814,9 +882,9 @@ export class BudgetTracker implements OnInit {
 
   private mapDistribution(data: any[]): DistributionCategory[] {
     return data.map(d => ({
-      name: this.categoryNames[d.category] ?? d.category,
+      name: this.categoryNames[this.normalizeCategoryKey(String(d.category ?? ''))] ?? d.category,
       amount: Number(d.amount),
-      color: this.categoryColors[d.category] ?? '#999'
+      color: this.categoryColors[this.normalizeCategoryKey(String(d.category ?? ''))] ?? '#999'
     }));
   }
 
@@ -829,7 +897,8 @@ export class BudgetTracker implements OnInit {
       const statusClass = isOverLimit ? 'over-limit' : isNearLimit ? 'near-limit' : 'normal';
 
       return {
-        name: this.categoryNames[d.category] ?? d.category,
+        categoryKey: this.normalizeCategoryKey(String(d.category ?? '')),
+        name: this.categoryNames[this.normalizeCategoryKey(String(d.category ?? ''))] ?? d.category,
         spent: Number(d.spent),
         budget: Number(d.budget),
         percentage: Math.min(Math.max(percentage, 0), 100),
@@ -850,7 +919,9 @@ export class BudgetTracker implements OnInit {
       status: t.status,
       flightTotal: Number(t.flightTotal ?? 0),
       hotelTotal: Number(t.hotelTotal ?? 0),
-      activitiesTotal: Number(t.activitiesTotal ?? 0)
+      foodTotal: Number(t.foodTotal ?? 0),
+      activitiesTotal: Number(t.activitiesTotal ?? 0),
+      othersTotal: Number(t.othersTotal ?? 0)
     }));
   }
 
@@ -871,8 +942,13 @@ export class BudgetTracker implements OnInit {
   }
 
   private expenseCategoryLabel(category: string): string {
-    const normalized = category.toUpperCase();
+    const normalized = this.normalizeCategoryKey(category);
     return this.categoryNames[normalized] ?? category;
+  }
+
+  private normalizeCategoryKey(category: string): string {
+    const normalized = category.toUpperCase();
+    return normalized === 'TRANSPORT' ? 'OTHERS' : normalized;
   }
 
   private escapeHtml(value: string | number | null | undefined): string {

@@ -4,8 +4,6 @@
    (merge with any existing content — don't replace the whole file)
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
-
 /* ── LIGHT THEME (default) ── */
 :root,
 [data-theme='light'] {
@@ -89,6 +87,7 @@
   --budget-chart-food: #F59E0B;
   --budget-chart-transport: #7C3AED;
   --budget-chart-activities: #EC4899;
+  --budget-chart-others: #10B981;
   --overview-chart-line: #1A56DB;
   --overview-chart-fill: rgba(26,86,219,0.07);
   --overview-chart-dot-fill: #FFFFFF;
@@ -201,6 +200,7 @@
   --budget-chart-food: #F59E0B;
   --budget-chart-transport: #7C3AED;
   --budget-chart-activities: #EC4899;
+  --budget-chart-others: #10B981;
   --overview-chart-line: #6F8FB8;
   --overview-chart-fill: rgba(111,143,184,0.08);
   --overview-chart-dot-fill: #141414;

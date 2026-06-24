@@ -5,6 +5,7 @@ import com.sep.budget.dto.BudgetReportResponse;
 import com.sep.budget.dto.CategoryBudgetResponse;
 import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
+import com.sep.budget.dto.UpdateCategoryBudgetRequest;
 import com.sep.budget.dto.SpendingDataPointResponse;
 import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.TripBudgetRowResponse;
@@ -75,7 +76,10 @@ class BudgetControllerTest {
                 "Under Budget",
                 new BigDecimal("120.00"),
                 new BigDecimal("240.00"),
-                new BigDecimal("60.00")
+                new BigDecimal("60.00"),
+                new BigDecimal("45.00"),
+                new BigDecimal("75.00"),
+                new BigDecimal("18.00")
         );
         when(authentication.getName()).thenReturn("traveler@example.com");
         when(budgetService.getTripBudgetRows("traveler@example.com")).thenReturn(List.of(row));
@@ -122,6 +126,26 @@ class BudgetControllerTest {
 
         assertThat(response).containsExactly(category);
         verify(budgetService).getCategoryBudgets("traveler@example.com");
+    }
+
+    @Test
+    void updateCategoryBudgetUsesAuthenticatedEmail() {
+        UpdateCategoryBudgetRequest request = new UpdateCategoryBudgetRequest(new BigDecimal("450.00"));
+        CategoryBudgetResponse category = new CategoryBudgetResponse(
+                ExpenseCategory.FLIGHTS,
+                new BigDecimal("200.00"),
+                new BigDecimal("450.00"),
+                44,
+                false,
+                false
+        );
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(budgetService.updateCategoryBudget("traveler@example.com", ExpenseCategory.FLIGHTS, request)).thenReturn(category);
+
+        CategoryBudgetResponse response = budgetController.updateCategoryBudget(authentication, ExpenseCategory.FLIGHTS, request);
+
+        assertThat(response).isEqualTo(category);
+        verify(budgetService).updateCategoryBudget("traveler@example.com", ExpenseCategory.FLIGHTS, request);
     }
 
     @Test

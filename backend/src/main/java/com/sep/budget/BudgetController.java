@@ -2,6 +2,7 @@ package com.sep.budget;
 
 import com.sep.budget.dto.BudgetSummaryResponse;
 import com.sep.budget.dto.BudgetReportResponse;
+import com.sep.budget.dto.UpdateCategoryBudgetRequest;
 import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
 import com.sep.budget.dto.SpendingDataPointResponse;
@@ -99,6 +100,18 @@ public class BudgetController {
     @GetMapping("/categories")
     public List<CategoryBudgetResponse> getCategoryBudgets(Authentication authentication) {
         return budgetService.getCategoryBudgets(authentication.getName());
+    }
+
+    /**
+     * User Story #4 — update a saved per-category budget.
+     */
+    @PutMapping("/categories/{category}")
+    public CategoryBudgetResponse updateCategoryBudget(
+            Authentication authentication,
+            @PathVariable ExpenseCategory category,
+            @Valid @RequestBody UpdateCategoryBudgetRequest request
+    ) {
+        return budgetService.updateCategoryBudget(authentication.getName(), category, request);
     }
 
     /**

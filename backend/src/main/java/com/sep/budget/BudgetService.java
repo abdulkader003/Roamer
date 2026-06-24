@@ -2,6 +2,7 @@ package com.sep.budget;
 
 import com.sep.budget.dto.BudgetSummaryResponse;
 import com.sep.budget.dto.BudgetReportResponse;
+import com.sep.budget.dto.UpdateCategoryBudgetRequest;
 import com.sep.budget.dto.SpendingDataPointResponse;
 import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.CategoryBudgetResponse;
@@ -24,11 +25,11 @@ import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.TreeMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -38,9 +39,17 @@ import java.util.stream.Collectors;
 public class BudgetService {
 
     private static final BigDecimal NEAR_LIMIT_THRESHOLD = BigDecimal.valueOf(80);
+    private static final List<ExpenseCategory> TRACKED_CATEGORIES = List.of(
+            ExpenseCategory.FLIGHTS,
+            ExpenseCategory.HOTELS,
+            ExpenseCategory.FOOD,
+            ExpenseCategory.ACTIVITIES,
+            ExpenseCategory.OTHERS
+    );
 
     private final TripRepository tripRepository;
     private final ExpenseRepository expenseRepository;
+    private final CategoryBudgetLimitRepository categoryBudgetLimitRepository;
     private final AppUserRepository appUserRepository;
     private final Clock clock;
 
@@ -56,19 +65,22 @@ public class BudgetService {
     public BudgetService(
             TripRepository tripRepository,
             ExpenseRepository expenseRepository,
+            CategoryBudgetLimitRepository categoryBudgetLimitRepository,
             AppUserRepository appUserRepository
     ) {
-        this(tripRepository, expenseRepository, appUserRepository, Clock.systemDefaultZone());
+        this(tripRepository, expenseRepository, categoryBudgetLimitRepository, appUserRepository, Clock.systemDefaultZone());
     }
 
     BudgetService(
             TripRepository tripRepository,
             ExpenseRepository expenseRepository,
+            CategoryBudgetLimitRepository categoryBudgetLimitRepository,
             AppUserRepository appUserRepository,
             Clock clock
     ) {
         this.tripRepository = tripRepository;
         this.expenseRepository = expenseRepository;
+        this.categoryBudgetLimitRepository = categoryBudgetLimitRepository;
         this.appUserRepository = appUserRepository;
         this.clock = clock;
     }
@@ -113,6 +125,15 @@ public class BudgetService {
         List<Expense> expenses = expenseRepository.findAllByTripOwnerIdOrderByDateDesc(owner.getId());
         List<SpendingEntry> spendingEntries = spendingEntries(trips, expenses);
 
+        Map<Long, Map<ExpenseCategory, BigDecimal>> spentByTripAndCategory = spendingEntries.stream()
+                .collect(Collectors.groupingBy(
+                        SpendingEntry::tripId,
+                        Collectors.groupingBy(
+                                SpendingEntry::category,
+                                Collectors.reducing(BigDecimal.ZERO, SpendingEntry::amount, BigDecimal::add)
+                        )
+                ));
+
         Map<Long, BigDecimal> spentByTripId = spendingEntries.stream()
                 .collect(Collectors.groupingBy(
                         SpendingEntry::tripId,
@@ -120,7 +141,11 @@ public class BudgetService {
                 ));
 
         return trips.stream()
-                .map(trip -> toRow(trip, spentByTripId.getOrDefault(trip.getId(), BigDecimal.ZERO)))
+                .map(trip -> toRow(
+                        trip,
+                        spentByTripId.getOrDefault(trip.getId(), BigDecimal.ZERO),
+                        spentByTripAndCategory.getOrDefault(trip.getId(), Map.of())
+                ))
                 .toList();
     }
 
@@ -209,6 +234,10 @@ public class BudgetService {
                 expense.getDescription(),
                 expense.getDate()
         );
+    }
+
+    private BigDecimal categorySpent(Map<ExpenseCategory, BigDecimal> spentByCategory, ExpenseCategory category) {
+        return spentByCategory.getOrDefault(category, BigDecimal.ZERO);
     }
 
     /**
@@ -303,7 +332,7 @@ public class BudgetService {
                         Collectors.reducing(BigDecimal.ZERO, SpendingEntry::amount, BigDecimal::add)
                 ));
 
-        return Arrays.stream(ExpenseCategory.values())
+        return TRACKED_CATEGORIES.stream()
                 .map(category -> {
                     BigDecimal amount = spentByCategory.getOrDefault(category, BigDecimal.ZERO);
                     int percentage = totalSpent.signum() == 0
@@ -332,10 +361,18 @@ public class BudgetService {
                 .map(Trip::getBudget)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        ExpenseCategory[] categories = ExpenseCategory.values();
-        BigDecimal categoryBudget = categories.length == 0
+        List<ExpenseCategory> categories = TRACKED_CATEGORIES;
+        BigDecimal categoryBudget = categories.isEmpty()
                 ? BigDecimal.ZERO
-                : totalBudget.divide(BigDecimal.valueOf(categories.length), 2, RoundingMode.HALF_UP);
+                : totalBudget.divide(BigDecimal.valueOf(categories.size()), 2, RoundingMode.HALF_UP);
+
+        Map<ExpenseCategory, BigDecimal> savedBudgets = categoryBudgetLimitRepository.findAllByOwnerId(owner.getId()).stream()
+                .collect(Collectors.toMap(
+                        CategoryBudgetLimit::getCategory,
+                        CategoryBudgetLimit::getAmount,
+                        (existing, replacement) -> replacement,
+                        HashMap::new
+                ));
 
         Map<ExpenseCategory, BigDecimal> spentByCategory = spendingEntries.stream()
                 .collect(Collectors.groupingBy(
@@ -343,9 +380,29 @@ public class BudgetService {
                         Collectors.reducing(BigDecimal.ZERO, SpendingEntry::amount, BigDecimal::add)
                 ));
 
-        return Arrays.stream(categories)
-                .map(category -> toCategoryRow(category, spentByCategory.getOrDefault(category, BigDecimal.ZERO), categoryBudget))
+        return categories.stream()
+                .map(category -> toCategoryRow(
+                        category,
+                        spentByCategory.getOrDefault(category, BigDecimal.ZERO),
+                        savedBudgets.getOrDefault(category, categoryBudget)
+                ))
                 .toList();
+    }
+
+    @Transactional
+    public CategoryBudgetResponse updateCategoryBudget(String userEmail, ExpenseCategory category, UpdateCategoryBudgetRequest request) {
+        AppUser owner = findOwner(userEmail);
+
+        CategoryBudgetLimit limit = categoryBudgetLimitRepository.findByOwnerIdAndCategory(owner.getId(), category)
+                .orElseGet(CategoryBudgetLimit::new);
+
+        limit.setOwner(owner);
+        limit.setCategory(category);
+        limit.setAmount(request.budget());
+
+        categoryBudgetLimitRepository.save(limit);
+
+        return toCategoryRow(category, getCategorySpent(owner.getId(), category), request.budget());
     }
 
     private CategoryBudgetResponse toCategoryRow(ExpenseCategory category, BigDecimal spent, BigDecimal budget) {
@@ -368,7 +425,24 @@ public class BudgetService {
         );
     }
 
-    private TripBudgetRowResponse toRow(Trip trip, BigDecimal spent) {
+    private BigDecimal getCategorySpent(Long ownerId, ExpenseCategory category) {
+        List<Trip> trips = tripRepository.findAllByOwnerIdOrderByStartDateAsc(ownerId);
+        List<Expense> expenses = expenseRepository.findAllByTripOwnerIdOrderByDateDesc(ownerId);
+        List<SpendingEntry> spendingEntries = spendingEntries(trips, expenses);
+
+        ExpenseCategory normalized = normalizeCategory(category);
+
+        return spendingEntries.stream()
+                .filter(entry -> entry.category() == normalized)
+                .map(SpendingEntry::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private TripBudgetRowResponse toRow(
+            Trip trip,
+            BigDecimal spent,
+            Map<ExpenseCategory, BigDecimal> spentByCategory
+    ) {
         BigDecimal budget = trip.getBudget();
         BigDecimal remaining = budget.subtract(spent);
 
@@ -389,9 +463,12 @@ public class BudgetService {
                 spent,
                 remaining,
                 status,
-                positiveAmount(trip.getFlightTotal()),
-                positiveAmount(trip.getHotelTotal()),
-                positiveAmount(trip.getActivitiesTotal())
+                categorySpent(spentByCategory, ExpenseCategory.FLIGHTS),
+                categorySpent(spentByCategory, ExpenseCategory.HOTELS),
+                categorySpent(spentByCategory, ExpenseCategory.FOOD),
+                categorySpent(spentByCategory, ExpenseCategory.TRANSPORT),
+                categorySpent(spentByCategory, ExpenseCategory.ACTIVITIES),
+                categorySpent(spentByCategory, ExpenseCategory.OTHERS)
         );
     }
 
@@ -409,7 +486,7 @@ public class BudgetService {
             if (amount.signum() > 0) {
                 entries.add(new SpendingEntry(
                         expense.getTrip().getId(),
-                        expense.getCategory(),
+                        normalizeCategory(expense.getCategory()),
                         amount,
                         expense.getDate()
                 ));
@@ -443,6 +520,14 @@ public class BudgetService {
         }
 
         return amount;
+    }
+
+    private ExpenseCategory normalizeCategory(ExpenseCategory category) {
+        if (category == ExpenseCategory.TRANSPORT) {
+            return ExpenseCategory.OTHERS;
+        }
+
+        return category;
     }
 
     private boolean isOverBudget(BigDecimal budget, BigDecimal spent) {

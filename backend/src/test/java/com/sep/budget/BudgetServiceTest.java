@@ -5,6 +5,7 @@ import com.sep.budget.dto.BudgetReportResponse;
 import com.sep.budget.dto.CategoryBudgetResponse;
 import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
+import com.sep.budget.dto.UpdateCategoryBudgetRequest;
 import com.sep.budget.dto.SpendingDataPointResponse;
 import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.TripBudgetRowResponse;
@@ -44,6 +45,9 @@ class BudgetServiceTest {
     private ExpenseRepository expenseRepository;
 
     @Mock
+    private CategoryBudgetLimitRepository categoryBudgetLimitRepository;
+
+    @Mock
     private AppUserRepository appUserRepository;
 
     private BudgetService budgetService;
@@ -52,7 +56,7 @@ class BudgetServiceTest {
 
     @BeforeEach
     void setUp() {
-        budgetService = new BudgetService(tripRepository, expenseRepository, appUserRepository, testClock);
+        budgetService = new BudgetService(tripRepository, expenseRepository, categoryBudgetLimitRepository, appUserRepository, testClock);
         owner = new AppUser();
         owner.setId(7L);
         owner.setEmail("traveler@example.com");
@@ -125,6 +129,32 @@ class BudgetServiceTest {
     }
 
     @Test
+    void tripRowsIncludePerCategoryBreakdownForCheckPrices() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        trip.setFlightTotal(new BigDecimal("120.00"));
+        trip.setHotelTotal(new BigDecimal("240.00"));
+        trip.setActivitiesTotal(new BigDecimal("60.00"));
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+                expense(trip, ExpenseCategory.FOOD, "35.00"),
+                expense(trip, ExpenseCategory.TRANSPORT, "18.00"),
+                expense(trip, ExpenseCategory.OTHERS, "9.00")
+        ));
+
+        List<TripBudgetRowResponse> response = budgetService.getTripBudgetRows("traveler@example.com");
+
+        TripBudgetRowResponse row = response.get(0);
+        assertThat(row.flightTotal()).isEqualByComparingTo("120.00");
+        assertThat(row.hotelTotal()).isEqualByComparingTo("240.00");
+        assertThat(row.foodTotal()).isEqualByComparingTo("35.00");
+        assertThat(row.activitiesTotal()).isEqualByComparingTo("60.00");
+        assertThat(row.transportTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(row.othersTotal()).isEqualByComparingTo("27.00");
+    }
+
+    @Test
     void categoryBudgetsAggregateSpendingAndFlagsByCategory() {
         Trip rome = trip(11L, "Rome", "1000.00");
         Trip vienna = trip(12L, "Vienna", "500.00");
@@ -138,12 +168,14 @@ class BudgetServiceTest {
                 expense(rome, ExpenseCategory.FLIGHTS, "100.00"),
                 expense(vienna, ExpenseCategory.FLIGHTS, "140.00"),
                 expense(rome, ExpenseCategory.HOTELS, "240.00"),
-                expense(vienna, ExpenseCategory.FOOD, "305.00")
+                expense(vienna, ExpenseCategory.FOOD, "305.00"),
+                expense(vienna, ExpenseCategory.TRANSPORT, "20.00")
         ));
+        when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of());
 
         List<CategoryBudgetResponse> response = budgetService.getCategoryBudgets("traveler@example.com");
 
-        assertThat(response).hasSize(ExpenseCategory.values().length);
+        assertThat(response).hasSize(5);
         CategoryBudgetResponse flights = category(response, ExpenseCategory.FLIGHTS);
         assertThat(flights.budget()).isEqualByComparingTo("300.00");
         assertThat(flights.spent()).isEqualByComparingTo("300.00");
@@ -165,11 +197,32 @@ class BudgetServiceTest {
         assertThat(food.isNearLimit()).isTrue();
         assertThat(food.isOverLimit()).isTrue();
 
-        CategoryBudgetResponse transport = category(response, ExpenseCategory.TRANSPORT);
-        assertThat(transport.spent()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(transport.percentage()).isZero();
-        assertThat(transport.isNearLimit()).isFalse();
-        assertThat(transport.isOverLimit()).isFalse();
+        CategoryBudgetResponse others = category(response, ExpenseCategory.OTHERS);
+        assertThat(others.spent()).isEqualByComparingTo("20.00");
+        assertThat(others.percentage()).isEqualTo(7);
+        assertThat(others.isNearLimit()).isFalse();
+        assertThat(others.isOverLimit()).isFalse();
+    }
+
+    @Test
+    void categoryBudgetsPreferSavedLimitsOverDefaultSplit() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        trip.setFlightTotal(new BigDecimal("120.00"));
+        CategoryBudgetLimit flights = new CategoryBudgetLimit();
+        flights.setCategory(ExpenseCategory.FLIGHTS);
+        flights.setAmount(new BigDecimal("400.00"));
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of());
+        when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of(flights));
+
+        List<CategoryBudgetResponse> response = budgetService.getCategoryBudgets("traveler@example.com");
+
+        CategoryBudgetResponse flightsRow = category(response, ExpenseCategory.FLIGHTS);
+        assertThat(flightsRow.budget()).isEqualByComparingTo("400.00");
+        assertThat(flightsRow.spent()).isEqualByComparingTo("120.00");
+        assertThat(flightsRow.percentage()).isEqualTo(30);
     }
 
     @Test
@@ -181,6 +234,7 @@ class BudgetServiceTest {
         when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
                 expense(zeroBudget, ExpenseCategory.FOOD, "5.00")
         ));
+        when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of());
 
         List<CategoryBudgetResponse> response = budgetService.getCategoryBudgets("traveler@example.com");
 
@@ -321,6 +375,29 @@ class BudgetServiceTest {
     }
 
     @Test
+    void updatesSavedCategoryBudget() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        UpdateCategoryBudgetRequest request = new UpdateCategoryBudgetRequest(new BigDecimal("400.00"));
+        CategoryBudgetLimit limit = new CategoryBudgetLimit();
+        limit.setId(1L);
+        limit.setOwner(owner);
+        limit.setCategory(ExpenseCategory.FLIGHTS);
+        limit.setAmount(new BigDecimal("250.00"));
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(categoryBudgetLimitRepository.findByOwnerIdAndCategory(7L, ExpenseCategory.FLIGHTS)).thenReturn(Optional.of(limit));
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(expense(trip, ExpenseCategory.FLIGHTS, "100.00")));
+        when(categoryBudgetLimitRepository.save(any(CategoryBudgetLimit.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CategoryBudgetResponse response = budgetService.updateCategoryBudget("traveler@example.com", ExpenseCategory.FLIGHTS, request);
+
+        assertThat(response.budget()).isEqualByComparingTo("400.00");
+        assertThat(response.spent()).isEqualByComparingTo("100.00");
+        verify(categoryBudgetLimitRepository).save(any(CategoryBudgetLimit.class));
+    }
+
+    @Test
     void deletesOwnedExpense() {
         Trip trip = trip(11L, "Rome", "1000.00");
         Expense expense = expense(trip, ExpenseCategory.FOOD, "20.00");
@@ -410,7 +487,7 @@ class BudgetServiceTest {
 
         List<SpendingDistributionResponse> response = budgetService.getSpendingDistribution("traveler@example.com");
 
-        assertThat(response).hasSize(ExpenseCategory.values().length);
+        assertThat(response).hasSize(5);
         SpendingDistributionResponse flights = distribution(response, ExpenseCategory.FLIGHTS);
         assertThat(flights.amount()).isEqualByComparingTo("80.00");
         assertThat(flights.percentage()).isEqualTo(53);
@@ -437,6 +514,7 @@ class BudgetServiceTest {
         when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "100.00")
         ));
+        when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of());
 
         BudgetReportResponse response = budgetService.getReport("traveler@example.com");
 
@@ -444,7 +522,7 @@ class BudgetServiceTest {
         assertThat(response.totalSpent()).isEqualByComparingTo("100.00");
         assertThat(response.remainingBalance()).isEqualByComparingTo("900.00");
         assertThat(response.usagePercentage()).isEqualTo(10);
-        assertThat(response.categories()).hasSize(ExpenseCategory.values().length);
+        assertThat(response.categories()).hasSize(5);
         assertThat(response.trips()).hasSize(1);
         assertThat(response.trips().get(0).tripId()).isEqualTo(11L);
     }
