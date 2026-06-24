@@ -72,7 +72,10 @@ class BudgetControllerTest {
                 new BigDecimal("1500.00"),
                 BigDecimal.ZERO,
                 new BigDecimal("1500.00"),
-                "Under Budget"
+                "Under Budget",
+                new BigDecimal("120.00"),
+                new BigDecimal("240.00"),
+                new BigDecimal("60.00")
         );
         when(authentication.getName()).thenReturn("traveler@example.com");
         when(budgetService.getTripBudgetRows("traveler@example.com")).thenReturn(List.of(row));
@@ -81,6 +84,25 @@ class BudgetControllerTest {
 
         assertThat(response).containsExactly(row);
         verify(budgetService).getTripBudgetRows("traveler@example.com");
+    }
+
+    @Test
+    void expensesUseAuthenticatedEmail() {
+        ExpenseResponse expense = new ExpenseResponse(
+                99L,
+                11L,
+                ExpenseCategory.FOOD,
+                new BigDecimal("42.50"),
+                "Lunch",
+                LocalDate.of(2026, 7, 16)
+        );
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(budgetService.getExpenses("traveler@example.com")).thenReturn(List.of(expense));
+
+        List<ExpenseResponse> response = budgetController.getExpenses(authentication);
+
+        assertThat(response).containsExactly(expense);
+        verify(budgetService).getExpenses("traveler@example.com");
     }
 
     @Test
@@ -167,6 +189,36 @@ class BudgetControllerTest {
 
         assertThat(response).isEqualTo(expense);
         verify(budgetService).createExpense("traveler@example.com", request);
+    }
+
+    @Test
+    void updateExpenseUsesAuthenticatedEmail() {
+        CreateExpenseRequest request = validExpenseRequest();
+        ExpenseResponse expense = new ExpenseResponse(
+                99L,
+                11L,
+                ExpenseCategory.FOOD,
+                new BigDecimal("55.00"),
+                "Dinner",
+                LocalDate.of(2026, 7, 17)
+        );
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(budgetService.updateExpense("traveler@example.com", 99L, request)).thenReturn(expense);
+
+        ExpenseResponse response = budgetController.updateExpense(authentication, 99L, request);
+
+        assertThat(response).isEqualTo(expense);
+        verify(budgetService).updateExpense("traveler@example.com", 99L, request);
+    }
+
+    @Test
+    void deleteExpenseUsesAuthenticatedEmail() {
+        when(authentication.getName()).thenReturn("traveler@example.com");
+
+        var response = budgetController.deleteExpense(authentication, 99L);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        verify(budgetService).deleteExpense("traveler@example.com", 99L);
     }
 
     @Test

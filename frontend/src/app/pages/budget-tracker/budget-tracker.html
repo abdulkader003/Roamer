@@ -163,7 +163,7 @@
           </svg>
         </div>
 
-        <div class="chart-labels">
+        <div class="chart-labels" [class.chart-labels--monthly]="chartView === 'monthly'">
           @for (point of chartPoints; track point.label) {
             <span class="chart-label" [style.left.%]="point.labelLeftPercent">{{ point.label }}</span>
           }
@@ -253,6 +253,47 @@
     </div>
   </section>
 
+  <section class="section-card manual-expenses-card">
+    <div class="section-header manual-expenses-header">
+      <div class="section-title-block">
+        <h2 class="section-title">Manual Expenses</h2>
+        <p class="section-subtitle">Edit costs without retyping the full entry.</p>
+      </div>
+      <button type="button" class="secondary-button manual-expense-add" [disabled]="isLoading" (click)="openExpenseForm()">
+        Add Expense
+      </button>
+    </div>
+
+    @if (manualExpenses.length) {
+      <div class="manual-expense-list">
+        @for (expense of manualExpenses; track expense.id) {
+          <article class="manual-expense-row">
+            <div class="manual-expense-main">
+              <div class="manual-expense-title">
+                <span class="manual-expense-amount">€{{ expense.amount | number:'1.0-0' }}</span>
+                <span class="manual-expense-category">{{ expense.category }}</span>
+              </div>
+              <div class="manual-expense-meta">
+                <span>{{ expense.tripName }}</span>
+                <span>{{ expense.tripDestination }}</span>
+                <span>{{ expense.date | date:'MMM d, y' }}</span>
+              </div>
+              @if (expense.description) {
+                <p class="manual-expense-description">{{ expense.description }}</p>
+              }
+            </div>
+
+            <button type="button" class="expense-row-edit-button" (click)="openExpenseForm(expense)">
+              Edit
+            </button>
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="empty-state compact">No manual expenses yet.</div>
+    }
+  </section>
+
   <!-- User Story 5 -- Add Manual Expense Modal -->
   @if (isExpenseFormOpen) {
     <div class="expense-modal-backdrop" (click)="closeExpenseForm()">
@@ -263,7 +304,7 @@
         aria-labelledby="expense-modal-title"
         (click)="handleExpenseModalClick($event)">
         <div class="expense-modal-header">
-          <h3 id="expense-modal-title">Add Manual Expense</h3>
+          <h3 id="expense-modal-title">{{ expenseModalTitle }}</h3>
           <button type="button" class="modal-close-button" aria-label="Close expense form" (click)="closeExpenseForm()">&times;</button>
         </div>
 
@@ -401,10 +442,35 @@
           </label>
 
           <div class="expense-form-actions">
+            @if (isEditingExpense) {
+              <button type="button" class="danger-button" (click)="deleteExpense()">Delete</button>
+            }
             <button type="button" class="secondary-button" (click)="closeExpenseForm()">Cancel</button>
-            <button type="submit" class="primary-button">Save Expense</button>
+            <button type="submit" class="primary-button">{{ expenseSubmitLabel }}</button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  @if (deleteConfirmationExpense) {
+    <div class="confirm-dialog-backdrop" (click)="closeDeleteExpenseConfirmation()">
+      <div class="confirm-dialog" (click)="$event.stopPropagation()">
+        <p class="confirm-dialog-eyebrow">Delete Expense</p>
+        <h3>Are you sure you want to delete this expense?</h3>
+        <p class="confirm-dialog-copy">
+          <strong class="confirm-dialog-amount">€{{ deleteConfirmationExpense.amount | number:'1.0-0' }}</strong>
+          <span class="confirm-dialog-warning">for {{ deleteConfirmationExpense.tripName }} will be removed.</span>
+        </p>
+
+        <div class="confirm-dialog-actions">
+          <button type="button" class="secondary-button" (click)="closeDeleteExpenseConfirmation()">
+            Cancel
+          </button>
+          <button type="button" class="danger-button" (click)="confirmDeleteExpense()">
+            Delete Expense
+          </button>
+        </div>
       </div>
     </div>
   }
@@ -455,6 +521,7 @@
             <th>Spent</th>
             <th>Remaining</th>
             <th>Status</th>
+            <th>Prices</th>
           </tr>
         </thead>
         <tbody>
@@ -472,12 +539,37 @@
                   {{ trip.status }}
                 </span>
               </td>
+              <td>
+                <button type="button" class="trip-price-button" (click)="openTripPrices(trip)">
+                  Check Prices
+                </button>
+              </td>
             </tr>
           }
         </tbody>
       </table>
     </div>
   </section>
+
+  @if (isTripPricesOpen && selectedTripDetails) {
+    <div class="expense-modal-backdrop" (click)="closeTripPrices()">
+      <div class="trip-prices-modal" role="dialog" aria-modal="true" aria-label="Trip price breakdown" (click)="$event.stopPropagation()">
+        <div class="expense-modal-header">
+          <h3>{{ selectedTripDetails.name }}</h3>
+          <button type="button" class="modal-close-button" aria-label="Close trip prices" (click)="closeTripPrices()">&times;</button>
+        </div>
+
+        <div class="trip-price-summary">
+          @for (row of tripBreakdownRows; track row.label) {
+            <div class="trip-price-row" [class.trip-price-row--negative]="row.label === 'Remaining' && row.amount < 0">
+              <span>{{ row.label }}</span>
+              <strong>€{{ row.amount | number:'1.0-0' }}</strong>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
 
   }
 

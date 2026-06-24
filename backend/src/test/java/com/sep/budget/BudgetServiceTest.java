@@ -20,7 +20,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,10 +48,11 @@ class BudgetServiceTest {
 
     private BudgetService budgetService;
     private AppUser owner;
+    private final Clock testClock = Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC);
 
     @BeforeEach
     void setUp() {
-        budgetService = new BudgetService(tripRepository, expenseRepository, appUserRepository);
+        budgetService = new BudgetService(tripRepository, expenseRepository, appUserRepository, testClock);
         owner = new AppUser();
         owner.setId(7L);
         owner.setEmail("traveler@example.com");
@@ -74,6 +78,9 @@ class BudgetServiceTest {
     void summaryAggregatesBudgetSpentRemainingAndUsagePercentage() {
         Trip rome = trip(11L, "Rome", "1000.00");
         Trip vienna = trip(12L, "Vienna", "500.00");
+        rome.setFlightTotal(new BigDecimal("300.00"));
+        rome.setHotelTotal(new BigDecimal("250.00"));
+        vienna.setActivitiesTotal(new BigDecimal("50.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
         when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(rome, vienna));
@@ -83,9 +90,9 @@ class BudgetServiceTest {
         BudgetSummaryResponse response = budgetService.getSummary("traveler@example.com");
 
         assertThat(response.totalBudget()).isEqualByComparingTo("1500.00");
-        assertThat(response.totalSpent()).isEqualByComparingTo("300.00");
-        assertThat(response.remainingBalance()).isEqualByComparingTo("1200.00");
-        assertThat(response.usagePercentage()).isEqualTo(20);
+        assertThat(response.totalSpent()).isEqualByComparingTo("900.00");
+        assertThat(response.remainingBalance()).isEqualByComparingTo("600.00");
+        assertThat(response.usagePercentage()).isEqualTo(60);
     }
 
     @Test
@@ -95,6 +102,7 @@ class BudgetServiceTest {
         Trip almostOver = trip(13L, "Almost Over", "1000.00");
         Trip over = trip(14L, "Over", "1000.00");
         Trip zeroBudget = trip(15L, "Zero Budget", "0.00");
+        under.setFlightTotal(new BigDecimal("120.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
         when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L))
@@ -110,7 +118,7 @@ class BudgetServiceTest {
 
         assertThat(response).extracting(TripBudgetRowResponse::status)
                 .containsExactly("Under Budget", "Near Limit", "Near Limit", "Over Budget", "Over Budget");
-        assertThat(response.get(0).spent()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(response.get(0).spent()).isEqualByComparingTo("120.00");
         assertThat(response.get(4).remaining()).isEqualByComparingTo("-5.00");
         verify(tripRepository).findAllByOwnerIdOrderByStartDateAsc(7L);
         verify(expenseRepository).findAllByTripOwnerIdOrderByDateDesc(7L);
@@ -120,6 +128,9 @@ class BudgetServiceTest {
     void categoryBudgetsAggregateSpendingAndFlagsByCategory() {
         Trip rome = trip(11L, "Rome", "1000.00");
         Trip vienna = trip(12L, "Vienna", "500.00");
+        rome.setFlightTotal(new BigDecimal("60.00"));
+        rome.setHotelTotal(new BigDecimal("30.00"));
+        vienna.setActivitiesTotal(new BigDecimal("15.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
         when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(rome, vienna));
@@ -135,15 +146,19 @@ class BudgetServiceTest {
         assertThat(response).hasSize(ExpenseCategory.values().length);
         CategoryBudgetResponse flights = category(response, ExpenseCategory.FLIGHTS);
         assertThat(flights.budget()).isEqualByComparingTo("300.00");
-        assertThat(flights.spent()).isEqualByComparingTo("240.00");
-        assertThat(flights.percentage()).isEqualTo(80);
+        assertThat(flights.spent()).isEqualByComparingTo("300.00");
+        assertThat(flights.percentage()).isEqualTo(100);
         assertThat(flights.isNearLimit()).isTrue();
-        assertThat(flights.isOverLimit()).isFalse();
+        assertThat(flights.isOverLimit()).isTrue();
 
         CategoryBudgetResponse hotels = category(response, ExpenseCategory.HOTELS);
-        assertThat(hotels.percentage()).isEqualTo(80);
+        assertThat(hotels.spent()).isEqualByComparingTo("270.00");
+        assertThat(hotels.percentage()).isEqualTo(90);
         assertThat(hotels.isNearLimit()).isTrue();
         assertThat(hotels.isOverLimit()).isFalse();
+
+        CategoryBudgetResponse activities = category(response, ExpenseCategory.ACTIVITIES);
+        assertThat(activities.spent()).isEqualByComparingTo("15.00");
 
         CategoryBudgetResponse food = category(response, ExpenseCategory.FOOD);
         assertThat(food.percentage()).isEqualTo(100);
@@ -212,6 +227,57 @@ class BudgetServiceTest {
     }
 
     @Test
+    void listsExpensesForOwnedUserInDescendingDateOrder() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        Expense first = expense(trip, ExpenseCategory.FOOD, "20.00", LocalDate.of(2026, 7, 18));
+        first.setId(1L);
+        first.setDescription("Dinner");
+        Expense second = expense(trip, ExpenseCategory.HOTELS, "50.00", LocalDate.of(2026, 7, 17));
+        second.setId(2L);
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(first, second));
+
+        List<ExpenseResponse> response = budgetService.getExpenses("traveler@example.com");
+
+        assertThat(response).extracting(ExpenseResponse::id).containsExactly(1L, 2L);
+        assertThat(response.get(0).description()).isEqualTo("Dinner");
+        assertThat(response.get(1).category()).isEqualTo(ExpenseCategory.HOTELS);
+    }
+
+    @Test
+    void updatesOwnedExpenseAndKeepsBudgetCalculationsInSync() {
+        Trip oldTrip = trip(11L, "Rome", "1000.00");
+        oldTrip.setFlightTotal(new BigDecimal("50.00"));
+        Trip newTrip = trip(12L, "Paris", "1200.00");
+        newTrip.setHotelTotal(new BigDecimal("80.00"));
+        Expense expense = expense(oldTrip, ExpenseCategory.FOOD, "20.00", LocalDate.of(2026, 7, 18));
+        expense.setId(44L);
+
+        CreateExpenseRequest request = new CreateExpenseRequest(
+                12L,
+                ExpenseCategory.HOTELS,
+                new BigDecimal("65.00"),
+                "Updated hotel",
+                LocalDate.of(2026, 7, 20)
+        );
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(expenseRepository.findByIdAndTripOwnerId(44L, 7L)).thenReturn(Optional.of(expense));
+        when(tripRepository.findById(12L)).thenReturn(Optional.of(newTrip));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ExpenseResponse response = budgetService.updateExpense("traveler@example.com", 44L, request);
+
+        assertThat(response.tripId()).isEqualTo(12L);
+        assertThat(response.category()).isEqualTo(ExpenseCategory.HOTELS);
+        assertThat(response.amount()).isEqualByComparingTo("65.00");
+        assertThat(response.description()).isEqualTo("Updated hotel");
+        assertThat(response.date()).isEqualTo(LocalDate.of(2026, 7, 20));
+        verify(expenseRepository).save(any(Expense.class));
+    }
+
+    @Test
     void rejectsExpenseForForeignTripWithoutSaving() {
         AppUser anotherOwner = new AppUser();
         anotherOwner.setId(99L);
@@ -236,43 +302,87 @@ class BudgetServiceTest {
     }
 
     @Test
-    void spendingOverTimeGroupsMonthlyInChronologicalOrder() {
-        Trip trip = trip(11L, "Rome", "1000.00");
+    void rejectsUpdateForMissingExpenseWithoutSaving() {
+        CreateExpenseRequest request = new CreateExpenseRequest(
+                11L,
+                ExpenseCategory.FOOD,
+                new BigDecimal("42.50"),
+                "Lunch",
+                LocalDate.of(2026, 7, 16)
+        );
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(expenseRepository.findByIdAndTripOwnerId(44L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> budgetService.updateExpense("traveler@example.com", 44L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Expense was not found.");
+        verify(expenseRepository, never()).save(any(Expense.class));
+    }
+
+    @Test
+    void deletesOwnedExpense() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        Expense expense = expense(trip, ExpenseCategory.FOOD, "20.00");
+        expense.setId(44L);
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(expenseRepository.findByIdAndTripOwnerId(44L, 7L)).thenReturn(Optional.of(expense));
+
+        budgetService.deleteExpense("traveler@example.com", 44L);
+
+        verify(expenseRepository).delete(expense);
+    }
+
+    @Test
+    void spendingOverTimeReturnsCurrentYearMonthsInChronologicalOrder() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        trip.setFlightTotal(new BigDecimal("125.00"));
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
         when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "50.00", LocalDate.of(2026, 4, 5)),
                 expense(trip, ExpenseCategory.FOOD, "25.00", LocalDate.of(2026, 2, 10)),
                 expense(trip, ExpenseCategory.HOTELS, "10.00", LocalDate.of(2026, 1, 1)),
-                expense(trip, ExpenseCategory.FLIGHTS, "15.00", LocalDate.of(2026, 2, 12))
+                expense(trip, ExpenseCategory.FLIGHTS, "15.00", LocalDate.of(2026, 2, 12)),
+                expense(trip, ExpenseCategory.FOOD, "999.00", LocalDate.of(2025, 12, 31))
         ));
 
         List<SpendingDataPointResponse> response = budgetService.getSpendingOverTime("traveler@example.com", "monthly");
 
+        assertThat(response).hasSize(12);
         assertThat(response).extracting(SpendingDataPointResponse::label)
-                .containsExactly("Jan 2026", "Feb 2026", "Apr 2026");
+                .containsExactly("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
         assertThat(response.get(0).amount()).isEqualByComparingTo("10.00");
         assertThat(response.get(1).amount()).isEqualByComparingTo("40.00");
-        assertThat(response.get(2).amount()).isEqualByComparingTo("50.00");
+        assertThat(response.get(2).amount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(response.get(3).amount()).isEqualByComparingTo("50.00");
+        assertThat(response.get(6).amount()).isEqualByComparingTo("125.00");
+        assertThat(response.get(11).amount()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
-    void spendingOverTimeGroupsYearlyInChronologicalOrder() {
+    void spendingOverTimeReturnsPreviousCurrentAndNextYear() {
         Trip trip = trip(11L, "Rome", "1000.00");
+        trip.setHotelTotal(new BigDecimal("75.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
         when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "50.00", LocalDate.of(2026, 4, 5)),
                 expense(trip, ExpenseCategory.HOTELS, "25.00", LocalDate.of(2025, 2, 10)),
-                expense(trip, ExpenseCategory.FLIGHTS, "15.00", LocalDate.of(2025, 1, 12))
+                expense(trip, ExpenseCategory.FLIGHTS, "15.00", LocalDate.of(2025, 1, 12)),
+                expense(trip, ExpenseCategory.FOOD, "999.00", LocalDate.of(2024, 12, 31))
         ));
 
         List<SpendingDataPointResponse> response = budgetService.getSpendingOverTime("traveler@example.com", "yearly");
 
         assertThat(response).extracting(SpendingDataPointResponse::label)
-                .containsExactly("2025", "2026");
+                .containsExactly("2025", "2026", "2027");
         assertThat(response.get(0).amount()).isEqualByComparingTo("40.00");
-        assertThat(response.get(1).amount()).isEqualByComparingTo("50.00");
+        assertThat(response.get(1).amount()).isEqualByComparingTo("125.00");
+        assertThat(response.get(2).amount()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -288,8 +398,11 @@ class BudgetServiceTest {
     @Test
     void distributionReturnsEveryCategoryWithRoundedPercentages() {
         Trip trip = trip(11L, "Rome", "1000.00");
+        trip.setFlightTotal(new BigDecimal("50.00"));
+        trip.setActivitiesTotal(new BigDecimal("50.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
         when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FLIGHTS, "30.00"),
                 expense(trip, ExpenseCategory.HOTELS, "20.00")
@@ -299,12 +412,16 @@ class BudgetServiceTest {
 
         assertThat(response).hasSize(ExpenseCategory.values().length);
         SpendingDistributionResponse flights = distribution(response, ExpenseCategory.FLIGHTS);
-        assertThat(flights.amount()).isEqualByComparingTo("30.00");
-        assertThat(flights.percentage()).isEqualTo(60);
+        assertThat(flights.amount()).isEqualByComparingTo("80.00");
+        assertThat(flights.percentage()).isEqualTo(53);
 
         SpendingDistributionResponse hotels = distribution(response, ExpenseCategory.HOTELS);
         assertThat(hotels.amount()).isEqualByComparingTo("20.00");
-        assertThat(hotels.percentage()).isEqualTo(40);
+        assertThat(hotels.percentage()).isEqualTo(13);
+
+        SpendingDistributionResponse activities = distribution(response, ExpenseCategory.ACTIVITIES);
+        assertThat(activities.amount()).isEqualByComparingTo("50.00");
+        assertThat(activities.percentage()).isEqualTo(33);
 
         SpendingDistributionResponse food = distribution(response, ExpenseCategory.FOOD);
         assertThat(food.amount()).isEqualByComparingTo(BigDecimal.ZERO);

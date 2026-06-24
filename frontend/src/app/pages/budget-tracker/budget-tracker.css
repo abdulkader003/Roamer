@@ -371,6 +371,10 @@
   margin-bottom: 0;
 }
 
+.chart-labels--monthly {
+  height: 34px;
+}
+
 .chart-label {
   position: absolute;
   top: 0;
@@ -380,6 +384,10 @@
   color: var(--text-muted);
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.chart-labels--monthly .chart-label:nth-child(even) {
+  top: 16px;
 }
 
 /* ── Responsive ── */
@@ -1236,6 +1244,91 @@
   color: #ffffff;
 }
 
+.danger-button {
+  border: 1px solid #991b1b;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, #dc2626 22%, transparent);
+}
+
+.danger-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  outline: none;
+  background: #b91c1c !important;
+  border-color: #7f1d1d;
+  color: #ffffff !important;
+  box-shadow: 0 14px 26px color-mix(in srgb, #dc2626 28%, transparent);
+}
+
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.confirm-dialog {
+  width: min(420px, 100%);
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff7f7 0%, #ffffff 100%);
+  box-shadow: 0 24px 64px rgba(127, 29, 29, 0.18);
+  padding: 22px;
+}
+
+.confirm-dialog-eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #b91c1c;
+}
+
+.confirm-dialog h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #7f1d1d;
+}
+
+.confirm-dialog-copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #991b1b;
+}
+
+.confirm-dialog-amount {
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.confirm-dialog-warning {
+  color: #7f1d1d;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 
 /* -- Trip table (User Story 6) -- */
 .trip-filter-menu {
@@ -1250,15 +1343,15 @@
   justify-content: space-between;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 12px;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
   background: var(--surface-secondary);
   cursor: pointer;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--card-shadow) 38%, transparent);
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--card-shadow) 38%, transparent);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.16s ease;
 }
 
 .trip-filter-button:hover,
@@ -1267,7 +1360,8 @@
   border-color: var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent) 13%, transparent);
+  transform: translateY(-1px);
 }
 
 .trip-filter-button svg {
@@ -1420,6 +1514,156 @@
 
 .export-button:hover {
   border-color: var(--accent-border);
+}
+
+.manual-expenses-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.manual-expenses-header {
+  align-items: center;
+}
+
+.manual-expense-add {
+  white-space: nowrap;
+}
+
+.manual-expense-list {
+  display: grid;
+  gap: 10px;
+}
+
+.manual-expense-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+}
+
+.manual-expense-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manual-expense-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.manual-expense-amount {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.manual-expense-category {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.manual-expense-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.manual-expense-meta span + span::before {
+  content: '•';
+  margin-right: 8px;
+  color: var(--text-dim);
+}
+
+.manual-expense-description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  opacity: 0.84;
+}
+
+.expense-row-edit-button,
+.trip-price-button {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.16s ease;
+}
+
+.expense-row-edit-button:hover,
+.expense-row-edit-button:focus-visible,
+.trip-price-button:hover,
+.trip-price-button:focus-visible {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.compact {
+  padding: 12px 14px;
+}
+
+.trip-price-button {
+  width: 100%;
+}
+
+.trip-prices-modal {
+  width: min(420px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-primary);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.25);
+  padding: 22px;
+}
+
+.trip-price-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.trip-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.trip-price-row--negative strong {
+  color: var(--status-over-budget);
 }
 
 .export-menu {
