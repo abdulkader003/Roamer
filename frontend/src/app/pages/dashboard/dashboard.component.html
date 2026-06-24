@@ -27,7 +27,7 @@
         </div>
         <div>
           <p class="stat-label">Total Budget</p>
-          <p class="stat-value">€5,000</p>
+          <p class="stat-value">€{{ formatMoney(totalBudget) }}</p>
           <p class="stat-sub">All trips</p>
         </div>
       </div>
@@ -39,8 +39,8 @@
         </div>
         <div>
           <p class="stat-label">Total Spent</p>
-          <p class="stat-value">€2,350</p>
-          <p class="stat-sub">47% of budget</p>
+          <p class="stat-value">€{{ formatMoney(totalSpent) }}</p>
+          <p class="stat-sub">{{ budgetUsageSubLabel }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -51,8 +51,8 @@
         </div>
         <div>
           <p class="stat-label">Remaining</p>
-          <p class="stat-value">€2,650</p>
-          <p class="stat-sub">53% left</p>
+          <p class="stat-value">€{{ formatMoney(remainingBalance) }}</p>
+          <p class="stat-sub">{{ remainingBalanceLabel }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -223,34 +223,37 @@
       <div class="section-card budget-card">
         <div class="section-header">
           <span class="section-title">Budget Overview</span>
-          <a href="#" class="view-all">View Report</a>
+          <a routerLink="/budget-tracker" class="view-all">Open Budget Tracker</a>
         </div>
+        <p class="section-subtitle">Category prices at a glance.</p>
         <div class="budget-wrap">
           <div class="donut-wrap">
             <svg width="140" height="140" viewBox="0 0 140 140">
               <circle cx="70" cy="70" r="52" fill="none" class="donut-track" stroke-width="20"/>
-              @for (b of budgetItems(); track b.label) {
+              @for (b of budgetItems(); track b.label; let i = $index) {
                 <circle
                   cx="70" cy="70" r="52" fill="none"
                   [attr.stroke]="b.color"
                   stroke-width="20"
-                  [attr.stroke-dasharray]="b.dashArray"
-                  [attr.stroke-dashoffset]="b.dashOffset"
+                  [attr.stroke-dasharray]="budgetSegmentDashArray(b.spent)"
+                  [attr.stroke-dashoffset]="budgetSegmentDashOffset(i)"
                   transform="rotate(-90 70 70)"
                 />
               }
             </svg>
             <div class="donut-center">
-              <span class="donut-amount">€2,350</span>
-              <span class="donut-label">Spent</span>
+              <span class="donut-amount">{{ budgetCenterLabel }}</span>
+              <span class="donut-label">{{ budgetItems().length }} categories</span>
             </div>
           </div>
           <div class="legend">
             @for (b of budgetItems(); track b.label) {
               <div class="legend-row">
                 <span class="legend-dot" [style.background]="b.color"></span>
-                <span class="legend-name">{{ b.label }}</span>
-                <span class="legend-val">{{ b.amount }}</span>
+                <span class="legend-copy">
+                  <span class="legend-name">{{ b.label }}</span>
+                  <span class="legend-val">€{{ formatMoney(b.spent) }} / €{{ formatMoney(b.budget) }}</span>
+                </span>
               </div>
             }
           </div>

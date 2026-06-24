@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -29,6 +32,18 @@ public class ProfileService {
             "image/png",
             "image/webp",
             "image/gif"
+    );
+    private static final List<String> ALLOWED_ACHIEVEMENTS = List.of(
+            "BEACH_LOVER",
+            "MOUNTAIN_EXPLORER",
+            "FREQUENT_FLYER",
+            "WORLD_TRAVELER",
+            "CULTURE_SEEKER",
+            "FOOD_EXPLORER",
+            "BACKPACKER",
+            "RELAXATION_TRAVELER",
+            "TRAVEL_PHOTOGRAPHER",
+            "NATURE_EXPLORER"
     );
 
     private final AppUserRepository userRepository;
@@ -68,7 +83,10 @@ public class ProfileService {
         user.setFirstName(cleanOptionalText(request.firstName()));
         user.setLastName(cleanOptionalText(request.lastName()));
         user.setPhoneNumber(cleanOptionalText(request.phoneNumber()));
-        user.setPassportNumber(cleanOptionalText(request.passportNumber()));
+        if (StringUtils.hasText(request.passportNumber())) {
+            user.setPassportNumber(cleanOptionalText(request.passportNumber()));
+        }
+        user.setTravelAchievements(joinAchievements(normalizeAchievements(request.travelAchievements())));
         user.setHomeAirport(normalizeAirport(request.homeAirport()));
 
         return toResponse(userRepository.save(user));
@@ -185,6 +203,42 @@ public class ProfileService {
         return cleaned == null ? null : cleaned.toUpperCase(Locale.ROOT);
     }
 
+    private List<String> normalizeAchievements(List<String> achievements) {
+        if (achievements == null || achievements.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> allowed = new LinkedHashSet<>(ALLOWED_ACHIEVEMENTS);
+        return achievements.stream()
+                .filter(StringUtils::hasText)
+                .map(value -> value.trim().toUpperCase(Locale.ROOT))
+                .filter(allowed::contains)
+                .distinct()
+                .toList();
+    }
+
+    private String joinAchievements(List<String> achievements) {
+        if (achievements.isEmpty()) {
+            return null;
+        }
+
+        return String.join(",", achievements);
+    }
+
+    private List<String> splitAchievements(String achievements) {
+        if (!StringUtils.hasText(achievements)) {
+            return List.of();
+        }
+
+        Set<String> allowed = new LinkedHashSet<>(ALLOWED_ACHIEVEMENTS);
+        return Arrays.stream(achievements.split(","))
+                .map(String::trim)
+                .map(value -> value.toUpperCase(Locale.ROOT))
+                .filter(allowed::contains)
+                .distinct()
+                .toList();
+    }
+
     private ProfileResponse toResponse(AppUser user) {
         boolean hasProfilePicture = user.getProfilePicture() != null && user.getProfilePicture().length > 0;
 
@@ -196,6 +250,7 @@ public class ProfileService {
                 user.getLastName(),
                 user.getPhoneNumber(),
                 user.getPassportNumber(),
+                splitAchievements(user.getTravelAchievements()),
                 user.getHomeAirport(),
                 user.isVerified(),
                 hasProfilePicture,

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
+import { BudgetApiService, BudgetCategoryResponse } from '../../services/budget-api.service';
 import { AuthService } from '../../services/auth';
 import { ThemeService } from '../../services/theme.service';
 import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
@@ -37,10 +38,19 @@ function tripResponse(overrides: Partial<TripResponse>): TripResponse {
 describe('DashboardComponent weather rotation', () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let component: DashboardComponent;
+  let budgetApiService: jasmine.SpyObj<BudgetApiService>;
   let weatherService: jasmine.SpyObj<WeatherService>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
 
   beforeEach(async () => {
+    budgetApiService = jasmine.createSpyObj<BudgetApiService>('BudgetApiService', ['getSummary', 'getCategoryBudgets']);
+    budgetApiService.getSummary.and.returnValue(of({
+      totalBudget: 0,
+      totalSpent: 0,
+      remainingBalance: 0,
+      usagePercentage: 0
+    }));
+    budgetApiService.getCategoryBudgets.and.returnValue(of([]));
     weatherService = jasmine.createSpyObj<WeatherService>('WeatherService', ['getWeather']);
     weatherService.getWeather.and.callFake((cities: readonly string[]) => of(weatherFor(cities)));
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips']);
@@ -51,6 +61,7 @@ describe('DashboardComponent weather rotation', () => {
       imports: [DashboardComponent],
       providers: [
         provideRouter([]),
+        { provide: BudgetApiService, useValue: budgetApiService },
         { provide: WeatherService, useValue: weatherService },
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: AuthService, useValue: { authHeader: () => ({}) } },
@@ -93,6 +104,33 @@ describe('DashboardComponent weather rotation', () => {
     expect(component.trips().map((trip) => trip.name)).toEqual(['Tokyo Spring', 'Paris Summer', 'Draft Rome']);
     expect(component.trips()[0].budget).toBe('€1,200');
     expect(component.trips()[2].status).toBe('pending');
+  }));
+
+  it('loads the live budget summary and category breakdown for the budget overview card', fakeAsync(() => {
+    budgetApiService.getSummary.and.returnValue(of({
+      totalBudget: 5000,
+      totalSpent: 2350,
+      remainingBalance: 2650,
+      usagePercentage: 47
+    }));
+    budgetApiService.getCategoryBudgets.and.returnValue(of([
+      { category: 'FLIGHTS', spent: 850, budget: 1200, percentage: 71 },
+      { category: 'HOTELS', spent: 900, budget: 1500, percentage: 60 },
+      { category: 'FOOD', spent: 300, budget: 500, percentage: 60 },
+      { category: 'ACTIVITIES', spent: 200, budget: 400, percentage: 50 },
+      { category: 'OTHERS', spent: 100, budget: 300, percentage: 33 }
+    ] as BudgetCategoryResponse[]));
+
+    fixture.detectChanges();
+    tick();
+
+    expect(budgetApiService.getSummary).toHaveBeenCalled();
+    expect(budgetApiService.getCategoryBudgets).toHaveBeenCalled();
+    expect(component.totalBudget).toBe(5000);
+    expect(component.totalSpent).toBe(2350);
+    expect(component.remainingBalance).toBe(2650);
+    expect(component.usagePercentage).toBe(47);
+    expect(component.budgetItems().map((item) => item.label)).toEqual(['Flights', 'Hotels', 'Food', 'Activities', 'Others']);
   }));
 
   it('rotates after 20 seconds and requests weather for the next 3 cities', fakeAsync(() => {

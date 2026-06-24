@@ -11,6 +11,7 @@ export interface UserProfile {
   lastName?: string | null;
   phoneNumber?: string | null;
   passportNumber?: string | null;
+  travelAchievements?: string[] | null;
   homeAirport?: string | null;
   verified: boolean;
   hasProfilePicture: boolean;
@@ -22,7 +23,8 @@ export interface UpdateProfileRequest {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  passportNumber: string;
+  passportNumber?: string;
+  travelAchievements: string[];
   homeAirport: string;
 }
 

@@ -4,7 +4,7 @@
     <div class="header-copy">
       <span class="page-kicker">Account settings</span>
       <h1>Profile command center</h1>
-      <p>Manage the traveler details, airport preferences, picture, and password used across your trips.</p>
+      <p>Manage the traveler details, airport preferences, interests, picture, and password used across your trips.</p>
     </div>
   </div>
 
@@ -94,10 +94,21 @@
                 <span>Home airport</span>
                 <strong>{{ profileForm.controls.homeAirport.value || 'No home airport' }}</strong>
               </div>
-              <div>
-                <span>Passport number</span>
-                <strong>{{ profileForm.controls.passportNumber.value || currentProfile.passportNumber || 'No passport number' }}</strong>
-              </div>
+            </div>
+
+            <div class="compact-achievements" aria-label="Selected travel interests">
+              <span class="compact-achievements__label">Travel interests</span>
+              @if (selectedTravelAchievements.length) {
+                <div class="compact-achievement-chips">
+                  @for (achievement of selectedTravelAchievements; track achievement) {
+                    <span class="compact-achievement-chip">
+                      {{ achievementLabel(achievement) }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <p class="compact-achievements__empty">No interests selected yet.</p>
+              }
             </div>
           </div>
 
@@ -166,20 +177,12 @@
         </div>
 
         <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
-          <div class="form-row">
+          <div class="form-row form-row--single">
             <label>
               Username
               <input type="text" formControlName="username" autocomplete="username" />
               @if (fieldHasError('username')) {
                 <span class="field-error">Use 3-40 letters, numbers, dots, underscores, or hyphens.</span>
-              }
-            </label>
-
-            <label>
-              Passport number
-              <input type="text" formControlName="passportNumber" autocomplete="off" />
-              @if (fieldHasError('passportNumber')) {
-                <span class="field-error">Use letters, numbers, spaces, or hyphens only.</span>
               }
             </label>
           </div>
@@ -244,6 +247,28 @@
                 <span class="field-error">Choose an airport suggestion or enter a valid 3-letter IATA code.</span>
               }
             </label>
+          </div>
+
+          <div class="achievement-section">
+            <div class="achievement-section__header">
+              <div>
+                <span class="section-eyebrow">Travel interests</span>
+                <p>Select the badges that best match your travel style.</p>
+              </div>
+              <span class="achievement-count">{{ selectedTravelAchievements.length }}/{{ travelAchievementOptions.length }}</span>
+            </div>
+
+            <div class="achievement-grid">
+              @for (achievement of travelAchievementOptions; track achievement.key) {
+                <button
+                  type="button"
+                  class="achievement-chip-button"
+                  [class.achievement-chip-button--active]="isTravelAchievementSelected(achievement.key)"
+                  (click)="toggleTravelAchievement(achievement.key)">
+                  <span class="achievement-chip-button__label">{{ achievement.label }}</span>
+                </button>
+              }
+            </div>
           </div>
 
           @if (profileError) {
