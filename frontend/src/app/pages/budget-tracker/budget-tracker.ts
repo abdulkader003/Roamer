@@ -7,12 +7,18 @@ import { forkJoin } from 'rxjs';
 type SpendingPoint = { label: string; amount: number };
 type DistributionCategory = { name: string; amount: number; color: string };
 type CategoryBudget = {
+  categoryKey: string;
   name: string;
   spent: number;
   budget: number;
   percentage: number;
   status: 'Normal' | 'Near Limit' | 'Over Budget';
   statusClass: 'normal' | 'near-limit' | 'over-limit';
+};
+type CategoryBudgetDraft = {
+  categoryKey: string;
+  name: string;
+  budget: string;
 };
 type TripBudget = {
   tripId: number;
@@ -22,6 +28,22 @@ type TripBudget = {
   spent: number;
   remaining: number;
   status: 'Under Budget' | 'Near Limit' | 'Over Budget';
+  flightTotal?: number;
+  hotelTotal?: number;
+  foodTotal?: number;
+  transportTotal?: number;
+  activitiesTotal?: number;
+  othersTotal?: number;
+};
+type ManualExpense = {
+  id: number;
+  tripId: number;
+  tripName: string;
+  tripDestination: string;
+  category: string;
+  amount: number;
+  description: string | null;
+  date: string;
 };
 type BudgetReport = {
   totalBudget: number;
@@ -182,16 +204,16 @@ export class BudgetTracker implements OnInit {
     FLIGHTS: 'var(--budget-chart-flights)',
     HOTELS: 'var(--budget-chart-hotels)',
     FOOD: 'var(--budget-chart-food)',
-    TRANSPORT: 'var(--budget-chart-transport)',
-    ACTIVITIES: 'var(--budget-chart-activities)'
+    ACTIVITIES: 'var(--budget-chart-activities)',
+    OTHERS: 'var(--budget-chart-others)'
   };
 
   private readonly categoryNames: Record<string, string> = {
     FLIGHTS: 'Flights',
     HOTELS: 'Hotels',
     FOOD: 'Food',
-    TRANSPORT: 'Transport',
-    ACTIVITIES: 'Activities'
+    ACTIVITIES: 'Activities',
+    OTHERS: 'Others'
   };
 
   private donutRadius = 70;
@@ -228,9 +250,75 @@ export class BudgetTracker implements OnInit {
 
   // ── User Story #4 — Budget by Category ──
   categoryBudgets: CategoryBudget[] = [];
+  isCategoryBudgetFormOpen = false;
+  categoryBudgetDrafts: CategoryBudgetDraft[] = [];
+
+  // ── User Story #5 — Manual Expenses List / Edit ──
+  manualExpenses: ManualExpense[] = [];
+  isEditingExpense = false;
+  editingExpenseId: number | null = null;
+  deleteConfirmationExpense: ManualExpense | null = null;
+
+  // ── Trip Price Check Modal ──
+  isTripPricesOpen = false;
+  selectedTripDetails: TripBudget | null = null;
 
   get categoryBudgetRows() {
     return this.categoryBudgets;
+  }
+
+  get categoryBudgetFormTitle(): string {
+    return 'Edit Category Budgets';
+  }
+
+  openCategoryBudgetForm(): void {
+    this.categoryBudgetDrafts = this.categoryBudgets.map(category => ({
+      categoryKey: category.categoryKey,
+      name: category.name,
+      budget: String(category.budget ?? 0)
+    }));
+    this.isCategoryBudgetFormOpen = true;
+  }
+
+  closeCategoryBudgetForm(): void {
+    this.isCategoryBudgetFormOpen = false;
+    this.categoryBudgetDrafts = [];
+  }
+
+  saveCategoryBudget(): void {
+    if (!this.categoryBudgetDrafts.length) {
+      return;
+    }
+
+    const updates = this.categoryBudgetDrafts.map(draft => ({
+      draft,
+      budget: Number(draft.budget)
+    }));
+
+    if (updates.some(update => Number.isNaN(update.budget) || update.budget < 0)) {
+      return;
+    }
+
+    forkJoin(
+      updates.map(update =>
+        this.http.put(
+          `${this.apiBase}/categories/${update.draft.categoryKey}`,
+          { budget: update.budget },
+          { headers: this.getHeaders() }
+        )
+      )
+    ).subscribe({
+      next: () => {
+        this.closeCategoryBudgetForm();
+        this.loadAllData();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loadError = 'Failed to save category budget. Please try again.';
+        this.cdr.detectChanges();
+        alert(this.loadError);
+      }
+    });
   }
 
   // -- User Story 5 -- Add Manual Expense --
@@ -248,7 +336,7 @@ export class BudgetTracker implements OnInit {
     tripId: null as number | null
   };
 
-  expenseCategories = ['Flights', 'Hotels', 'Food', 'Transport', 'Activities'];
+  expenseCategories = ['Flights', 'Hotels', 'Food', 'Activities', 'Others'];
   readonly expenseCalendarWeekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   get selectedExpenseCategoryOptionId(): string {
@@ -297,18 +385,28 @@ export class BudgetTracker implements OnInit {
     });
   }
 
-  openExpenseForm(): void {
+  get expenseModalTitle(): string {
+    return this.isEditingExpense ? 'Edit Manual Expense' : 'Add Manual Expense';
+  }
+
+  get expenseSubmitLabel(): string {
+    return this.isEditingExpense ? 'Save Changes' : 'Save Expense';
+  }
+
+  openExpenseForm(expense?: ManualExpense): void {
+    this.isEditingExpense = Boolean(expense);
+    this.editingExpenseId = expense?.id ?? null;
     this.expenseDraft = {
-      amount: '',
-      category: 'Flights',
-      description: '',
-      date: this.formatDateValue(new Date()),
-      tripId: this.trips[0]?.tripId ?? null
+      amount: expense ? String(expense.amount) : '',
+      category: expense ? expense.category : 'Flights',
+      description: expense ? (expense.description ?? '') : '',
+      date: expense ? expense.date : this.formatDateValue(new Date()),
+      tripId: expense ? expense.tripId : this.trips[0]?.tripId ?? null
     };
     this.isExpenseCategoryMenuOpen = false;
     this.isExpenseDatePickerOpen = false;
     this.isExpenseTripMenuOpen = false;
-    this.expenseCalendarMonth = new Date();
+    this.expenseCalendarMonth = this.parseDateString(this.expenseDraft.date) ?? new Date();
     this.isExpenseFormOpen = true;
   }
 
@@ -317,6 +415,9 @@ export class BudgetTracker implements OnInit {
     this.isExpenseDatePickerOpen = false;
     this.isExpenseTripMenuOpen = false;
     this.isExpenseFormOpen = false;
+    this.isEditingExpense = false;
+    this.editingExpenseId = null;
+    this.deleteConfirmationExpense = null;
   }
 
   handleExpenseModalClick(event: MouseEvent): void {
@@ -415,7 +516,11 @@ export class BudgetTracker implements OnInit {
       return;
     }
 
-    this.http.post(`${this.apiBase}/expenses`, payload, { headers: this.getHeaders() }).subscribe({
+    const request = this.isEditingExpense && this.editingExpenseId !== null
+      ? this.http.put(`${this.apiBase}/expenses/${this.editingExpenseId}`, payload, { headers: this.getHeaders() })
+      : this.http.post(`${this.apiBase}/expenses`, payload, { headers: this.getHeaders() });
+
+    request.subscribe({
       next: () => {
         this.closeExpenseForm();
         this.loadAllData();
@@ -423,6 +528,44 @@ export class BudgetTracker implements OnInit {
       },
       error: () => {
         this.loadError = 'Failed to save expense. Please try again.';
+        this.cdr.detectChanges();
+        alert(this.loadError);
+      }
+    });
+  }
+
+  deleteExpense(): void {
+    if (!this.isEditingExpense || this.editingExpenseId === null) {
+      return;
+    }
+
+    const expense = this.manualExpenses.find(item => item.id === this.editingExpenseId) ?? null;
+    if (!expense) {
+      return;
+    }
+
+    this.deleteConfirmationExpense = expense;
+  }
+
+  closeDeleteExpenseConfirmation(): void {
+    this.deleteConfirmationExpense = null;
+  }
+
+  confirmDeleteExpense(): void {
+    if (!this.deleteConfirmationExpense) {
+      return;
+    }
+
+    const expenseId = this.deleteConfirmationExpense.id;
+    this.http.delete(`${this.apiBase}/expenses/${expenseId}`, { headers: this.getHeaders() }).subscribe({
+      next: () => {
+        this.deleteConfirmationExpense = null;
+        this.closeExpenseForm();
+        this.loadAllData();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loadError = 'Failed to delete expense. Please try again.';
         this.cdr.detectChanges();
         alert(this.loadError);
       }
@@ -463,6 +606,8 @@ export class BudgetTracker implements OnInit {
     this.isExpenseCategoryMenuOpen = false;
     this.isExpenseDatePickerOpen = false;
     this.isExpenseTripMenuOpen = false;
+    this.deleteConfirmationExpense = null;
+    this.closeCategoryBudgetForm();
   }
 
   get selectedTripStatusLabel(): string {
@@ -483,6 +628,36 @@ export class BudgetTracker implements OnInit {
   }
 
   trips: TripBudget[] = [];
+
+  get tripLookup(): Map<number, TripBudget> {
+    return new Map(this.trips.map(trip => [trip.tripId, trip]));
+  }
+
+  get tripBreakdownRows() {
+    if (!this.selectedTripDetails) {
+      return [];
+    }
+
+    return [
+      { label: 'Flight', amount: this.selectedTripDetails.flightTotal ?? 0 },
+      { label: 'Hotel', amount: this.selectedTripDetails.hotelTotal ?? 0 },
+      { label: 'Food', amount: this.selectedTripDetails.foodTotal ?? 0 },
+      { label: 'Activities', amount: this.selectedTripDetails.activitiesTotal ?? 0 },
+      { label: 'Others', amount: this.selectedTripDetails.othersTotal ?? 0 },
+      { label: 'Total Used', amount: this.selectedTripDetails.spent },
+      { label: 'Remaining', amount: this.selectedTripDetails.remaining }
+    ];
+  }
+
+  openTripPrices(trip: TripBudget): void {
+    this.selectedTripDetails = trip;
+    this.isTripPricesOpen = true;
+  }
+
+  closeTripPrices(): void {
+    this.isTripPricesOpen = false;
+    this.selectedTripDetails = null;
+  }
 
   get tripRows() {
     return this.trips.map(t => ({
@@ -657,9 +832,11 @@ export class BudgetTracker implements OnInit {
       yearly: this.http.get<any[]>(`${this.apiBase}/spending-over-time?view=yearly`, { headers: this.getHeaders() }),
       distribution: this.http.get<any[]>(`${this.apiBase}/distribution`, { headers: this.getHeaders() }),
       categories: this.http.get<any[]>(`${this.apiBase}/categories`, { headers: this.getHeaders() }),
-      trips: this.http.get<TripBudget[]>(`${this.apiBase}/trips`, { headers: this.getHeaders() })
+      trips: this.http.get<TripBudget[]>(`${this.apiBase}/trips`, { headers: this.getHeaders() }),
+      expenses: this.http.get<any[]>(`${this.apiBase}/expenses`, { headers: this.getHeaders() })
     }).subscribe({
       next: data => {
+        const tripLookup = new Map(data.trips.map((trip: TripBudget) => [trip.tripId, trip]));
         this.totalBudget = Number(data.summary.totalBudget);
         this.totalSpent = Number(data.summary.totalSpent);
         this.monthlySpending = this.mapSpendingPoints(data.monthly);
@@ -667,6 +844,7 @@ export class BudgetTracker implements OnInit {
         this.categories = this.mapDistribution(data.distribution);
         this.categoryBudgets = this.mapCategoryBudgets(data.categories);
         this.trips = this.mapTrips(data.trips);
+        this.manualExpenses = this.mapExpenses(data.expenses, tripLookup);
         this.expenseDraft.tripId = this.trips.some(trip => trip.tripId === this.expenseDraft.tripId)
           ? this.expenseDraft.tripId
           : this.trips[0]?.tripId ?? null;
@@ -704,9 +882,9 @@ export class BudgetTracker implements OnInit {
 
   private mapDistribution(data: any[]): DistributionCategory[] {
     return data.map(d => ({
-      name: this.categoryNames[d.category] ?? d.category,
+      name: this.categoryNames[this.normalizeCategoryKey(String(d.category ?? ''))] ?? d.category,
       amount: Number(d.amount),
-      color: this.categoryColors[d.category] ?? '#999'
+      color: this.categoryColors[this.normalizeCategoryKey(String(d.category ?? ''))] ?? '#999'
     }));
   }
 
@@ -719,7 +897,8 @@ export class BudgetTracker implements OnInit {
       const statusClass = isOverLimit ? 'over-limit' : isNearLimit ? 'near-limit' : 'normal';
 
       return {
-        name: this.categoryNames[d.category] ?? d.category,
+        categoryKey: this.normalizeCategoryKey(String(d.category ?? '')),
+        name: this.categoryNames[this.normalizeCategoryKey(String(d.category ?? ''))] ?? d.category,
         spent: Number(d.spent),
         budget: Number(d.budget),
         percentage: Math.min(Math.max(percentage, 0), 100),
@@ -737,8 +916,39 @@ export class BudgetTracker implements OnInit {
       budget: Number(t.budget),
       spent: Number(t.spent),
       remaining: Number(t.remaining),
-      status: t.status
+      status: t.status,
+      flightTotal: Number(t.flightTotal ?? 0),
+      hotelTotal: Number(t.hotelTotal ?? 0),
+      foodTotal: Number(t.foodTotal ?? 0),
+      activitiesTotal: Number(t.activitiesTotal ?? 0),
+      othersTotal: Number(t.othersTotal ?? 0)
     }));
+  }
+
+  private mapExpenses(data: any[], tripLookup: Map<number, TripBudget>): ManualExpense[] {
+    return data.map(expense => {
+      const trip = tripLookup.get(Number(expense.tripId));
+      return {
+        id: Number(expense.id),
+        tripId: Number(expense.tripId),
+        tripName: trip?.name ?? 'Trip',
+        tripDestination: trip?.destination ?? '',
+        category: this.expenseCategoryLabel(String(expense.category ?? '')),
+        amount: Number(expense.amount),
+        description: expense.description ?? null,
+        date: String(expense.date ?? '')
+      };
+    });
+  }
+
+  private expenseCategoryLabel(category: string): string {
+    const normalized = this.normalizeCategoryKey(category);
+    return this.categoryNames[normalized] ?? category;
+  }
+
+  private normalizeCategoryKey(category: string): string {
+    const normalized = category.toUpperCase();
+    return normalized === 'TRANSPORT' ? 'OTHERS' : normalized;
   }
 
   private escapeHtml(value: string | number | null | undefined): string {

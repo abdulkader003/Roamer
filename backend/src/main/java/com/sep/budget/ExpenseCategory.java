@@ -8,5 +8,6 @@ public enum ExpenseCategory {
     HOTELS,
     FOOD,
     TRANSPORT,
-    ACTIVITIES
+    ACTIVITIES,
+    OTHERS
 }
