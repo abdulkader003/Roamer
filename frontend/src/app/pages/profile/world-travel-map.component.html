@@ -1,0 +1,266 @@
+<section class="travel-map-panel" aria-label="World travel progress">
+  <div class="travel-map-panel__header">
+    <div>
+      <span class="map-eyebrow">World progress</span>
+      <h3>Countries visited</h3>
+      <p>Track countries you have already visited and see upcoming trip destinations from your saved trips.</p>
+    </div>
+
+    <div class="map-progress-pill" aria-label="World progress percentage">
+      <strong>{{ visitedPercentage }}%</strong>
+      <span>{{ visitedCountries.length }} / {{ countryOptions.length }}</span>
+    </div>
+  </div>
+
+  <div class="travel-map-shell">
+    <div class="map-stage">
+      <svg class="world-map" viewBox="0 0 1000 520" role="img" aria-label="World map with visited and upcoming countries">
+        <defs>
+          <linearGradient id="mapWaterGradient" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="rgba(37, 99, 235, 0.16)" />
+            <stop offset="100%" stop-color="rgba(16, 185, 129, 0.12)" />
+          </linearGradient>
+          <linearGradient id="visitedCountryGradient" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="#2563eb" />
+            <stop offset="100%" stop-color="#0ea5e9" />
+          </linearGradient>
+          <linearGradient id="upcomingCountryGradient" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="#f59e0b" />
+            <stop offset="100%" stop-color="#f97316" />
+          </linearGradient>
+          <linearGradient id="bothCountryGradient" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="#2563eb" />
+            <stop offset="52%" stop-color="#2563eb" />
+            <stop offset="53%" stop-color="#f59e0b" />
+            <stop offset="100%" stop-color="#f59e0b" />
+          </linearGradient>
+          <filter id="mapGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#2563eb" flood-opacity="0.18" />
+          </filter>
+        </defs>
+
+        <rect class="map-water" x="0" y="0" width="1000" height="520" rx="28"></rect>
+
+        <g class="map-graticule" aria-hidden="true">
+          @for (longitude of graticuleVerticalLines; track longitude) {
+            <line [attr.x1]="longitudeX(longitude)" y1="20" [attr.x2]="longitudeX(longitude)" y2="500"></line>
+          }
+          @for (latitude of graticuleHorizontalLines; track latitude) {
+            <line x1="20" [attr.y1]="latitudeY(latitude)" x2="980" [attr.y2]="latitudeY(latitude)"></line>
+          }
+        </g>
+
+        <g class="map-countries">
+          @for (shape of countryShapes; track shape.name) {
+            <path
+              [attr.d]="shape.path"
+              [attr.class]="countryClass(shape)"
+              [attr.aria-label]="shapeTitle(shape)"
+              tabindex="0"
+              (click)="toggleVisitedCountry(shape.name)"
+              (keydown.enter)="toggleVisitedCountry(shape.name)"
+              (keydown.space)="$event.preventDefault(); toggleVisitedCountry(shape.name)"
+              (mouseenter)="setHoveredCountry(shape.name)"
+              (mouseleave)="clearHoveredCountry()">
+              <title>{{ shapeTitle(shape) }}</title>
+            </path>
+          }
+        </g>
+
+        <g class="map-markers" filter="url(#mapGlow)" aria-hidden="true">
+          @for (shape of markerShapes(); track shape.name) {
+            <g
+              [attr.class]="markerClass(shape.name)"
+              [attr.transform]="markerTransform(shape, 0.68)">
+              <ellipse class="country-marker__shadow" cx="0" cy="2.4" rx="6.6" ry="2.2"></ellipse>
+              <path class="country-marker__pin" d="M0 0 C-4.7 -6.1 -9 -10.2 -9 -15.2 C-9 -20.7 -5 -24.7 0 -24.7 C5 -24.7 9 -20.7 9 -15.2 C9 -10.2 4.7 -6.1 0 0 Z"></path>
+              <circle class="country-marker__center" cx="0" cy="-15.2" r="3.1"></circle>
+            </g>
+          }
+        </g>
+      </svg>
+
+      @if (isLoadingMap || mapLoadError) {
+        <div class="map-status-layer">
+          <strong>{{ isLoadingMap ? 'Loading map...' : mapLoadError }}</strong>
+        </div>
+      }
+
+      <div class="map-floating-toolbar">
+        <button type="button" class="map-expand-button" (click)="openExpandedMap()" [disabled]="isLoadingMap || !!mapLoadError">
+          <span aria-hidden="true">⤢</span>
+          Expand map
+        </button>
+      </div>
+    </div>
+
+    <aside class="map-side-panel" aria-label="World progress controls">
+      <div class="map-stat-grid">
+        <div>
+          <span>Visited</span>
+          <strong>{{ visitedCountries.length }}</strong>
+        </div>
+        <div>
+          <span>Upcoming</span>
+          <strong>{{ upcomingOnlyCountries.length }}</strong>
+        </div>
+        <div>
+          <span>Visible on map</span>
+          <strong>{{ countriesWithMapShape }}</strong>
+        </div>
+      </div>
+
+      <div class="map-progress-meter" aria-hidden="true">
+        <span [style.width.%]="visitedProgress"></span>
+      </div>
+
+      <div class="map-legend" aria-label="Map legend">
+        <span><i class="legend-dot legend-dot--visited"></i>Visited</span>
+        <span><i class="legend-dot legend-dot--upcoming"></i>Upcoming trip</span>
+        <span><i class="legend-dot legend-dot--both"></i>Both</span>
+      </div>
+
+      <label class="country-picker" for="visited-country">
+        Mark a visited country
+        <div class="country-add-row">
+          <input
+            id="visited-country"
+            type="text"
+            list="visited-country-options"
+            autocomplete="off"
+            placeholder="Type a country or city"
+            [value]="selectedCountry"
+            (input)="onCountryInput($event)"
+            (keydown.enter)="$event.preventDefault(); addSelectedCountry()" />
+          <datalist id="visited-country-options">
+            @for (country of availableCountries; track country) {
+              <option [value]="country"></option>
+            }
+          </datalist>
+          <button type="button" class="map-add-button" (click)="addSelectedCountry()" [disabled]="!selectedCountryCanBeAdded">Add</button>
+        </div>
+      </label>
+
+      @if (isLoadingUpcomingCountries) {
+        <p class="map-note">Loading upcoming trip countries...</p>
+      } @else if (upcomingCountriesError) {
+        <p class="map-note map-note--error">{{ upcomingCountriesError }}</p>
+      } @else if (upcomingOnlyCountries.length) {
+        <div class="upcoming-country-list" aria-label="Upcoming trip countries">
+          <span class="mini-list-label">Upcoming from {{ upcomingTripCount }} trip{{ upcomingTripCount === 1 ? '' : 's' }}</span>
+          <div>
+            @for (country of upcomingOnlyCountries; track country) {
+              <span class="upcoming-country-chip">{{ country }}</span>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="map-note">Saved upcoming trips will appear here automatically.</p>
+      }
+
+      @if (visitedCountries.length) {
+        <div class="visited-country-list" aria-label="Visited countries">
+          <span class="mini-list-label">Visited countries</span>
+          <div>
+            @for (country of visitedCountries; track country) {
+              <button type="button" class="visited-country-chip" (click)="removeVisitedCountry(country)" [attr.aria-label]="'Remove ' + country">
+                <span>{{ country }}</span>
+                <strong aria-hidden="true">×</strong>
+              </button>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="map-note">Start with your first stamp.</p>
+      }
+    </aside>
+  </div>
+</section>
+
+@if (isMapExpanded) {
+  <div class="map-dialog-backdrop" role="presentation" (click)="closeExpandedMap()">
+    <section class="map-dialog" role="dialog" aria-modal="true" aria-labelledby="expanded-map-title" (click)="$event.stopPropagation()">
+      <header class="map-dialog__header">
+        <div>
+          <span class="map-eyebrow">Expanded world map</span>
+          <h3 id="expanded-map-title">Travel progress globe</h3>
+        </div>
+        <button type="button" class="map-dialog__close" aria-label="Close expanded map" (click)="closeExpandedMap()">×</button>
+      </header>
+
+      <div class="expanded-map-grid">
+        <div class="map-stage map-stage--expanded">
+          <svg class="world-map" viewBox="0 0 1000 520" role="img" aria-label="Expanded world map with visited and upcoming countries">
+            <defs>
+              <linearGradient id="mapWaterGradientExpanded" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="rgba(37, 99, 235, 0.16)" />
+                <stop offset="100%" stop-color="rgba(16, 185, 129, 0.12)" />
+              </linearGradient>
+              <linearGradient id="visitedCountryGradientExpanded" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="#2563eb" />
+                <stop offset="100%" stop-color="#0ea5e9" />
+              </linearGradient>
+              <linearGradient id="upcomingCountryGradientExpanded" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#f97316" />
+              </linearGradient>
+              <linearGradient id="bothCountryGradientExpanded" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="#2563eb" />
+                <stop offset="52%" stop-color="#2563eb" />
+                <stop offset="53%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#f59e0b" />
+              </linearGradient>
+            </defs>
+            <rect class="map-water map-water--expanded" x="0" y="0" width="1000" height="520" rx="28"></rect>
+            <g class="map-graticule" aria-hidden="true">
+              @for (longitude of graticuleVerticalLines; track longitude) {
+                <line [attr.x1]="longitudeX(longitude)" y1="20" [attr.x2]="longitudeX(longitude)" y2="500"></line>
+              }
+              @for (latitude of graticuleHorizontalLines; track latitude) {
+                <line x1="20" [attr.y1]="latitudeY(latitude)" x2="980" [attr.y2]="latitudeY(latitude)"></line>
+              }
+            </g>
+            <g class="map-countries">
+              @for (shape of countryShapes; track shape.name) {
+                <path
+                  [attr.d]="shape.path"
+                  [attr.class]="countryClass(shape)"
+                  [attr.aria-label]="shapeTitle(shape)"
+                  tabindex="0"
+                  (click)="toggleVisitedCountry(shape.name)"
+                  (keydown.enter)="toggleVisitedCountry(shape.name)"
+                  (keydown.space)="$event.preventDefault(); toggleVisitedCountry(shape.name)"
+                  (mouseenter)="setHoveredCountry(shape.name)"
+                  (mouseleave)="clearHoveredCountry()">
+                  <title>{{ shapeTitle(shape) }}</title>
+                </path>
+              }
+            </g>
+            <g class="map-markers" aria-hidden="true">
+              @for (shape of markerShapes(); track shape.name) {
+                <g
+                  [attr.class]="markerClass(shape.name)"
+                  [attr.transform]="markerTransform(shape, 0.9)">
+                  <ellipse class="country-marker__shadow" cx="0" cy="2.4" rx="6.6" ry="2.2"></ellipse>
+                  <path class="country-marker__pin" d="M0 0 C-4.7 -6.1 -9 -10.2 -9 -15.2 C-9 -20.7 -5 -24.7 0 -24.7 C5 -24.7 9 -20.7 9 -15.2 C9 -10.2 4.7 -6.1 0 0 Z"></path>
+                  <circle class="country-marker__center" cx="0" cy="-15.2" r="3.1"></circle>
+                </g>
+              }
+            </g>
+          </svg>
+        </div>
+
+        <aside class="expanded-map-summary">
+          <strong>{{ visitedCountries.length }} countries visited</strong>
+          <span>{{ visitedPercentage }}% world coverage</span>
+          <p>{{ upcomingOnlyCountries.length }} upcoming destination{{ upcomingOnlyCountries.length === 1 ? '' : 's' }} found from saved trips.</p>
+          <div class="map-legend">
+            <span><i class="legend-dot legend-dot--visited"></i>Visited</span>
+            <span><i class="legend-dot legend-dot--upcoming"></i>Upcoming trip</span>
+            <span><i class="legend-dot legend-dot--both"></i>Both</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+}
