@@ -112,58 +112,25 @@
             </div>
           </div>
 
-          <div class="world-progress-card" aria-label="Visited countries tracker">
-            <div class="world-progress-header">
-              <div>
-                <span class="identity-kicker">World progress</span>
-                <h3>Countries visited</h3>
-              </div>
-              <strong>{{ worldVisitedPercentage }}%</strong>
-            </div>
 
-            <div class="world-progress-meter" aria-hidden="true">
-              <span [style.width.%]="worldVisitedProgress"></span>
-            </div>
-
-            <p class="world-progress-copy">
-              {{ visitedCountries.length }} of {{ countryOptions.length }} countries marked as visited.
-            </p>
-
-            <label class="country-picker" for="visited-country">
-              Add a country
-              <div class="country-add-row">
-                <input
-                  id="visited-country"
-                  type="text"
-                  list="visited-country-options"
-                  autocomplete="off"
-                  placeholder="Type a country name"
-                  [value]="selectedVisitedCountry"
-                  (input)="onVisitedCountrySelected($event)"
-                  (keydown.enter)="$event.preventDefault(); addVisitedCountry()" />
-                <datalist id="visited-country-options">
-                  @for (country of unvisitedCountryOptions; track country) {
-                    <option [value]="country"></option>
-                  }
-                </datalist>
-                <button type="button" class="secondary-button" (click)="addVisitedCountry()" [disabled]="!canAddVisitedCountry()">Add</button>
-              </div>
-            </label>
-
-            @if (visitedCountries.length) {
-              <div class="visited-country-list" aria-label="Visited countries">
-                @for (country of visitedCountries; track country) {
-                  <button type="button" class="visited-country-chip" (click)="removeVisitedCountry(country)" [attr.aria-label]="'Remove ' + country">
-                    <span>{{ country }}</span>
-                    <strong aria-hidden="true">×</strong>
-                  </button>
-                }
-              </div>
-            } @else {
-              <p class="visited-empty">Start with your first stamp.</p>
-            }
-          </div>
         </div>
+
+        @defer (on idle) {
+          <app-world-travel-map
+            [visitedCountries]="visitedCountries"
+            [upcomingCountries]="upcomingTripCountries"
+            [isLoadingUpcomingCountries]="isLoadingUpcomingCountries"
+            [upcomingCountriesError]="upcomingCountriesError"
+            [upcomingTripCount]="upcomingTripCount"
+            (visitedCountryAdded)="addVisitedCountry($event)"
+            (visitedCountryRemoved)="removeVisitedCountry($event)">
+          </app-world-travel-map>
+        } @placeholder {
+          <div class="travel-map-placeholder">
+            <strong>World map</strong>
+            <span>Loading travel progress...</span>
+          </div>
+        }
 
       </section>
 
