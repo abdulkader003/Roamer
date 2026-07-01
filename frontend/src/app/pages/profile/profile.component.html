@@ -323,6 +323,149 @@
         </form>
       </section>
 
+      <section class="profile-panel friends-panel" id="friend-community">
+        <div class="panel-heading">
+          <div>
+            <span class="section-eyebrow">Social travel</span>
+            <h2>Friend community</h2>
+            <p>Search for other travelers, manage incoming requests, and keep your friend list in one place.</p>
+          </div>
+        </div>
+
+        <div class="friend-search">
+          <label>
+            Search travelers
+            <input
+              type="search"
+              [formControl]="friendSearchControl"
+              placeholder="Search by name, username, or email"
+              autocomplete="off" />
+          </label>
+          <p class="friend-search__hint">Type at least two characters to search.</p>
+        </div>
+
+        @if (friendSearchError) {
+          <p class="message message--error">{{ friendSearchError }}</p>
+        }
+
+        @if (friendCommunityError) {
+          <p class="message message--error">{{ friendCommunityError }}</p>
+        }
+
+        <div class="friends-grid">
+          <section class="friends-subpanel">
+            <div class="friends-subpanel__header">
+              <div>
+                <span class="section-eyebrow">Travelers</span>
+                <h3>Search results</h3>
+              </div>
+              <span class="friends-subpanel__count">{{ friendSearchResults.length }}</span>
+            </div>
+
+            @if (isLoadingFriendSearch) {
+              <div class="friend-state">Searching travelers...</div>
+            } @else if (friendSearchResults.length) {
+              <div class="friend-list">
+                @for (result of friendSearchResults; track result.user.id) {
+                  <article class="friend-item">
+                    <div class="friend-avatar" aria-hidden="true">{{ friendInitials(result.user) }}</div>
+                    <div class="friend-copy">
+                      <strong>{{ friendDisplayName(result.user) }}</strong>
+                      <span>@{{ result.user.username }}</span>
+                      <small>{{ result.user.email }}</small>
+                    </div>
+                    <div class="friend-action">
+                      @if (result.relationshipStatus === 'NONE') {
+                        <button type="button" class="primary-button" (click)="sendFriendRequest(result.user.id)">
+                          Add friend
+                        </button>
+                      } @else {
+                        <span class="friend-status" [class.friend-status--muted]="result.relationshipStatus !== 'FRIEND'">
+                          {{ friendRelationshipLabel(result.relationshipStatus) }}
+                        </span>
+                      }
+                    </div>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="friend-state">Start typing to find travelers.</div>
+            }
+          </section>
+
+          <section class="friends-subpanel">
+            <div class="friends-subpanel__header">
+              <div>
+                <span class="section-eyebrow">Requests</span>
+                <h3>Incoming requests</h3>
+              </div>
+              <span class="friends-subpanel__count">{{ incomingFriendRequests.length }}</span>
+            </div>
+
+            @if (isLoadingIncomingFriendRequests) {
+              <div class="friend-state">Loading incoming requests...</div>
+            } @else if (incomingFriendRequests.length) {
+              <div class="friend-list">
+                @for (request of incomingFriendRequests; track request.id) {
+                  <article class="friend-item">
+                    <div class="friend-avatar" aria-hidden="true">{{ friendInitials(request.sender) }}</div>
+                    <div class="friend-copy">
+                      <strong>{{ friendDisplayName(request.sender) }}</strong>
+                      <span>@{{ request.sender.username }}</span>
+                      <small>Requested {{ request.createdAt | date:'mediumDate' }}</small>
+                    </div>
+                    <div class="friend-action friend-action--stacked">
+                      <button type="button" class="primary-button" (click)="acceptFriendRequest(request.id)">
+                        Accept
+                      </button>
+                      <button type="button" class="secondary-button" (click)="declineFriendRequest(request.id)">
+                        Decline
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="friend-state">No incoming requests right now.</div>
+            }
+          </section>
+
+          <section class="friends-subpanel">
+            <div class="friends-subpanel__header">
+              <div>
+                <span class="section-eyebrow">Connections</span>
+                <h3>Friends list</h3>
+              </div>
+              <span class="friends-subpanel__count">{{ friends.length }}</span>
+            </div>
+
+            @if (isLoadingFriends) {
+              <div class="friend-state">Loading your friends...</div>
+            } @else if (friends.length) {
+              <div class="friend-list">
+                @for (friend of friends; track friend.user.id) {
+                  <article class="friend-item">
+                    <div class="friend-avatar" aria-hidden="true">{{ friendInitials(friend.user) }}</div>
+                    <div class="friend-copy">
+                      <strong>{{ friendDisplayName(friend.user) }}</strong>
+                      <span>@{{ friend.user.username }}</span>
+                      <small>Connected {{ friend.connectedAt | date:'mediumDate' }}</small>
+                    </div>
+                    <div class="friend-action">
+                      <button type="button" class="danger-button" (click)="deleteFriend(friend.user.id)">
+                        Delete friend
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="friend-state">No friends yet. Search travelers to get started.</div>
+            }
+          </section>
+        </div>
+      </section>
+
       <section class="profile-panel danger-panel" id="danger-zone">
         <div>
           <h2>Delete Account</h2>

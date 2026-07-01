@@ -179,7 +179,6 @@ describe('TripComponent', () => {
     component.startEditing();
     component.editTripForm = {
       name: 'Updated Name',
-      destination: 'Rome',
       startDate: '2026-07-15',
       endDate: '2026-07-22',
       budget: 2800,
