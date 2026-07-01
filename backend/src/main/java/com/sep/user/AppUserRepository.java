@@ -29,12 +29,11 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
             from AppUser user
             where user.id <> :currentUserId
               and (
-                    lower(coalesce(user.email, '')) like lower(concat('%', :query, '%'))
-                 or lower(coalesce(user.username, '')) like lower(concat('%', :query, '%'))
+                    lower(coalesce(user.username, '')) like lower(concat('%', :query, '%'))
                  or lower(coalesce(user.firstName, '')) like lower(concat('%', :query, '%'))
                  or lower(coalesce(user.lastName, '')) like lower(concat('%', :query, '%'))
               )
-            order by lower(coalesce(user.username, user.email))
+            order by lower(coalesce(user.username, user.firstName, user.lastName))
             """)
     List<AppUser> searchCommunityUsers(@Param("currentUserId") Long currentUserId, @Param("query") String query);
 }

@@ -338,7 +338,7 @@
             <input
               type="search"
               [formControl]="friendSearchControl"
-              placeholder="Search by name, username, or email"
+              placeholder="Search by username"
               autocomplete="off" />
           </label>
           <p class="friend-search__hint">Type at least two characters to search.</p>
@@ -372,7 +372,6 @@
                     <div class="friend-copy">
                       <strong>{{ friendDisplayName(result.user) }}</strong>
                       <span>@{{ result.user.username }}</span>
-                      <small>{{ result.user.email }}</small>
                     </div>
                     <div class="friend-action">
                       @if (result.relationshipStatus === 'NONE') {

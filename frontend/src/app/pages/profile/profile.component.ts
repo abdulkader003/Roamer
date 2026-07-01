@@ -512,7 +512,7 @@ export class ProfileComponent implements OnInit {
     const lastName = user.lastName?.trim();
     const fullName = [firstName, lastName].filter(Boolean).join(' ');
 
-    return fullName || user.username || user.email;
+    return fullName || user.username;
   }
 
   friendInitials(user: FriendUserSummary): string {
