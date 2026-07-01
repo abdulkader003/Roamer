@@ -76,6 +76,8 @@ public class TripPlanningService {
         tripPlanning.setSelectedHotelStars(hotel.getStars());
         tripPlanning.setSelectedHotelRatingScore(hotel.getRatingScore());
         tripPlanning.setSelectedHotelRatingLabel(hotel.getRatingLabel());
+        // Keeps multi-city hotel snapshots without changing the existing single-hotel contract.
+        tripPlanning.setSelectedHotelStaysJson(cleanOptionalText(request.selectedHotelStaysJson()));
 
         return toHotelResponse(tripPlanningRepository.save(tripPlanning));
     }
@@ -124,6 +126,7 @@ public class TripPlanningService {
                 tripPlanning.getDuration(),
                 tripPlanning.getTravelStyle(),
                 tripPlanning.getSelectedHotelName() != null ? toHotelResponse(tripPlanning) : null,
+                tripPlanning.getSelectedHotelStaysJson(),
                 selectedActivities(tripPlanning),
                 totalActivitiesCost(tripPlanning)
         );
@@ -203,5 +206,13 @@ public class TripPlanningService {
         return selectedActivities(tripPlanning).stream()
                 .map(SelectedTripActivity::price)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private String cleanOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 }

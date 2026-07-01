@@ -116,11 +116,13 @@ public class TripService {
         trip.setFlightStops(cleanOptionalText(request.flightStops()));
         trip.setFlightDetails(cleanOptionalText(request.flightDetails()));
         trip.setFlightTotal(request.flightTotal());
+        trip.setFlightSegmentsJson(cleanOptionalText(request.flightSegmentsJson()));
         trip.setHotelName(cleanOptionalText(request.hotelName()));
         trip.setHotelCity(cleanOptionalText(request.hotelCity()));
         trip.setHotelStars(request.hotelStars());
         trip.setHotelDetails(cleanOptionalText(request.hotelDetails()));
         trip.setHotelTotal(request.hotelTotal());
+        trip.setHotelStaysJson(cleanOptionalText(request.hotelStaysJson()));
         trip.setActivitiesTitle(cleanOptionalText(request.activitiesTitle()));
         trip.setActivitiesDetails(cleanOptionalText(request.activitiesDetails()));
         trip.setActivitiesJson(cleanOptionalText(request.activitiesJson()));
@@ -162,11 +164,13 @@ public class TripService {
                 trip.getFlightStops(),
                 trip.getFlightDetails(),
                 trip.getFlightTotal(),
+                trip.getFlightSegmentsJson(),
                 trip.getHotelName(),
                 trip.getHotelCity(),
                 trip.getHotelStars(),
                 trip.getHotelDetails(),
                 trip.getHotelTotal(),
+                trip.getHotelStaysJson(),
                 trip.getActivitiesTitle(),
                 trip.getActivitiesDetails(),
                 trip.getActivitiesJson(),

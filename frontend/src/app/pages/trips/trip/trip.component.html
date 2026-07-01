@@ -226,40 +226,127 @@
               <article class="overview-hero">
                 <span>Trip name</span>
                 <h3>{{ trip.name }}</h3>
-                <p>{{ modalDestinationName(trip) }} · {{ nightsFor(trip) }} nights · {{ modalTravelerLabel(trip) }}</p>
+                <p>{{ modalRouteSummary(trip) }} · {{ nightsFor(trip) }} nights · {{ modalTravelerLabel(trip) }}</p>
                 <p>{{ formatDateRange(trip) }}</p>
               </article>
 
               @if (modalHasFlightData(trip)) {
-                <article class="overview-summary-card">
-                  <div>
-                    <span class="overview-eyebrow">→ Flight</span>
-                    <h3>{{ modalFlightTitle(trip) }}</h3>
-                    <p>{{ modalFlightDetails(trip) }}</p>
+                <article class="overview-summary-card overview-summary-card--detailed">
+                  <div class="overview-card-header">
+                    <div>
+                      <span class="overview-eyebrow">→ Flights</span>
+                      <h3>{{ modalFlightSegments(trip).length }} {{ modalFlightSegments(trip).length === 1 ? 'segment' : 'segments' }}</h3>
+                    </div>
+                    <strong>€{{ modalFlightTotal(trip) | number:'1.0-0' }}</strong>
                   </div>
-                  <strong>€{{ modalFlightTotal(trip) | number:'1.0-0' }}</strong>
+
+                  <div class="detail-list">
+                    @for (segment of modalFlightSegments(trip); track segment.label) {
+                      <section class="detail-item">
+                        <div class="detail-item-title">
+                          <span>{{ segment.label }}</span>
+                          <strong>{{ cityOnly(segment.from) }} → {{ cityOnly(segment.to) }}</strong>
+                        </div>
+
+                        <dl class="detail-grid">
+                          @for (row of modalFlightDetailRows(segment); track row.label) {
+                            <div>
+                              <dt>{{ row.label }}</dt>
+                              <dd>{{ row.value }}</dd>
+                            </div>
+                          }
+                        </dl>
+                      </section>
+                    }
+                  </div>
                 </article>
               }
 
               @if (modalHasHotelData(trip)) {
-                <article class="overview-summary-card">
-                  <div>
-                    <span class="overview-eyebrow">⌂ Hotel</span>
-                    <h3>{{ modalHotelName(trip) }}</h3>
-                    <p>{{ modalHotelDetails(trip) }}</p>
+                <article class="overview-summary-card overview-summary-card--detailed">
+                  <div class="overview-card-header">
+                    <div>
+                      <span class="overview-eyebrow">⌂ Hotels</span>
+                      <h3>{{ modalHotelGroups(trip).length ? modalHotelGroups(trip).length + ' selected' : 'Hotel not selected' }}</h3>
+                    </div>
+                    <strong>€{{ modalHotelTotal(trip) | number:'1.0-0' }}</strong>
                   </div>
-                  <strong>€{{ modalHotelTotal(trip) | number:'1.0-0' }}</strong>
+
+                  <div class="detail-list">
+                    @for (group of modalHotelGroups(trip); track group.city) {
+                      <section class="detail-group">
+                        <h4>{{ group.city }}</h4>
+                        @for (stay of group.stays; track stay.hotelName) {
+                          <section class="detail-item detail-item--priced">
+                            <div class="detail-item-title">
+                              <span>Hotel</span>
+                              <strong>{{ stay.hotelName }}</strong>
+                            </div>
+
+                            <dl class="detail-grid">
+                              @for (row of modalHotelDetailRows(stay); track row.label) {
+                                <div>
+                                  <dt>{{ row.label }}</dt>
+                                  <dd>{{ row.value }}</dd>
+                                </div>
+                              }
+                            </dl>
+
+                            @if (stay.price) {
+                              <strong class="detail-item-price">
+                                €{{ stay.price | number:'1.0-0' }}
+                                <small>Total for {{ modalTravelerLabel(trip) }}</small>
+                              </strong>
+                            }
+                          </section>
+                        }
+                      </section>
+                    }
+                  </div>
                 </article>
               }
 
               @if (modalHasActivitiesData(trip)) {
-                <article class="overview-summary-card">
-                  <div>
-                    <span class="overview-eyebrow">● Activities</span>
-                    <h3>{{ modalActivitiesTitle(trip) }}</h3>
-                    <p>{{ modalActivitiesDetails(trip) }}</p>
+                <article class="overview-summary-card overview-summary-card--detailed">
+                  <div class="overview-card-header">
+                    <div>
+                      <span class="overview-eyebrow">● Activities</span>
+                      <h3>{{ modalActivities(trip).length }} selected</h3>
+                    </div>
+                    <strong>€{{ modalActivitiesTotal(trip) | number:'1.0-0' }}</strong>
                   </div>
-                  <strong>€{{ modalActivitiesTotal(trip) | number:'1.0-0' }}</strong>
+
+                  <div class="detail-list">
+                    @for (group of modalActivityGroups(trip); track group.city) {
+                      <section class="detail-group">
+                        <h4>{{ group.city }}</h4>
+                        @for (activity of group.activities; track activity.name) {
+                          <section class="detail-item detail-item--priced">
+                            <div class="detail-item-title">
+                              <span>{{ activity.category }}</span>
+                              <strong>{{ activity.name }}</strong>
+                            </div>
+
+                            <dl class="detail-grid">
+                              @for (row of modalActivityDetailRows(activity); track row.label) {
+                                <div>
+                                  <dt>{{ row.label }}</dt>
+                                  <dd>{{ row.value }}</dd>
+                                </div>
+                              }
+                            </dl>
+
+                            @if (activity.price) {
+                              <strong class="detail-item-price">
+                                €{{ modalActivityTotal(trip, activity) | number:'1.0-0' }}
+                                <small>Total for {{ modalTravelerLabel(trip) }}</small>
+                              </strong>
+                            }
+                          </section>
+                        }
+                      </section>
+                    }
+                  </div>
                 </article>
               }
 
@@ -325,17 +412,8 @@
           @if (actionError()) {
             <p class="modal-error" role="alert">{{ actionError() }}</p>
           }
-
-          @if (showDeleteConfirm()) {
-            <div class="delete-confirm-banner" role="alert">
-              <span>Delete <strong>{{ trip.name }}</strong>? This cannot be undone and will also remove its calendar events.</span>
-              <div class="delete-confirm-actions">
-                <button type="button" class="secondary-action" (click)="cancelDeleteTrip()" [disabled]="isActionSaving()">Cancel</button>
-                <button type="button" class="danger-action" (click)="deleteSelectedTrip()" [disabled]="isActionSaving()">
-                  {{ isActionSaving() ? 'Deleting...' : 'Yes, delete' }}
-                </button>
-              </div>
-            </div>
+          @if (exportError()) {
+            <p class="modal-error" role="alert">{{ exportError() }}</p>
           }
 
           <div class="modal-actions modal-actions--split">
@@ -344,7 +422,24 @@
             </button>
 
             <div class="modal-main-actions">
-              <button type="button" class="secondary-action" (click)="startEditing()" [disabled]="isActionSaving()">Quick Edit</button>
+              <div class="export-wrapper">
+                <button
+                  type="button"
+                  class="secondary-action"
+                  aria-haspopup="menu"
+                  [attr.aria-expanded]="isExportMenuOpen()"
+                  [disabled]="isExportingPdf()"
+                  (click)="toggleExportMenu()">
+                  {{ isExportingPdf() ? 'Exporting...' : 'Export Trip Summary' }}
+                </button>
+                @if (isExportMenuOpen()) {
+                  <div class="export-menu" role="menu">
+                    <button type="button" class="export-menu-item" role="menuitem" (click)="exportTripSummary(trip)">
+                      Export as PDF
+                    </button>
+                  </div>
+                }
+              </div>
               <button type="button" class="secondary-action" (click)="editTripInWizard()" [disabled]="isActionSaving()">Edit All Details</button>
               @if (trip.status === 'PLANNING') {
                 <button type="button" class="primary-action" (click)="continueDraft()" [disabled]="isActionSaving()">
@@ -357,6 +452,32 @@
           </div>
         }
       </article>
+
+      @if (showDeleteConfirm()) {
+        <div class="confirm-dialog-backdrop" role="presentation" (click)="cancelDeleteTrip(); $event.stopPropagation()">
+          <div
+            class="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-trip-title"
+            (click)="$event.stopPropagation()">
+            <p class="confirm-dialog-eyebrow">Delete Trip</p>
+            <h3 id="delete-trip-title">Are you sure you want to delete this trip?</h3>
+            <p class="confirm-dialog-copy">
+              <strong>{{ trip.name }}</strong> will be removed, including its calendar events.
+            </p>
+
+            <div class="confirm-dialog-actions">
+              <button type="button" class="secondary-action" (click)="cancelDeleteTrip()" [disabled]="isActionSaving()">
+                Cancel
+              </button>
+              <button type="button" class="danger-action" (click)="deleteSelectedTrip()" [disabled]="isActionSaving()">
+                {{ isActionSaving() ? 'Deleting...' : 'Yes, delete' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </section>
   }
 </main>

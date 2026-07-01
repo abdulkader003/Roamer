@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { convertToParamMap, ActivatedRoute, provideRouter, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { ActivitiesService } from '../../../../services/activities';
-import { TripActivitiesResponse, TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripActivitiesResponse, TripOverviewResponse, TripPlanningService } from '../../../../services/trip-planning.service';
 import { TripTempService } from '../trip-temp.service';
 import { ActivitiesStepComponent } from './activities-step.component';
 
@@ -14,10 +14,13 @@ describe('ActivitiesStepComponent', () => {
   let tripTempService: jasmine.SpyObj<TripTempService>;
   let router: Router;
 
-  function setup(queryParams: Record<string, string | string[]> = { tripPlanningId: '10' }) {
+  function setup(
+    queryParams: Record<string, string | string[]> = { tripPlanningId: '10' },
+    overviewOverrides: Partial<TripOverviewResponse> = {},
+  ) {
     TestBed.resetTestingModule();
     activitiesService = jasmine.createSpyObj<ActivitiesService>('ActivitiesService', ['getActivities']);
-    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['saveActivitiesStep']);
+    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['saveActivitiesStep', 'getOverview']);
     tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', ['getTripTemp', 'updateTripTemp']);
     tripTempService.getTripTemp.and.returnValue({
       tripPlanningId: 10,
@@ -92,6 +95,18 @@ describe('ActivitiesStepComponent', () => {
       size: 8,
       hasMore: false,
     }));
+    tripPlanningService.getOverview.and.returnValue(of({
+      id: 10,
+      tripName: 'Summer in Barcelona',
+      budget: 2000,
+      currency: 'EUR',
+      duration: 7,
+      travelStyle: 'Mid-range',
+      selectedHotel: null,
+      selectedActivities: [],
+      totalActivitiesCost: 0,
+      ...overviewOverrides,
+    }));
 
     TestBed.configureTestingModule({
       imports: [ActivitiesStepComponent],
@@ -106,6 +121,7 @@ describe('ActivitiesStepComponent', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
+              queryParams,
               queryParamMap: convertToParamMap(queryParams),
             },
           },
@@ -222,6 +238,28 @@ describe('ActivitiesStepComponent', () => {
 
     component.toggleActivity(activity);
     expect(component.isSelected(activity)).toBeFalse();
+  });
+
+  it('preselects saved backend activities when returning to the Activities step', () => {
+    setup({ tripPlanningId: '10' }, {
+      selectedActivities: [
+        {
+          name: 'Picasso Museum',
+          category: 'Arts & Culture',
+          price: 28,
+          duration: '2 hours',
+          city: 'Barcelona',
+        },
+      ],
+      totalActivitiesCost: 28,
+    });
+
+    const activity = component.activities().find((currentActivity) => currentActivity.name === 'Picasso Museum');
+
+    expect(activity).toBeTruthy();
+    expect(component.isSelected(activity!)).toBeTrue();
+    expect(component.selectedCount()).toBe(1);
+    expect(component.selectedTotal()).toBe(28);
   });
 
   it('updates selected total and count', () => {
