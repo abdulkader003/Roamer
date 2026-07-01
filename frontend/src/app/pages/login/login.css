@@ -4,7 +4,6 @@
   align-items: center;
   justify-content: flex-end;
   padding: 32px clamp(48px, 10vw, 132px) 32px clamp(220px, 24vw, 360px);
-  background: var(--page-bg);
 }
 
 .auth-card {

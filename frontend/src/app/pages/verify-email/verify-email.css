@@ -4,10 +4,6 @@
   align-items: center;
   justify-items: end;
   padding: 32px clamp(48px, 10vw, 132px) 32px clamp(220px, 24vw, 360px);
-  background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 12%, transparent), transparent 28%),
-    radial-gradient(circle at top right, color-mix(in srgb, var(--gold) 14%, transparent), transparent 32%),
-    linear-gradient(180deg, var(--page-bg), var(--surface-secondary));
 }
 
 .auth-card {
