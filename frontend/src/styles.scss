@@ -250,3 +250,98 @@ body {
   ::-webkit-scrollbar-track { background: #141414; }
   ::-webkit-scrollbar-thumb { background: #8A6520; border-radius: 2px; }
 }
+
+
+/* ══════════════════════════════════════════════
+   PAGE WALLPAPERS
+   Each page gets a themed background image.
+   Usage: add class "page-wallpaper" + a page-specific
+   class to the main content wrapper.
+   ══════════════════════════════════════════════ */
+
+.page-wallpaper {
+  position: relative;
+  isolation: isolate;
+  background: transparent !important;
+}
+
+.page-wallpaper::before,
+.page-wallpaper::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.page-wallpaper::before {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.58;
+  transition: opacity 0.4s;
+}
+
+.page-wallpaper::after {
+  background:
+    radial-gradient(circle at 20% 8%, rgba(255,255,255,0.64), transparent 32%),
+    linear-gradient(90deg, rgba(244,246,251,0.80) 0%, rgba(244,246,251,0.46) 42%, rgba(244,246,251,0.68) 100%),
+    linear-gradient(180deg, rgba(244,246,251,0.72) 0%, rgba(244,246,251,0.26) 44%, rgba(244,246,251,0.78) 100%);
+}
+
+[data-theme='dark'] .page-wallpaper::before {
+  opacity: 0.66;
+}
+
+[data-theme='dark'] .page-wallpaper::after {
+  background:
+    radial-gradient(circle at 20% 8%, rgba(201,150,42,0.12), transparent 30%),
+    linear-gradient(90deg, rgba(13,13,13,0.86) 0%, rgba(13,13,13,0.58) 42%, rgba(13,13,13,0.78) 100%),
+    linear-gradient(180deg, rgba(13,13,13,0.78) 0%, rgba(13,13,13,0.32) 44%, rgba(13,13,13,0.84) 100%);
+}
+
+.page-wallpaper > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Per-page images ── */
+.wallpaper-dashboard::before {
+  background-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1800&q=85');
+}
+
+.wallpaper-trips::before {
+  background-image: url('https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1800&q=85');
+}
+
+.wallpaper-flights::before {
+  background-image: url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1800&q=85');
+}
+
+.wallpaper-hotels::before {
+  background-image: url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1800&q=85');
+}
+
+.wallpaper-activities::before {
+  background-image: url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1800&q=85');
+}
+
+.wallpaper-budget::before {
+  background-image: url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1800&q=85');
+}
+
+.wallpaper-calendar::before {
+  background-image: url('https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=1800&q=85');
+}
+
+.wallpaper-profile::before {
+  background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1800&q=85');
+}
+
+.wallpaper-settings::before {
+  background-image: url('https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1800&q=85');
+}
+
+.wallpaper-bookings::before {
+  background-image: url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1800&q=85');
+}
