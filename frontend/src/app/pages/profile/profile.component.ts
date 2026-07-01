@@ -15,6 +15,14 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AirportOption, AirportOptionsService } from '../../services/airport-options.service';
 import { AuthService } from '../../services/auth';
 import {
+  FriendCommunityService,
+  FriendItem,
+  FriendRequestItem,
+  FriendSearchResult,
+  FriendUserSummary
+} from '../../services/friend-community.service';
+import { FriendNotificationService } from '../../services/friend-notification.service';
+import {
   ProfileService,
   UpdateProfileRequest,
   UserProfile
@@ -52,6 +60,8 @@ const TRAVEL_ACHIEVEMENTS: TravelAchievementOption[] = [
 export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly profileService = inject(ProfileService);
+  private readonly friendCommunityService = inject(FriendCommunityService);
+  private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly profileState = inject(ProfileStateService);
   private readonly airportOptions = inject(AirportOptionsService);
   private readonly tripPlanningService = inject(TripPlanningService);
@@ -85,13 +95,22 @@ export class ProfileComponent implements OnInit {
   visitedCountries: string[] = [];
   upcomingTripCountries: string[] = [];
   selectedTravelAchievements: string[] = [];
+  friendSearchResults: FriendSearchResult[] = [];
+  incomingFriendRequests: FriendRequestItem[] = [];
+  friends: FriendItem[] = [];
   isLoadingUpcomingCountries = false;
+  isLoadingFriendSearch = false;
+  isLoadingIncomingFriendRequests = false;
+  isLoadingFriends = false;
   upcomingCountriesError = '';
+  friendSearchError = '';
+  friendCommunityError = '';
   upcomingTripCount = 0;
   private selectedHomeAirport: AirportOption | null = null;
 
   readonly maxPictureSizeMb = 2;
   readonly travelAchievementOptions = TRAVEL_ACHIEVEMENTS;
+  readonly friendSearchControl = this.fb.nonNullable.control('');
 
   readonly profileForm = this.fb.nonNullable.group({
     username: ['', [
@@ -127,8 +146,10 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.setupAirportSearch();
+    this.setupFriendSearch();
     this.loadProfile();
     this.loadUpcomingTripCountries();
+    this.loadFriendCommunity();
   }
 
   get profileImageUrl(): string {
@@ -217,6 +238,13 @@ export class ProfileComponent implements OnInit {
           this.isLoadingUpcomingCountries = false;
         })
       });
+  }
+
+  loadFriendCommunity(): void {
+    this.friendCommunityError = '';
+    this.loadIncomingFriendRequests();
+    this.loadFriends();
+    this.loadFriendSearchResults(this.friendSearchControl.value);
   }
 
   saveProfile(): void {
@@ -383,6 +411,7 @@ export class ProfileComponent implements OnInit {
       .subscribe({
         next: () => this.renderNow(() => {
           this.isDeletingAccount = false;
+          this.friendNotificationService.clear();
           this.profileState.clear();
           this.authService.logout();
           void this.router.navigate(['/login'], {
@@ -478,6 +507,85 @@ export class ProfileComponent implements OnInit {
     return this.selectedTravelAchievements.includes(key);
   }
 
+  friendDisplayName(user: FriendUserSummary): string {
+    const firstName = user.firstName?.trim();
+    const lastName = user.lastName?.trim();
+    const fullName = [firstName, lastName].filter(Boolean).join(' ');
+
+    return fullName || user.username;
+  }
+
+  friendInitials(user: FriendUserSummary): string {
+    return this.friendDisplayName(user)
+      .split(/[\s@._-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'FR';
+  }
+
+  friendRelationshipLabel(status: FriendSearchResult['relationshipStatus']): string {
+    switch (status) {
+      case 'FRIEND':
+        return 'Friends';
+      case 'OUTGOING_PENDING':
+        return 'Request sent';
+      case 'INCOMING_PENDING':
+        return 'Request received';
+      default:
+        return 'Add friend';
+    }
+  }
+
+  sendFriendRequest(receiverId: number): void {
+    this.friendCommunityError = '';
+    this.friendCommunityService.sendFriendRequest({ receiverId })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.renderNow(() => this.loadFriendCommunity()),
+        error: (error) => this.renderNow(() => {
+          this.friendCommunityError = this.extractErrorMessage(error, 'Could not send the friend request.');
+        })
+      });
+  }
+
+  acceptFriendRequest(requestId: number): void {
+    this.friendCommunityError = '';
+    this.friendCommunityService.acceptFriendRequest(requestId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.renderNow(() => this.loadFriendCommunity()),
+        error: (error) => this.renderNow(() => {
+          this.friendCommunityError = this.extractErrorMessage(error, 'Could not accept the friend request.');
+        })
+      });
+  }
+
+  declineFriendRequest(requestId: number): void {
+    this.friendCommunityError = '';
+    this.friendCommunityService.declineFriendRequest(requestId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.renderNow(() => this.loadFriendCommunity()),
+        error: (error) => this.renderNow(() => {
+          this.friendCommunityError = this.extractErrorMessage(error, 'Could not decline the friend request.');
+        })
+      });
+  }
+
+  deleteFriend(friendId: number): void {
+    this.friendCommunityError = '';
+    this.friendCommunityService.deleteFriend(friendId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.renderNow(() => this.loadFriendCommunity()),
+        error: (error) => this.renderNow(() => {
+          this.friendCommunityError = this.extractErrorMessage(error, 'Could not delete this friend.');
+
+        })
+      });
+  }
+
   private applyProfile(profile: UserProfile): void {
     this.profile = profile;
     this.profileState.setProfile(profile);
@@ -497,6 +605,75 @@ export class ProfileComponent implements OnInit {
     this.airportSuggestions = [];
     this.airportSearchMessage = '';
     this.loadVisitedCountries();
+  }
+
+  private loadFriendSearchResults(query: string): void {
+    const normalizedQuery = query.trim();
+
+    if (normalizedQuery.length < 2) {
+      this.friendSearchResults = [];
+      this.friendSearchError = '';
+      this.isLoadingFriendSearch = false;
+      this.refreshView();
+      return;
+    }
+
+    this.isLoadingFriendSearch = true;
+    this.friendSearchError = '';
+    this.refreshView();
+
+    this.friendCommunityService.searchUsers(normalizedQuery)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (results) => this.renderNow(() => {
+          this.friendSearchResults = results;
+          this.isLoadingFriendSearch = false;
+        }),
+        error: (error) => this.renderNow(() => {
+          this.friendSearchError = this.extractErrorMessage(error, 'Could not search for travelers.');
+          this.friendSearchResults = [];
+          this.isLoadingFriendSearch = false;
+        })
+      });
+  }
+
+  private loadIncomingFriendRequests(): void {
+    this.isLoadingIncomingFriendRequests = true;
+    this.refreshView();
+
+    this.friendCommunityService.listIncomingRequests()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (requests) => this.renderNow(() => {
+          this.incomingFriendRequests = requests;
+          this.friendNotificationService.syncIncomingRequests(requests);
+          this.isLoadingIncomingFriendRequests = false;
+        }),
+        error: (error) => this.renderNow(() => {
+          this.friendCommunityError = this.extractErrorMessage(error, 'Could not load incoming friend requests.');
+          this.incomingFriendRequests = [];
+          this.isLoadingIncomingFriendRequests = false;
+        })
+      });
+  }
+
+  private loadFriends(): void {
+    this.isLoadingFriends = true;
+    this.refreshView();
+
+    this.friendCommunityService.listFriends()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (friends) => this.renderNow(() => {
+          this.friends = friends;
+          this.isLoadingFriends = false;
+        }),
+        error: (error) => this.renderNow(() => {
+          this.friendCommunityError = this.extractErrorMessage(error, 'Could not load your friends list.');
+          this.friends = [];
+          this.isLoadingFriends = false;
+        })
+      });
   }
 
   private isUpcomingTrip(trip: TripResponse): boolean {
@@ -558,6 +735,16 @@ export class ProfileComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((value) => this.updateAirportSuggestions(value));
+  }
+
+  private setupFriendSearch(): void {
+    this.friendSearchControl.valueChanges
+      .pipe(
+        debounceTime(220),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((value) => this.loadFriendSearchResults(value));
   }
 
   private updateAirportSuggestions(value: string): void {
