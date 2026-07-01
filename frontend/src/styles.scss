@@ -296,11 +296,28 @@ app-signup .signup-card {
   z-index: 1;
 }
 
+:is(app-login, app-verify-email, app-signup) .auth-avatar {
+  position: absolute;
+  left: clamp(72px, 11vw, 176px);
+  top: 18%;
+}
+
 @media (max-width: 900px) {
   :is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page::before,
   app-signup .signup-container::before {
     width: 100%;
     opacity: 0.45;
+  }
+
+  :is(app-login, app-verify-email, app-signup) .auth-avatar {
+    left: 24px;
+    width: clamp(210px, 30vw, 300px);
+  }
+}
+
+@media (max-width: 700px) {
+  :is(app-login, app-verify-email, app-signup) .auth-avatar {
+    display: none;
   }
 }
 

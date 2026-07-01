@@ -2,10 +2,11 @@ import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/c
 import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { RoamerAvatarComponent } from '../../shared/roamer-avatar/roamer-avatar.component';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, RoamerAvatarComponent],
   templateUrl: './login.html',
   styleUrl: './login.css'
 })

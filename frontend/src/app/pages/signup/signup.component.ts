@@ -3,11 +3,12 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { RoamerAvatarComponent } from '../../shared/roamer-avatar/roamer-avatar.component';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, RoamerAvatarComponent],
   templateUrl: './signup.component.html',
   styleUrl: './signup.component.scss'
 })
