@@ -1,8 +1,9 @@
 .auth-page {
   min-height: calc(100vh - 64px);
   display: grid;
-  place-items: center;
-  padding: 32px 24px;
+  align-items: center;
+  justify-items: end;
+  padding: 32px clamp(48px, 10vw, 132px) 32px clamp(220px, 24vw, 360px);
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 12%, transparent), transparent 28%),
     radial-gradient(circle at top right, color-mix(in srgb, var(--gold) 14%, transparent), transparent 32%),
@@ -10,10 +11,10 @@
 }
 
 .auth-card {
-  width: min(520px, 100%);
+  width: min(500px, 100%);
   border: 1px solid var(--border);
   border-radius: 28px;
-  padding: 34px;
+  padding: 36px;
   background: color-mix(in srgb, var(--surface-primary) 92%, transparent);
   box-shadow: 0 26px 70px var(--card-shadow);
   backdrop-filter: blur(18px);
@@ -193,6 +194,13 @@
 
 .auth-actions a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .auth-page {
+    justify-items: center;
+    padding: 32px 24px;
+  }
 }
 
 @media (max-width: 560px) {

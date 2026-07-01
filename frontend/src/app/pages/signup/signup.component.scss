@@ -1,8 +1,9 @@
 .signup-container {
   display: grid;
-  place-items: center;
+  align-items: center;
+  justify-items: end;
   min-height: 100vh;
-  padding: 32px 24px;
+  padding: 32px clamp(48px, 10vw, 132px) 32px clamp(220px, 24vw, 360px);
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 12%, transparent), transparent 28%),
     linear-gradient(180deg, var(--page-bg), var(--surface-secondary));
@@ -10,11 +11,11 @@
 
 .signup-card {
   background: var(--surface-primary);
-  padding: 2rem;
+  padding: 2.25rem;
   border-radius: 24px;
   border: 1px solid var(--border);
   width: 100%;
-  max-width: 460px;
+  max-width: 500px;
   box-shadow: 0 24px 64px var(--card-shadow);
 }
 
@@ -140,5 +141,23 @@ form {
     &:hover {
       text-decoration: underline;
     }
+  }
+}
+
+@media (max-width: 900px) {
+  .signup-container {
+    justify-items: center;
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .signup-container {
+    align-items: start;
+    padding: 24px 16px;
+  }
+
+  .signup-card {
+    padding: 1.5rem 1.25rem;
   }
 }

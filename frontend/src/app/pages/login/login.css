@@ -2,18 +2,18 @@
   min-height: calc(100vh - 64px);
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 32px 24px;
+  justify-content: flex-end;
+  padding: 32px clamp(48px, 10vw, 132px) 32px clamp(220px, 24vw, 360px);
   background: var(--page-bg);
 }
 
 .auth-card {
-  width: min(440px, 100%);
+  width: min(500px, 100%);
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface-primary);
   box-shadow: 0 24px 64px var(--card-shadow);
-  padding: 30px;
+  padding: 36px;
 }
 
 .auth-header {
@@ -156,6 +156,13 @@
 .auth-switch a:hover {
   color: var(--gold-light);
   text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .auth-page {
+    justify-content: center;
+    padding: 32px 24px;
+  }
 }
 
 @media (max-width: 560px) {
