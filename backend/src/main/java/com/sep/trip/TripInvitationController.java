@@ -3,10 +3,12 @@ package com.sep.trip;
 import com.sep.auth.dto.MessageResponse;
 import com.sep.trip.dto.InviteTripFriendRequest;
 import com.sep.trip.dto.TripInvitationResponse;
+import com.sep.trip.dto.TripParticipantResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +44,19 @@ public class TripInvitationController {
         return tripInvitationService.listIncomingInvitations(authentication.getName());
     }
 
+    @GetMapping("/invitations/sent")
+    public List<TripInvitationResponse> listSentInvitations(Authentication authentication) {
+        return tripInvitationService.listSentInvitations(authentication.getName());
+    }
+
+    @GetMapping("/{tripId}/participants")
+    public ResponseEntity<List<TripParticipantResponse>> listParticipants(
+            Authentication authentication,
+            @PathVariable Long tripId
+    ) {
+        return ResponseEntity.ok(tripInvitationService.listParticipants(authentication.getName(), tripId));
+    }
+
     @PostMapping("/invitations/{invitationId}/accept")
     public ResponseEntity<MessageResponse> acceptInvitation(
             Authentication authentication,
@@ -56,6 +71,14 @@ public class TripInvitationController {
             @PathVariable Long invitationId
     ) {
         return ResponseEntity.ok(tripInvitationService.declineInvitation(authentication.getName(), invitationId));
+    }
+
+    @DeleteMapping("/invitations/{invitationId}")
+    public ResponseEntity<MessageResponse> cancelInvitation(
+            Authentication authentication,
+            @PathVariable Long invitationId
+    ) {
+        return ResponseEntity.ok(tripInvitationService.cancelInvitation(authentication.getName(), invitationId));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

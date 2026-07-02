@@ -4,6 +4,7 @@ import com.sep.auth.dto.MessageResponse;
 import com.sep.friend.FriendRequestRepository;
 import com.sep.friend.FriendRequestStatus;
 import com.sep.trip.dto.InviteTripFriendRequest;
+import com.sep.trip.dto.TripParticipantResponse;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -128,6 +129,48 @@ class TripInvitationServiceTest {
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().trip().name()).isEqualTo("Summer in Rome");
         assertThat(response.getFirst().invitedBy().username()).isEqualTo("owner");
+        assertThat(response.getFirst().invitedUser().username()).isEqualTo("friend");
+    }
+
+    @Test
+    void listSentInvitationsReturnsInvitationsCreatedByCurrentUser() {
+        TripInvitation invitation = invitation(21L, invitedUser, owner, TripInvitationStatus.PENDING);
+        when(appUserRepository.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
+        when(tripInvitationRepository.findAllByInvitedByIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(invitation));
+
+        var response = tripInvitationService.listSentInvitations("owner@example.com");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.getFirst().invitedBy().username()).isEqualTo("owner");
+        assertThat(response.getFirst().invitedUser().username()).isEqualTo("friend");
+    }
+
+    @Test
+    void listParticipantsReturnsOwnerAndAcceptedInvitees() {
+        TripInvitation accepted = invitation(21L, invitedUser, owner, TripInvitationStatus.ACCEPTED);
+        when(appUserRepository.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(11L, TripInvitationStatus.ACCEPTED))
+                .thenReturn(List.of(accepted));
+
+        List<TripParticipantResponse> participants = tripInvitationService.listParticipants("owner@example.com", 11L);
+
+        assertThat(participants).hasSize(2);
+        assertThat(participants.getFirst().user().username()).isEqualTo("owner");
+        assertThat(participants.get(1).user().username()).isEqualTo("friend");
+    }
+
+    @Test
+    void cancelInvitationDeletesPendingInvitationOwnedByCurrentUser() {
+        TripInvitation pending = invitation(21L, invitedUser, owner, TripInvitationStatus.PENDING);
+        when(appUserRepository.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
+        when(tripInvitationRepository.findByIdAndInvitedByIdAndStatus(21L, 7L, TripInvitationStatus.PENDING))
+                .thenReturn(Optional.of(pending));
+
+        MessageResponse response = tripInvitationService.cancelInvitation("owner@example.com", 21L);
+
+        assertThat(response.message()).isEqualTo("Trip invitation cancelled.");
+        verify(tripInvitationRepository).delete(pending);
     }
 
     @Test

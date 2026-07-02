@@ -9,6 +9,7 @@ public record TripInvitationResponse(
         Long id,
         TripInvitationTripSummaryResponse trip,
         FriendUserResponse invitedBy,
+        FriendUserResponse invitedUser,
         TripInvitationStatus status,
         OffsetDateTime createdAt
 ) {

@@ -7,6 +7,7 @@ import com.sep.friend.dto.FriendUserResponse;
 import com.sep.trip.dto.InviteTripFriendRequest;
 import com.sep.trip.dto.TripInvitationResponse;
 import com.sep.trip.dto.TripInvitationTripSummaryResponse;
+import com.sep.trip.dto.TripParticipantResponse;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
 import org.springframework.http.HttpStatus;
@@ -65,6 +66,37 @@ public class TripInvitationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<TripInvitationResponse> listSentInvitations(String authenticatedEmail) {
+        AppUser currentUser = findCurrentUser(authenticatedEmail);
+        return tripInvitationRepository.findAllByInvitedByIdOrderByCreatedAtDesc(currentUser.getId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripParticipantResponse> listParticipants(String authenticatedEmail, Long tripId) {
+        AppUser currentUser = findCurrentUser(authenticatedEmail);
+        Trip trip = findAccessibleTrip(tripId, currentUser);
+
+        List<TripParticipantResponse> participants = new java.util.ArrayList<>();
+        participants.add(new TripParticipantResponse(toFriendUserResponse(trip.getOwner()), TripAccessRole.OWNER));
+
+        participants.addAll(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(
+                        trip.getId(),
+                        TripInvitationStatus.ACCEPTED
+                )
+                .stream()
+                .map(invitation -> new TripParticipantResponse(
+                        toFriendUserResponse(invitation.getInvitedUser()),
+                        TripAccessRole.PARTICIPANT
+                ))
+                .toList());
+
+        return participants;
+    }
+
     @Transactional
     public MessageResponse acceptInvitation(String authenticatedEmail, Long invitationId) {
         TripInvitation invitation = findPendingInvitationForCurrentUser(authenticatedEmail, invitationId);
@@ -79,6 +111,20 @@ public class TripInvitationService {
         invitation.setStatus(TripInvitationStatus.DECLINED);
         tripInvitationRepository.save(invitation);
         return new MessageResponse("Trip invitation declined.");
+    }
+
+    @Transactional
+    public MessageResponse cancelInvitation(String authenticatedEmail, Long invitationId) {
+        AppUser currentUser = findCurrentUser(authenticatedEmail);
+        TripInvitation invitation = tripInvitationRepository.findByIdAndInvitedByIdAndStatus(
+                        invitationId,
+                        currentUser.getId(),
+                        TripInvitationStatus.PENDING
+                )
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip invitation was not found."));
+
+        tripInvitationRepository.delete(invitation);
+        return new MessageResponse("Trip invitation cancelled.");
     }
 
     private void validateInvitation(AppUser inviter, Trip trip, AppUser invitedUser) {
@@ -150,8 +196,26 @@ public class TripInvitationService {
                         invitation.getInvitedBy().isVerified(),
                         invitation.getInvitedBy().getProfilePictureUpdatedAt()
                 ),
+                toFriendUserResponse(invitation.getInvitedUser()),
                 invitation.getStatus(),
                 invitation.getCreatedAt()
         );
+    }
+
+    private FriendUserResponse toFriendUserResponse(AppUser user) {
+        return new FriendUserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.isVerified(),
+                user.getProfilePictureUpdatedAt()
+        );
+    }
+
+    private Trip findAccessibleTrip(Long tripId, AppUser user) {
+        return tripRepository.findAccessibleByIdAndUserId(tripId, user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip was not found."));
     }
 }

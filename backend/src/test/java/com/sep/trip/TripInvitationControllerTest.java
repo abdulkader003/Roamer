@@ -3,6 +3,7 @@ package com.sep.trip;
 import com.sep.auth.dto.MessageResponse;
 import com.sep.trip.dto.InviteTripFriendRequest;
 import com.sep.trip.dto.TripInvitationResponse;
+import com.sep.trip.dto.TripParticipantResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,6 +84,53 @@ class TripInvitationControllerTest {
         verify(tripInvitationService).declineInvitation("friend@example.com", 21L);
     }
 
+    @Test
+    void listSentInvitationsUsesAuthenticatedEmail() {
+        TripInvitationResponse response = invitationResponse();
+        when(authentication.getName()).thenReturn("owner@example.com");
+        when(tripInvitationService.listSentInvitations("owner@example.com")).thenReturn(List.of(response));
+
+        List<TripInvitationResponse> actual = tripInvitationController.listSentInvitations(authentication);
+
+        assertThat(actual).containsExactly(response);
+        verify(tripInvitationService).listSentInvitations("owner@example.com");
+    }
+
+    @Test
+    void listParticipantsUsesAuthenticatedEmailAndTripId() {
+        TripParticipantResponse participant = new TripParticipantResponse(
+                new com.sep.friend.dto.FriendUserResponse(
+                        7L,
+                        "owner",
+                        "Ada",
+                        "Lovelace",
+                        "owner@example.com",
+                        true,
+                        null
+                ),
+                TripAccessRole.OWNER
+        );
+        when(authentication.getName()).thenReturn("owner@example.com");
+        when(tripInvitationService.listParticipants("owner@example.com", 11L)).thenReturn(List.of(participant));
+
+        ResponseEntity<List<TripParticipantResponse>> actual = tripInvitationController.listParticipants(authentication, 11L);
+
+        assertThat(actual.getBody()).containsExactly(participant);
+        verify(tripInvitationService).listParticipants("owner@example.com", 11L);
+    }
+
+    @Test
+    void cancelInvitationUsesAuthenticatedEmailAndInvitationId() {
+        when(authentication.getName()).thenReturn("owner@example.com");
+        MessageResponse message = new MessageResponse("Trip invitation cancelled.");
+        when(tripInvitationService.cancelInvitation("owner@example.com", 21L)).thenReturn(message);
+
+        ResponseEntity<MessageResponse> actual = tripInvitationController.cancelInvitation(authentication, 21L);
+
+        assertThat(actual.getBody()).isEqualTo(message);
+        verify(tripInvitationService).cancelInvitation("owner@example.com", 21L);
+    }
+
     private TripInvitationResponse invitationResponse() {
         return new TripInvitationResponse(
                 21L,
@@ -101,6 +149,15 @@ class TripInvitationControllerTest {
                         "Ada",
                         "Lovelace",
                         "owner@example.com",
+                        true,
+                        null
+                ),
+                new com.sep.friend.dto.FriendUserResponse(
+                        9L,
+                        "friend",
+                        "Grace",
+                        "Hopper",
+                        "friend@example.com",
                         true,
                         null
                 ),
