@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { AuthService } from './auth';
+import { FriendUserSummary } from './friend-community.service';
 
 export interface CreateTripBudgetRequest {
   tripName: string;
@@ -144,6 +145,39 @@ export interface TripResponse {
   activitiesDetails?: string | null;
   activitiesJson?: string | null;
   activitiesTotal?: number | null;
+  accessRole?: 'OWNER' | 'PARTICIPANT' | null;
+}
+
+export interface InviteTripFriendRequest {
+  invitedUserId: number;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface TripInvitationTripSummaryResponse {
+  id: number;
+  name: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  budget: number;
+  status: TripStatus;
+}
+
+export interface TripInvitationResponse {
+  id: number;
+  trip: TripInvitationTripSummaryResponse;
+  invitedBy: FriendUserSummary;
+  invitedUser: FriendUserSummary;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  createdAt: string;
+}
+
+export interface TripParticipantResponse {
+  user: FriendUserSummary;
+  role: 'OWNER' | 'PARTICIPANT';
 }
 
 @Injectable({
@@ -201,6 +235,48 @@ export class TripPlanningService {
     });
   }
 
+  inviteFriendToTrip(tripId: number, request: InviteTripFriendRequest): Observable<TripInvitationResponse> {
+    return this.http.post<TripInvitationResponse>(`${this.tripsUrl}/${tripId}/invitations`, request, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  listIncomingTripInvitations(): Observable<TripInvitationResponse[]> {
+    return this.http.get<TripInvitationResponse[]>(`${this.tripsUrl}/invitations/incoming`, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  listSentTripInvitations(): Observable<TripInvitationResponse[]> {
+    return this.http.get<TripInvitationResponse[]>(`${this.tripsUrl}/invitations/sent`, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  listTripParticipants(tripId: number): Observable<TripParticipantResponse[]> {
+    return this.http.get<TripParticipantResponse[]>(`${this.tripsUrl}/${tripId}/participants`, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  acceptTripInvitation(invitationId: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.tripsUrl}/invitations/${invitationId}/accept`, null, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  declineTripInvitation(invitationId: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.tripsUrl}/invitations/${invitationId}/decline`, null, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
+  cancelTripInvitation(invitationId: number): Observable<MessageResponse> {
+    return this.http.delete<MessageResponse>(`${this.tripsUrl}/invitations/${invitationId}`, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
   updateTrip(tripId: number, request: CreateTripRequest): Observable<TripResponse> {
     return this.http.put<TripResponse>(`${this.tripsUrl}/${tripId}`, request, {
       headers: this.authService.authHeader(),
@@ -212,5 +288,11 @@ export class TripPlanningService {
       headers: this.authService.authHeader(),
       responseType: 'text',
     }).pipe(map(() => undefined));
+  }
+
+  leaveTrip(tripId: number): Observable<MessageResponse> {
+    return this.http.delete<MessageResponse>(`${this.tripsUrl}/${tripId}/leave`, {
+      headers: this.authService.authHeader(),
+    });
   }
 }

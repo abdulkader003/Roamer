@@ -91,29 +91,59 @@
 
             @if (notificationItems().length) {
               <div class="notification-list">
-                @for (notification of notificationItems(); track notification.requestId) {
+                @for (notification of notificationItems(); track notification.type + '-' + notification.requestId) {
                   <article class="notification-item" [class.notification-item--read]="notification.read">
-                    <div class="notification-item__icon" aria-hidden="true">FR</div>
+                    <div class="notification-item__icon" aria-hidden="true">
+                      @if (notification.type === 'TRIP_INVITATION') {
+                        TR
+                      } @else {
+                        FR
+                      }
+                    </div>
                     <div class="notification-item__copy">
                       <strong>{{ notification.title }}</strong>
                       <span>{{ notification.description }}</span>
+                      @if (notification.details) {
+                        <small class="notification-item__details">{{ notification.details }}</small>
+                      }
                       <small>{{ notification.createdAt | date:'mediumDate' }}</small>
                     </div>
+                    <button
+                      type="button"
+                      class="notification-item__dismiss"
+                      [attr.aria-label]="'Dismiss ' + notification.title"
+                      title="Dismiss"
+                      (click)="dismissNotification($event, notification)">
+                      ×
+                    </button>
                   </article>
                 }
               </div>
 
-              <a
-                routerLink="/profile"
-                fragment="friend-community"
-                class="notification-menu-footer"
-                role="menuitem"
-                (click)="closeNotificationMenu()">
-                Open friend requests
-              </a>
+              <div class="notification-menu-footer-group">
+                @if (hasTripNotifications()) {
+                  <a
+                    routerLink="/trips"
+                    class="notification-menu-footer"
+                    role="menuitem"
+                    (click)="closeNotificationMenu()">
+                    Open trips
+                  </a>
+                }
+                @if (hasFriendNotifications()) {
+                  <a
+                    routerLink="/profile"
+                    fragment="friend-community"
+                    class="notification-menu-footer"
+                    role="menuitem"
+                    (click)="closeNotificationMenu()">
+                    Open friend requests
+                  </a>
+                }
+              </div>
             } @else {
               <div class="notification-empty">
-                No friend requests right now.
+                No notifications right now.
               </div>
             }
           </div>

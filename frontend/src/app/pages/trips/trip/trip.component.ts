@@ -3,7 +3,15 @@ import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signa
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
-import { CreateTripRequest, TripPlanningService, TripResponse } from '../../../services/trip-planning.service';
+import { FriendCommunityService, FriendItem } from '../../../services/friend-community.service';
+import { FriendNotificationService } from '../../../services/friend-notification.service';
+import {
+  CreateTripRequest,
+  TripInvitationResponse,
+  TripParticipantResponse,
+  TripPlanningService,
+  TripResponse,
+} from '../../../services/trip-planning.service';
 import { TripTemp, TripTempActivity, TripTempFlightSegment, TripTempHotelStay, TripTempService } from '../create/trip-temp.service';
 import type { TripSummaryPdfSource } from '../create/overview/trip-summary-pdf.exporter';
 
@@ -38,18 +46,36 @@ interface SummaryDetailRow {
 })
 export class TripComponent implements OnInit {
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly friendCommunityService = inject(FriendCommunityService);
+  private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly tripTempService = inject(TripTempService);
   private readonly router = inject(Router);
 
   readonly trips = signal<TripResponse[]>([]);
+  readonly incomingInvitations = signal<TripInvitationResponse[]>([]);
+  readonly tripParticipants = signal<TripParticipantResponse[]>([]);
+  readonly tripSentInvitations = signal<TripInvitationResponse[]>([]);
+  readonly acceptedFriends = signal<FriendItem[]>([]);
   readonly isLoading = signal(false);
+  readonly isInvitationsLoading = signal(false);
+  readonly isParticipantsLoading = signal(false);
+  readonly isSentInvitationsLoading = signal(false);
+  readonly isFriendsLoading = signal(false);
   readonly loadError = signal('');
+  readonly invitationError = signal('');
+  readonly participantsError = signal('');
+  readonly sentInvitationsError = signal('');
+  readonly friendsError = signal('');
   readonly selectedTrip = signal<TripResponse | null>(null);
   readonly isEditing = signal(false);
   readonly isActionSaving = signal(false);
   readonly actionError = signal('');
   readonly isExportingPdf = signal(false);
   readonly isExportMenuOpen = signal(false);
+  readonly isInviteDialogOpen = signal(false);
+  readonly isInviting = signal(false);
+  readonly inviteError = signal('');
+  readonly inviteSuccess = signal('');
   readonly exportError = signal('');
   readonly showDeleteConfirm = signal(false);
   readonly activeEditDatePicker = signal<'startDate' | 'endDate' | null>(null);
@@ -60,6 +86,8 @@ export class TripComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTrips();
+    this.loadIncomingInvitations();
+    this.loadAcceptedFriends();
   }
 
   loadTrips(): void {
@@ -78,12 +106,92 @@ export class TripComponent implements OnInit {
     });
   }
 
+  loadIncomingInvitations(): void {
+    this.isInvitationsLoading.set(true);
+    this.invitationError.set('');
+
+    this.tripPlanningService.listIncomingTripInvitations().subscribe({
+      next: (invitations) => {
+        this.incomingInvitations.set(invitations);
+        this.isInvitationsLoading.set(false);
+      },
+      error: () => {
+        this.incomingInvitations.set([]);
+        this.invitationError.set('Could not load trip invitations.');
+        this.isInvitationsLoading.set(false);
+      },
+    });
+  }
+
+  loadAcceptedFriends(): void {
+    this.isFriendsLoading.set(true);
+    this.friendsError.set('');
+
+    this.friendCommunityService.listFriends().subscribe({
+      next: (friends) => {
+        this.acceptedFriends.set(friends);
+        this.isFriendsLoading.set(false);
+      },
+      error: () => {
+        this.acceptedFriends.set([]);
+        this.friendsError.set('Could not load your friends list.');
+        this.isFriendsLoading.set(false);
+      },
+    });
+  }
+
+  private loadTripParticipants(tripId: number): void {
+    this.isParticipantsLoading.set(true);
+    this.participantsError.set('');
+
+    this.tripPlanningService.listTripParticipants(tripId).subscribe({
+      next: (participants) => {
+        this.tripParticipants.set(participants);
+        this.isParticipantsLoading.set(false);
+      },
+      error: () => {
+        this.tripParticipants.set([]);
+        this.participantsError.set('Could not load participants for this trip.');
+        this.isParticipantsLoading.set(false);
+      },
+    });
+  }
+
+  private loadTripSentInvitations(tripId: number): void {
+    this.isSentInvitationsLoading.set(true);
+    this.sentInvitationsError.set('');
+
+    this.tripPlanningService.listSentTripInvitations().subscribe({
+      next: (invitations) => {
+        this.tripSentInvitations.set(invitations.filter((invitation) => invitation.trip.id === tripId));
+        this.isSentInvitationsLoading.set(false);
+      },
+      error: () => {
+        this.tripSentInvitations.set([]);
+        this.sentInvitationsError.set('Could not load sent invitations for this trip.');
+        this.isSentInvitationsLoading.set(false);
+      },
+    });
+  }
+
+  private refreshTripNotifications(): void {
+    this.friendNotificationService.refresh();
+  }
+
   formatBudget(trip: TripResponse): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'EUR',
       maximumFractionDigits: 0,
     }).format(trip.budget);
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
   }
 
   formatNumber(value: number): string {
@@ -112,6 +220,11 @@ export class TripComponent implements OnInit {
     this.isExportMenuOpen.set(false);
     this.exportError.set('');
     this.showDeleteConfirm.set(false);
+    this.isInviteDialogOpen.set(false);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+    this.loadTripParticipants(trip.id);
+    this.loadTripSentInvitations(trip.id);
     this.editTripForm = this.toEditForm(trip);
   }
 
@@ -135,6 +248,15 @@ export class TripComponent implements OnInit {
     this.isExportMenuOpen.set(false);
     this.exportError.set('');
     this.showDeleteConfirm.set(false);
+    this.isInviteDialogOpen.set(false);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+    this.isParticipantsLoading.set(false);
+    this.isSentInvitationsLoading.set(false);
+    this.tripParticipants.set([]);
+    this.tripSentInvitations.set([]);
+    this.participantsError.set('');
+    this.sentInvitationsError.set('');
     this.closeEditDatePicker();
     this.editTripForm = null;
   }
@@ -159,6 +281,91 @@ export class TripComponent implements OnInit {
   @HostListener('document:keydown.escape')
   closeExportMenuOnEscape(): void {
     this.isExportMenuOpen.set(false);
+  }
+
+  openInviteDialog(): void {
+    const trip = this.selectedTrip();
+
+    if (!trip || !this.canInvite(trip) || this.isInviting()) {
+      return;
+    }
+
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+    this.isInviteDialogOpen.set(true);
+
+    if (!this.acceptedFriends().length && !this.isFriendsLoading()) {
+      this.loadAcceptedFriends();
+    }
+  }
+
+  closeInviteDialog(): void {
+    if (this.isInviting()) {
+      return;
+    }
+
+    this.isInviteDialogOpen.set(false);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+  }
+
+  inviteFriend(friend: FriendItem): void {
+    const trip = this.selectedTrip();
+
+    if (!trip || !this.canInvite(trip) || this.isInviting()) {
+      return;
+    }
+
+    this.isInviting.set(true);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+
+    this.tripPlanningService.inviteFriendToTrip(trip.id, { invitedUserId: friend.user.id }).subscribe({
+      next: () => {
+        this.inviteSuccess.set(`Invitation sent to ${this.friendLabel(friend)}.`);
+        this.loadTripSentInvitations(trip.id);
+        this.isInviting.set(false);
+      },
+      error: (error) => {
+        this.inviteError.set(this.extractInviteError(error));
+        this.isInviting.set(false);
+      },
+    });
+  }
+
+  tripActionLabel(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT' ? 'Leave Trip' : 'Delete Trip';
+  }
+
+  tripActionTitle(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT'
+      ? 'Are you sure you want to leave this shared trip?'
+      : 'Are you sure you want to delete this trip?';
+  }
+
+  acceptTripInvitation(invitation: TripInvitationResponse): void {
+    this.tripPlanningService.acceptTripInvitation(invitation.id).subscribe({
+      next: () => {
+        this.loadIncomingInvitations();
+        this.loadTrips();
+        this.refreshTripNotifications();
+      },
+      error: () => {
+        this.invitationError.set('Could not accept this trip invitation.');
+      },
+    });
+  }
+
+  declineTripInvitation(invitation: TripInvitationResponse): void {
+    this.tripPlanningService.declineTripInvitation(invitation.id).subscribe({
+      next: () => {
+        this.loadIncomingInvitations();
+        this.refreshTripNotifications();
+      },
+      error: () => {
+        this.invitationError.set('Could not decline this trip invitation.');
+      },
+    });
   }
 
   async exportTripSummary(trip: TripResponse): Promise<void> {
@@ -410,6 +617,21 @@ export class TripComponent implements OnInit {
     this.actionError.set('');
     this.showDeleteConfirm.set(false);
 
+    if (trip.accessRole === 'PARTICIPANT') {
+      this.tripPlanningService.leaveTrip(trip.id).subscribe({
+        next: () => {
+          this.trips.update((trips) => trips.filter((savedTrip) => savedTrip.id !== trip.id));
+          this.isActionSaving.set(false);
+          this.closeTripModal();
+        },
+        error: () => {
+          this.actionError.set('Could not leave this trip. Please try again.');
+          this.isActionSaving.set(false);
+        },
+      });
+      return;
+    }
+
     this.tripPlanningService.deleteTrip(trip.id).subscribe({
       next: () => {
         this.trips.update((trips) => trips.filter((savedTrip) => savedTrip.id !== trip.id));
@@ -423,7 +645,7 @@ export class TripComponent implements OnInit {
     });
   }
 
-  formatDateRange(trip: TripResponse): string {
+  formatDateRange(trip: { startDate: string; endDate: string }): string {
     return `${this.formatDisplayDate(trip.startDate)} → ${this.formatDisplayDate(trip.endDate)}`;
   }
 
@@ -449,6 +671,16 @@ export class TripComponent implements OnInit {
   modalTravelerLabel(trip: TripResponse): string {
     const travelers = this.travelerCountFor(trip);
     return `${travelers} traveler${travelers === 1 ? '' : 's'}`;
+  }
+
+  tripAccessLabel(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT' ? 'Shared with you' : 'Owned by you';
+  }
+
+  tripAccessHint(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT'
+      ? 'Shared trip. You can edit it or leave it.'
+      : 'Owned trip. You can edit it, invite friends, or delete it.';
   }
 
   modalFlightTotal(trip: TripResponse): number {
@@ -967,6 +1199,85 @@ export class TripComponent implements OnInit {
 
   private travelerCountFor(trip: TripResponse): number {
     return Math.max(Number(trip.travelers ?? this.matchingTripTemp(trip)?.travelers ?? 1) || 1, 1);
+  }
+
+  friendLabel(friend: FriendItem): string {
+    const fullName = `${friend.user.firstName ?? ''} ${friend.user.lastName ?? ''}`.trim();
+    return fullName || friend.user.username;
+  }
+
+  userLabel(user: { username: string; firstName?: string | null; lastName?: string | null }): string {
+    const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+    return fullName || user.username;
+  }
+
+  invitationNights(invitation: TripInvitationResponse): number {
+    const start = new Date(`${invitation.trip.startDate}T00:00:00`);
+    const end = new Date(`${invitation.trip.endDate}T00:00:00`);
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+  }
+
+  canInvite(trip: TripResponse | null): boolean {
+    return Boolean(trip && trip.accessRole !== 'PARTICIPANT');
+  }
+
+  isSharedTrip(trip: TripResponse): boolean {
+    return trip.accessRole === 'PARTICIPANT';
+  }
+
+  participantRoleLabel(role: TripParticipantResponse['role']): string {
+    return role === 'OWNER' ? 'Owner' : 'Participant';
+  }
+
+  participantDisplayName(participant: TripParticipantResponse): string {
+    return this.userLabel(participant.user);
+  }
+
+  inviteSummaryLabel(invitation: TripInvitationResponse): string {
+    return this.userLabel(invitation.invitedUser);
+  }
+
+  pendingSentInvitations(trip: TripResponse | null): TripInvitationResponse[] {
+    if (!trip) {
+      return [];
+    }
+
+    return this.tripSentInvitations().filter((invitation) => invitation.trip.id === trip.id && invitation.status === 'PENDING');
+  }
+
+  cancelTripInvitation(invitation: TripInvitationResponse): void {
+    if (this.isActionSaving()) {
+      return;
+    }
+
+    this.isActionSaving.set(true);
+    this.sentInvitationsError.set('');
+
+    this.tripPlanningService.cancelTripInvitation(invitation.id).subscribe({
+      next: () => {
+        const trip = this.selectedTrip();
+        if (trip) {
+          this.loadTripSentInvitations(trip.id);
+        }
+        this.refreshTripNotifications();
+        this.isActionSaving.set(false);
+      },
+      error: () => {
+        this.sentInvitationsError.set('Could not cancel this invitation.');
+        this.isActionSaving.set(false);
+      },
+    });
+  }
+
+  private extractInviteError(error: unknown): string {
+    if (typeof error === 'object' && error && 'error' in error) {
+      const body = (error as { error?: { message?: string } }).error;
+      if (body?.message) {
+        return body.message;
+      }
+    }
+
+    return 'Could not send this invitation.';
   }
 
   private wizardQueryParams(tripTemp: TripTemp): Record<string, string | number> | undefined {

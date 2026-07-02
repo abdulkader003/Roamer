@@ -322,6 +322,12 @@
   border-color: var(--badge-pending-border);
 }
 
+.badge-shared {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
 .trip-budget-wrap {
   text-align: right;
 }

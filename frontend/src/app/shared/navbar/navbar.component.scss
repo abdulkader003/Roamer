@@ -301,7 +301,7 @@
 
 .notification-item {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
   padding: 10px;
@@ -356,6 +356,36 @@
   font-size: 10.5px;
 }
 
+.notification-item__details {
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.notification-item__dismiss {
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, #ef4444 36%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, #ef4444 8%, var(--surface-primary));
+  color: #c81e1e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+
+  &:hover {
+    background: color-mix(in srgb, #ef4444 14%, var(--surface-primary));
+    border-color: #ef4444;
+    color: #b91c1c;
+    transform: translateY(-1px);
+  }
+}
+
 .notification-empty {
   padding: 14px 10px 10px;
   color: var(--text-muted);
@@ -382,6 +412,12 @@
   border-color: var(--accent-border);
   background: var(--accent-bg);
   color: var(--accent);
+}
+
+.notification-menu-footer-group {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 0;
 }
 
 .account-menu-wrap {
