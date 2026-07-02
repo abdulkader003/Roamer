@@ -50,5 +50,22 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
             """)
     Optional<Trip> findAccessibleByIdAndUserId(Long tripId, Long userId);
 
+    @Query("""
+            select trip
+            from Trip trip
+            where trip.tripPlanningId = :tripPlanningId
+              and (
+                    trip.owner.id = :userId
+                 or exists (
+                        select invitation.id
+                        from TripInvitation invitation
+                        where invitation.trip.id = trip.id
+                          and invitation.invitedUser.id = :userId
+                          and invitation.status = com.sep.trip.TripInvitationStatus.ACCEPTED
+                 )
+              )
+            """)
+    Optional<Trip> findAccessibleByTripPlanningIdAndUserId(Long tripPlanningId, Long userId);
+
     void deleteAllByOwnerId(Long ownerId);
 }

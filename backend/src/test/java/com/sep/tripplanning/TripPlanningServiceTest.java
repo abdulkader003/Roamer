@@ -8,6 +8,8 @@ import com.sep.tripplanning.dto.TripActivitiesResponse;
 import com.sep.tripplanning.dto.TripBudgetResponse;
 import com.sep.tripplanning.dto.TripHotelResponse;
 import com.sep.tripplanning.dto.TripOverviewResponse;
+import com.sep.trip.Trip;
+import com.sep.trip.TripRepository;
 import com.sep.hotel.model.Hotel;
 import com.sep.hotel.repository.HotelRepository;
 import com.sep.user.AppUser;
@@ -37,6 +39,9 @@ class TripPlanningServiceTest {
     private TripPlanningRepository tripPlanningRepository;
 
     @Mock
+    private TripRepository tripRepository;
+
+    @Mock
     private AppUserRepository appUserRepository;
 
     @Mock
@@ -46,7 +51,7 @@ class TripPlanningServiceTest {
 
     @BeforeEach
     void setUp() {
-        tripPlanningService = new TripPlanningService(tripPlanningRepository, appUserRepository, hotelRepository);
+        tripPlanningService = new TripPlanningService(tripPlanningRepository, tripRepository, appUserRepository, hotelRepository);
     }
 
     @Test
@@ -255,6 +260,39 @@ class TripPlanningServiceTest {
         assertThat(response.selectedHotelStaysJson()).isEqualTo("[{\"city\":\"Barcelona\"}]");
         assertThat(response.selectedActivities()).hasSize(1);
         assertThat(response.totalActivitiesCost()).isEqualByComparingTo("120.00");
+    }
+
+    @Test
+    void loadsOverviewForAcceptedSharedTripParticipant() {
+        AppUser owner = new AppUser();
+        owner.setEmail("owner@example.com");
+
+        AppUser participant = new AppUser();
+        participant.setId(42L);
+        participant.setEmail("traveler@example.com");
+
+        TripPlanning tripPlanning = new TripPlanning();
+        tripPlanning.setId(10L);
+        tripPlanning.setTripName("Summer in Barcelona");
+        tripPlanning.setBudget(new BigDecimal("2000.00"));
+        tripPlanning.setCurrency("EUR");
+        tripPlanning.setDuration(7);
+        tripPlanning.setTravelStyle("Mid-range");
+        tripPlanning.setUser(owner);
+
+        Trip sharedTrip = new Trip();
+        sharedTrip.setId(99L);
+        sharedTrip.setTripPlanningId(10L);
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(participant));
+        when(tripPlanningRepository.findById(10L)).thenReturn(Optional.of(tripPlanning));
+        when(tripRepository.findAccessibleByTripPlanningIdAndUserId(10L, 42L)).thenReturn(Optional.of(sharedTrip));
+
+        TripOverviewResponse response = tripPlanningService.getOverview(10L, "traveler@example.com");
+
+        assertThat(response.tripName()).isEqualTo("Summer in Barcelona");
+        assertThat(response.budget()).isEqualByComparingTo("2000.00");
+        verify(tripRepository).findAccessibleByTripPlanningIdAndUserId(10L, 42L);
     }
 
     private TripPlanningActivity activity(String name, String category, String price) {

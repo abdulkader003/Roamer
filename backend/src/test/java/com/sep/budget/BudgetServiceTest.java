@@ -229,6 +229,27 @@ class BudgetServiceTest {
     }
 
     @Test
+    void categoryBudgetsPreferOthersBudgetOverLegacyTransportBudget() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        CategoryBudgetLimit legacyTransport = new CategoryBudgetLimit();
+        legacyTransport.setCategory(ExpenseCategory.TRANSPORT);
+        legacyTransport.setAmount(new BigDecimal("50.00"));
+        CategoryBudgetLimit others = new CategoryBudgetLimit();
+        others.setCategory(ExpenseCategory.OTHERS);
+        others.setAmount(new BigDecimal("250.00"));
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of());
+        when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of(legacyTransport, others));
+
+        List<CategoryBudgetResponse> response = budgetService.getCategoryBudgets("traveler@example.com");
+
+        CategoryBudgetResponse othersRow = category(response, ExpenseCategory.OTHERS);
+        assertThat(othersRow.budget()).isEqualByComparingTo("250.00");
+    }
+
+    @Test
     void categoryBudgetsReturnConsistentPercentageForZeroBudgetWithSpending() {
         Trip zeroBudget = trip(11L, "Zero Budget", "0.00");
 
@@ -385,20 +406,21 @@ class BudgetServiceTest {
         CategoryBudgetLimit limit = new CategoryBudgetLimit();
         limit.setId(1L);
         limit.setOwner(owner);
-        limit.setCategory(ExpenseCategory.FLIGHTS);
+        limit.setCategory(ExpenseCategory.OTHERS);
         limit.setAmount(new BigDecimal("250.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
         when(appUserRepository.findById(7L)).thenReturn(Optional.of(owner));
-        when(categoryBudgetLimitRepository.findByOwnerIdAndCategory(7L, ExpenseCategory.FLIGHTS)).thenReturn(Optional.of(limit));
+        when(categoryBudgetLimitRepository.findByOwnerIdAndCategory(7L, ExpenseCategory.OTHERS)).thenReturn(Optional.empty());
         when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(expense(trip, ExpenseCategory.FLIGHTS, "100.00")));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(expense(trip, ExpenseCategory.OTHERS, "100.00")));
         when(categoryBudgetLimitRepository.save(any(CategoryBudgetLimit.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CategoryBudgetResponse response = budgetService.updateCategoryBudget("traveler@example.com", ExpenseCategory.FLIGHTS, request);
+        CategoryBudgetResponse response = budgetService.updateCategoryBudget("traveler@example.com", ExpenseCategory.OTHERS, request);
 
         assertThat(response.budget()).isEqualByComparingTo("400.00");
         assertThat(response.spent()).isEqualByComparingTo("100.00");
+        assertThat(limit.getCategory()).isEqualTo(ExpenseCategory.OTHERS);
         verify(categoryBudgetLimitRepository).save(any(CategoryBudgetLimit.class));
     }
 
