@@ -1,0 +1,157 @@
+package com.sep.trip;
+
+import com.sep.auth.dto.MessageResponse;
+import com.sep.friend.FriendRequestRepository;
+import com.sep.friend.FriendRequestStatus;
+import com.sep.friend.dto.FriendUserResponse;
+import com.sep.trip.dto.InviteTripFriendRequest;
+import com.sep.trip.dto.TripInvitationResponse;
+import com.sep.trip.dto.TripInvitationTripSummaryResponse;
+import com.sep.user.AppUser;
+import com.sep.user.AppUserRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+
+@Service
+public class TripInvitationService {
+
+    private final TripRepository tripRepository;
+    private final TripInvitationRepository tripInvitationRepository;
+    private final AppUserRepository appUserRepository;
+    private final FriendRequestRepository friendRequestRepository;
+
+    public TripInvitationService(
+            TripRepository tripRepository,
+            TripInvitationRepository tripInvitationRepository,
+            AppUserRepository appUserRepository,
+            FriendRequestRepository friendRequestRepository
+    ) {
+        this.tripRepository = tripRepository;
+        this.tripInvitationRepository = tripInvitationRepository;
+        this.appUserRepository = appUserRepository;
+        this.friendRequestRepository = friendRequestRepository;
+    }
+
+    @Transactional
+    public TripInvitationResponse inviteFriend(String authenticatedEmail, Long tripId, InviteTripFriendRequest request) {
+        AppUser inviter = findCurrentUser(authenticatedEmail);
+        Trip trip = findOwnedTrip(tripId, inviter);
+        AppUser invitedUser = findUser(request.invitedUserId());
+
+        validateInvitation(inviter, trip, invitedUser);
+
+        TripInvitation invitation = new TripInvitation();
+        invitation.setTrip(trip);
+        invitation.setInvitedBy(inviter);
+        invitation.setInvitedUser(invitedUser);
+        invitation.setStatus(TripInvitationStatus.PENDING);
+
+        return toResponse(tripInvitationRepository.save(invitation));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripInvitationResponse> listIncomingInvitations(String authenticatedEmail) {
+        AppUser currentUser = findCurrentUser(authenticatedEmail);
+        return tripInvitationRepository.findAllByInvitedUserIdAndStatusOrderByCreatedAtDesc(
+                        currentUser.getId(),
+                        TripInvitationStatus.PENDING
+                )
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public MessageResponse acceptInvitation(String authenticatedEmail, Long invitationId) {
+        TripInvitation invitation = findPendingInvitationForCurrentUser(authenticatedEmail, invitationId);
+        invitation.setStatus(TripInvitationStatus.ACCEPTED);
+        tripInvitationRepository.save(invitation);
+        return new MessageResponse("Trip invitation accepted.");
+    }
+
+    @Transactional
+    public MessageResponse declineInvitation(String authenticatedEmail, Long invitationId) {
+        TripInvitation invitation = findPendingInvitationForCurrentUser(authenticatedEmail, invitationId);
+        invitation.setStatus(TripInvitationStatus.DECLINED);
+        tripInvitationRepository.save(invitation);
+        return new MessageResponse("Trip invitation declined.");
+    }
+
+    private void validateInvitation(AppUser inviter, Trip trip, AppUser invitedUser) {
+        if (!trip.getOwner().getId().equals(inviter.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the trip owner can invite friends.");
+        }
+
+        if (inviter.getId().equals(invitedUser.getId())) {
+            throw new IllegalArgumentException("You cannot invite yourself to this trip.");
+        }
+
+        if (!isAcceptedFriend(inviter.getId(), invitedUser.getId())) {
+            throw new IllegalArgumentException("You can only invite accepted friends to this trip.");
+        }
+
+        if (tripInvitationRepository.existsByTripIdAndInvitedUserIdAndStatus(trip.getId(), invitedUser.getId(), TripInvitationStatus.PENDING)) {
+            throw new IllegalArgumentException("This user already has a pending invitation for this trip.");
+        }
+
+        if (tripInvitationRepository.existsByTripIdAndInvitedUserIdAndStatus(trip.getId(), invitedUser.getId(), TripInvitationStatus.ACCEPTED)) {
+            throw new IllegalArgumentException("This user is already a participant on this trip.");
+        }
+    }
+
+    private boolean isAcceptedFriend(Long firstUserId, Long secondUserId) {
+        return friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(firstUserId, secondUserId, FriendRequestStatus.ACCEPTED)
+                || friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(secondUserId, firstUserId, FriendRequestStatus.ACCEPTED);
+    }
+
+    private TripInvitation findPendingInvitationForCurrentUser(String authenticatedEmail, Long invitationId) {
+        AppUser currentUser = findCurrentUser(authenticatedEmail);
+        return tripInvitationRepository.findByIdAndInvitedUserIdAndStatus(invitationId, currentUser.getId(), TripInvitationStatus.PENDING)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip invitation was not found."));
+    }
+
+    private Trip findOwnedTrip(Long tripId, AppUser owner) {
+        return tripRepository.findByIdAndOwnerId(tripId, owner.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip was not found."));
+    }
+
+    private AppUser findCurrentUser(String authenticatedEmail) {
+        return appUserRepository.findByEmailIgnoreCase(authenticatedEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Authenticated user was not found."));
+    }
+
+    private AppUser findUser(Long userId) {
+        return appUserRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User was not found."));
+    }
+
+    private TripInvitationResponse toResponse(TripInvitation invitation) {
+        return new TripInvitationResponse(
+                invitation.getId(),
+                new TripInvitationTripSummaryResponse(
+                        invitation.getTrip().getId(),
+                        invitation.getTrip().getName(),
+                        invitation.getTrip().getDestination(),
+                        invitation.getTrip().getStartDate(),
+                        invitation.getTrip().getEndDate(),
+                        invitation.getTrip().getBudget(),
+                        invitation.getTrip().getStatus()
+                ),
+                new FriendUserResponse(
+                        invitation.getInvitedBy().getId(),
+                        invitation.getInvitedBy().getUsername(),
+                        invitation.getInvitedBy().getFirstName(),
+                        invitation.getInvitedBy().getLastName(),
+                        invitation.getInvitedBy().getEmail(),
+                        invitation.getInvitedBy().isVerified(),
+                        invitation.getInvitedBy().getProfilePictureUpdatedAt()
+                ),
+                invitation.getStatus(),
+                invitation.getCreatedAt()
+        );
+    }
+}
