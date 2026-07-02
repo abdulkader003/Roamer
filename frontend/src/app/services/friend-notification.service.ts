@@ -25,6 +25,8 @@ export class FriendNotificationService {
   private dismissedNotificationsStorageKey = this.buildDismissedNotificationsStorageKey();
   private readonly notifications = signal<FriendNotificationItem[]>([]);
   private readonly dismissedNotificationKeys = signal<string[]>(this.loadDismissedNotificationKeys());
+  private friendRequestStorageKey = this.buildFriendRequestStorageKey();
+  private readonly storedFriendRequests = signal<FriendNotificationItem[]>(this.loadStoredFriendRequests());
 
   readonly items = this.notifications.asReadonly();
   readonly unreadCount = computed(() => this.notifications().filter((notification) => !notification.read).length);
@@ -32,6 +34,7 @@ export class FriendNotificationService {
 
   refresh(): void {
     this.ensureDismissedNotificationsLoaded();
+    this.ensureStoredFriendRequestsLoaded();
 
     forkJoin({
       requests: this.friendCommunityService.listIncomingRequests().pipe(catchError(() => of(null))),
@@ -63,31 +66,32 @@ export class FriendNotificationService {
   }
 
   syncIncomingRequests(requests: FriendRequestItem[]): void {
+    this.ensureStoredFriendRequestsLoaded();
     const previousState = new Map(this.notifications().map((notification) => [`${notification.type}:${notification.requestId}`, notification.read]));
-    const currentNotifications = this.notifications();
-    const currentTripNotifications = currentNotifications.filter((notification) => notification.type !== 'FRIEND_REQUEST');
-    const currentFriendNotifications = currentNotifications.filter((notification) => notification.type === 'FRIEND_REQUEST');
-    const previousFriendNotifications = new Map(
-      currentFriendNotifications.map((notification) => [notification.requestId, notification])
+    const currentTripNotifications = this.notifications().filter((notification) => notification.type !== 'FRIEND_REQUEST');
+    const existingFriendNotifications = new Map(
+      this.storedFriendRequests().map((notification) => [notification.requestId, notification])
     );
-    const incomingFriendNotifications = requests
-      .map((request) => this.friendRequestNotification(request, previousState))
-      .filter((notification) => !this.isDismissed(notification.type, notification.requestId));
-    const stickyFriendNotifications = currentFriendNotifications
-      .filter((notification) => !this.isDismissed(notification.type, notification.requestId));
 
-    const mergedFriendNotifications = new Map<number, FriendNotificationItem>();
-    [...stickyFriendNotifications, ...incomingFriendNotifications].forEach((notification) => {
-      const existing = previousFriendNotifications.get(notification.requestId);
-      mergedFriendNotifications.set(notification.requestId, {
-        ...existing,
-        ...notification,
-        read: existing?.read ?? notification.read,
-      });
+    requests.forEach((request) => {
+      const notification = this.friendRequestNotification(request, previousState);
+      if (!this.isDismissed(notification.type, notification.requestId)) {
+        const existing = existingFriendNotifications.get(notification.requestId);
+        existingFriendNotifications.set(notification.requestId, {
+          ...existing,
+          ...notification,
+          read: existing?.read ?? notification.read,
+        });
+      }
     });
 
+    const nextFriendRequests = [...existingFriendNotifications.values()]
+      .filter((notification) => !this.isDismissed(notification.type, notification.requestId));
+
+    this.storedFriendRequests.set(nextFriendRequests);
+    this.persistStoredFriendRequests();
     this.notifications.set([
-      ...mergedFriendNotifications.values(),
+      ...nextFriendRequests,
       ...currentTripNotifications,
     ]);
   }
@@ -155,6 +159,7 @@ export class FriendNotificationService {
   }
 
   private syncNotifications(requests: FriendRequestItem[], invitations: TripInvitationResponse[], sentInvitations: TripInvitationResponse[]): void {
+    this.ensureStoredFriendRequestsLoaded();
     const previousState = new Map(this.notifications().map((notification) => [`${notification.type}:${notification.requestId}`, notification.read]));
     const visibleInvitations = this.filterVisibleNotifications(
       invitations.map((invitation) => this.mapTripInvitation(invitation, 'TRIP_INVITATION'))
@@ -212,28 +217,28 @@ export class FriendNotificationService {
     requests: FriendRequestItem[],
     previousState: Map<string, boolean>
   ): FriendNotificationItem[] {
-    const currentNotifications = this.notifications();
-    const currentFriendNotifications = currentNotifications.filter((notification) => notification.type === 'FRIEND_REQUEST');
-    const previousFriendNotifications = new Map(
-      currentFriendNotifications.map((notification) => [notification.requestId, notification])
+    const existingFriendNotifications = new Map(
+      this.storedFriendRequests().map((notification) => [notification.requestId, notification])
     );
-    const incomingFriendNotifications = requests
-      .map((request) => this.friendRequestNotification(request, previousState))
-      .filter((notification) => !this.isDismissed(notification.type, notification.requestId));
-    const stickyFriendNotifications = currentFriendNotifications
-      .filter((notification) => !this.isDismissed(notification.type, notification.requestId));
 
-    const mergedFriendNotifications = new Map<number, FriendNotificationItem>();
-    [...stickyFriendNotifications, ...incomingFriendNotifications].forEach((notification) => {
-      const existing = previousFriendNotifications.get(notification.requestId);
-      mergedFriendNotifications.set(notification.requestId, {
-        ...existing,
-        ...notification,
-        read: existing?.read ?? notification.read,
-      });
+    requests.forEach((request) => {
+      const notification = this.friendRequestNotification(request, previousState);
+      if (!this.isDismissed(notification.type, notification.requestId)) {
+        const existing = existingFriendNotifications.get(notification.requestId);
+        existingFriendNotifications.set(notification.requestId, {
+          ...existing,
+          ...notification,
+          read: existing?.read ?? notification.read,
+        });
+      }
     });
 
-    return [...mergedFriendNotifications.values()];
+    const nextFriendRequests = [...existingFriendNotifications.values()]
+      .filter((notification) => !this.isDismissed(notification.type, notification.requestId));
+
+    this.storedFriendRequests.set(nextFriendRequests);
+    this.persistStoredFriendRequests();
+    return nextFriendRequests;
   }
 
   private friendRequestNotification(
@@ -254,9 +259,14 @@ export class FriendNotificationService {
 
   dismissNotification(notification: FriendNotificationItem): void {
     this.ensureDismissedNotificationsLoaded();
+    this.ensureStoredFriendRequestsLoaded();
     const key = this.notificationKey(notification.type, notification.requestId);
     this.dismissedNotificationKeys.update((keys) => (keys.includes(key) ? keys : [...keys, key]));
     this.persistDismissedNotifications();
+    if (notification.type === 'FRIEND_REQUEST') {
+      this.storedFriendRequests.update((items) => items.filter((item) => item.requestId !== notification.requestId));
+      this.persistStoredFriendRequests();
+    }
     this.notifications.update((notifications) =>
       notifications.filter((item) => this.notificationKey(item.type, item.requestId) !== key)
     );
@@ -394,6 +404,56 @@ export class FriendNotificationService {
   private buildDismissedNotificationsStorageKey(): string {
     const email = this.authService.email()?.trim().toLowerCase();
     return email ? `roamer.dismissed-notifications.${email}` : 'roamer.dismissed-notifications';
+  }
+
+  private buildFriendRequestStorageKey(): string {
+    const email = this.authService.email()?.trim().toLowerCase();
+    return email ? `roamer.friend-request-notifications.${email}` : 'roamer.friend-request-notifications';
+  }
+
+  private loadStoredFriendRequests(): FriendNotificationItem[] {
+    const storage = this.getStorage();
+
+    if (!storage) {
+      return [];
+    }
+
+    try {
+      const raw = storage.getItem(this.friendRequestStorageKey);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed.filter((item): item is FriendNotificationItem => Boolean(item && item.type === 'FRIEND_REQUEST'));
+    } catch {
+      return [];
+    }
+  }
+
+  private persistStoredFriendRequests(): void {
+    const storage = this.getStorage();
+
+    if (!storage) {
+      return;
+    }
+
+    storage.setItem(this.friendRequestStorageKey, JSON.stringify(this.storedFriendRequests()));
+  }
+
+  private ensureStoredFriendRequestsLoaded(): void {
+    const nextStorageKey = this.buildFriendRequestStorageKey();
+
+    if (this.friendRequestStorageKey === nextStorageKey) {
+      return;
+    }
+
+    this.friendRequestStorageKey = nextStorageKey;
+    this.storedFriendRequests.set(this.loadStoredFriendRequests());
   }
 
   private notificationKey(type: FriendNotificationItem['type'], requestId: number): string {
