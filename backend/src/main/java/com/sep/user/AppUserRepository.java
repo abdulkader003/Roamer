@@ -1,7 +1,10 @@
 package com.sep.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -20,4 +23,17 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByUsernameIgnoreCase(String username);
+
+    @Query("""
+            select user
+            from AppUser user
+            where user.id <> :currentUserId
+              and (
+                    lower(coalesce(user.username, '')) like lower(concat('%', :query, '%'))
+                 or lower(coalesce(user.firstName, '')) like lower(concat('%', :query, '%'))
+                 or lower(coalesce(user.lastName, '')) like lower(concat('%', :query, '%'))
+              )
+            order by lower(coalesce(user.username, user.firstName, user.lastName))
+            """)
+    List<AppUser> searchCommunityUsers(@Param("currentUserId") Long currentUserId, @Param("query") String query);
 }
