@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -18,6 +20,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class CalendarTest {
@@ -134,6 +138,23 @@ class CalendarTest {
         assertThatThrownBy(() -> calendarEventController.deleteCalendarEvent(404L))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Calendar event not found");
+    }
+
+    @Test
+    void deleteCalendarEventsForTripDeletesOnlyTripLinkedEvents() {
+        calendarEventController.deleteCalendarEventsForTrip(42L);
+
+        verify(calendarEventRepository).deleteByTripId(42L);
+    }
+
+    @Test
+    void deleteCalendarEventsForTripRouteDoesNotConflictWithSingleEventDelete() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(calendarEventController).build();
+
+        mockMvc.perform(delete("/api/calendar-events/trip/42"))
+                .andExpect(status().isNoContent());
+
+        verify(calendarEventRepository).deleteByTripId(42L);
     }
 
     private CalendarEvent calendarEvent(

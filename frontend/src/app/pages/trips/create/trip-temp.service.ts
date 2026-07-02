@@ -28,12 +28,39 @@ export interface TripTemp {
   selectedFlightDuration: string;
   selectedFlightStops: string;
   selectedFlightTotal: number | null;
+  selectedFlightSegments?: TripTempFlightSegment[];
   selectedHotelName: string;
   selectedHotelCity: string;
   selectedHotelStars: number | null;
   selectedHotelTotal: number | null;
+  selectedHotels?: TripTempHotelStay[];
   selectedActivities: TripTempActivity[];
   selectedActivitiesTotal: number;
+}
+
+export interface TripTempFlightSegment {
+  label: string;
+  airline: string;
+  flightNumber: string;
+  from: string;
+  to: string;
+  date: string;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
+  stops: string;
+  price: number;
+}
+
+export interface TripTempHotelStay {
+  hotelName: string;
+  city: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  stars: number | null;
+  rating?: string;
+  price: number;
 }
 
 export interface TripTempActivity {
@@ -42,6 +69,8 @@ export interface TripTempActivity {
   price: number;
   duration: string;
   city: string;
+  date?: string;
+  time?: string;
 }
 
 const EMPTY_TRIP_TEMP: TripTemp = {
@@ -66,10 +95,12 @@ const EMPTY_TRIP_TEMP: TripTemp = {
   selectedFlightDuration: '',
   selectedFlightStops: '',
   selectedFlightTotal: null,
+  selectedFlightSegments: [],
   selectedHotelName: '',
   selectedHotelCity: '',
   selectedHotelStars: null,
   selectedHotelTotal: null,
+  selectedHotels: [],
   selectedActivities: [],
   selectedActivitiesTotal: 0,
 };

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
 import { ActivitiesService, Activity } from '../../../../services/activities';
 import { SelectedTripActivity, TripPlanningService } from '../../../../services/trip-planning.service';
@@ -62,11 +62,13 @@ export class ActivitiesStepComponent implements OnInit {
   readonly loadWarning = signal('');
   readonly loadError = signal('');
   readonly saveError = signal('');
+  readonly savedActivities = signal<SelectedTripActivity[]>([]);
   private readonly activitiesPerCity = 6;
 
   ngOnInit(): void {
     this.tripPlanningId.set(this.readTripPlanningId());
     this.selectedCities.set(this.readSelectedCities());
+    this.loadSavedActivitiesSelection();
     this.loadActivities();
   }
 
@@ -119,9 +121,10 @@ export class ActivitiesStepComponent implements OnInit {
     }
 
     const savedNames = new Set(
-      this.tripTempService
-        .getTripTemp()
-        .selectedActivities.map((activity) => this.normalizeForDuplicateKey(activity.name)),
+      [
+        ...this.tripTempService.getTripTemp().selectedActivities,
+        ...this.savedActivities(),
+      ].map((activity) => this.normalizeForDuplicateKey(activity.name)),
     );
 
     if (!savedNames.size) {
@@ -169,11 +172,12 @@ export class ActivitiesStepComponent implements OnInit {
     this.isSaving.set(true);
     this.saveError.set('');
 
+    const selectedActivitySnapshots = this.selectedActivities().map((activity) => this.toTripTempActivity(activity));
     const request = {
-      activities: this.selectedActivities().map((activity) => this.toSaveableActivity(activity)),
+      activities: selectedActivitySnapshots.map(({ date: _date, time: _time, ...activity }) => activity),
     };
     this.tripTempService.updateTripTemp({
-      selectedActivities: request.activities,
+      selectedActivities: selectedActivitySnapshots,
       selectedActivitiesTotal: this.selectedTotal(),
     });
 
@@ -202,9 +206,9 @@ export class ActivitiesStepComponent implements OnInit {
     return step.route && this.routeExists(step.route) ? step.route : null;
   }
 
-  tripPlanningQueryParams(): { tripPlanningId: number } | undefined {
+  tripPlanningQueryParams(): Params {
     const tripPlanningId = this.tripPlanningId();
-    return tripPlanningId ? { tripPlanningId } : undefined;
+    return tripPlanningId ? { ...this.route.snapshot.queryParams, tripPlanningId } : this.route.snapshot.queryParams;
   }
 
   private readTripPlanningId(): number | null {
@@ -216,6 +220,31 @@ export class ActivitiesStepComponent implements OnInit {
     }
 
     return this.tripTempService.getTripTemp().tripPlanningId ?? null;
+  }
+
+  private loadSavedActivitiesSelection(): void {
+    const tripPlanningId = this.tripPlanningId();
+
+    if (!tripPlanningId) {
+      return;
+    }
+
+    this.tripPlanningService.getOverview(tripPlanningId).subscribe({
+      next: (overview) => {
+        const selectedActivities = overview.selectedActivities ?? [];
+        this.savedActivities.set(selectedActivities);
+
+        if (selectedActivities.length) {
+          this.tripTempService.updateTripTemp({
+            selectedActivities,
+            selectedActivitiesTotal: Number(overview.totalActivitiesCost ?? 0),
+          });
+        }
+
+        this.preselectSavedActivities(this.activities());
+      },
+      error: () => this.preselectSavedActivities(this.activities()),
+    });
   }
 
   private saveActivitiesErrorMessage(error: unknown): string {
@@ -266,6 +295,14 @@ export class ActivitiesStepComponent implements OnInit {
       // provide a date/time, so we store a clear fallback instead of failing.
       duration: this.cleanText(activity.duration) || this.cleanText(activity.timeRange) || 'See event time',
       city: this.cleanText(activity.city) || this.cleanText(activity.tripCity) || this.cityListText(this.selectedCities()),
+    };
+  }
+
+  private toTripTempActivity(activity: TripActivityCard) {
+    return {
+      ...this.toSaveableActivity(activity),
+      date: this.cleanText(activity.eventDate),
+      time: this.cleanText(activity.timeRange) || this.cleanText(activity.startTime),
     };
   }
 

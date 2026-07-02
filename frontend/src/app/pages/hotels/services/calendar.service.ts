@@ -5,6 +5,7 @@ import { AuthService } from '../../../services/auth';
 
 type BackendCalendarEvent = {
   id: number;
+  tripId?: number | null;
   title: string;
   description?: string | null;
   location?: string | null;
@@ -44,6 +45,42 @@ export class CalendarService {
     }
 
     return response.json() as Promise<BackendCalendarEvent>;
+  }
+
+  async deleteEventsForTrip(tripId: number): Promise<void> {
+    const response = await this.fetchCalendarApi(`/trip/${tripId}`, {
+      method: 'DELETE'
+    });
+
+    if (response.status === 404) {
+      await this.deleteEventsForTripIndividually(tripId);
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete trip calendar events: ${response.status}`);
+    }
+  }
+
+  private async deleteEventsForTripIndividually(tripId: number): Promise<void> {
+    const response = await this.fetchCalendarApi('');
+
+    if (!response.ok) {
+      throw new Error(`Failed to load trip calendar events: ${response.status}`);
+    }
+
+    const events = await response.json() as BackendCalendarEvent[];
+    const tripEvents = events.filter((event) => event.tripId === tripId);
+
+    for (const event of tripEvents) {
+      const deleteResponse = await this.fetchCalendarApi(`/${event.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!deleteResponse.ok && deleteResponse.status !== 404) {
+        throw new Error(`Failed to delete calendar event ${event.id}: ${deleteResponse.status}`);
+      }
+    }
   }
 
   async addEventOrRedirectToLogin(event: CalendarEvent, returnUrl?: string): Promise<'added'> {

@@ -107,12 +107,13 @@ class TripPlanningServiceTest {
 
         TripHotelResponse response = tripPlanningService.saveHotel(
                 10L,
-                new SelectTripHotelRequest(77L),
+                new SelectTripHotelRequest(77L, "[{\"city\":\"Barcelona\"}]"),
                 "traveler@example.com"
         );
 
         verify(tripPlanningRepository).save(tripPlanning);
         assertThat(tripPlanning.getSelectedHotel()).isSameAs(hotel);
+        assertThat(tripPlanning.getSelectedHotelStaysJson()).isEqualTo("[{\"city\":\"Barcelona\"}]");
         assertThat(response.hotelId()).isEqualTo(77L);
         assertThat(response.hotelName()).isEqualTo("Barcelona Grand");
     }
@@ -123,7 +124,7 @@ class TripPlanningServiceTest {
 
         assertThatThrownBy(() -> tripPlanningService.saveHotel(
                 404L,
-                new SelectTripHotelRequest(77L),
+                new SelectTripHotelRequest(77L, null),
                 "traveler@example.com"
         )).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("404 NOT_FOUND");
@@ -141,7 +142,7 @@ class TripPlanningServiceTest {
 
         assertThatThrownBy(() -> tripPlanningService.saveHotel(
                 10L,
-                new SelectTripHotelRequest(77L),
+                new SelectTripHotelRequest(77L, null),
                 "traveler@example.com"
         )).isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
@@ -242,6 +243,7 @@ class TripPlanningServiceTest {
         tripPlanning.setSelectedHotelStars(5);
         tripPlanning.setSelectedHotelRatingScore(9.1);
         tripPlanning.setSelectedHotelRatingLabel("Superb");
+        tripPlanning.setSelectedHotelStaysJson("[{\"city\":\"Barcelona\"}]");
         tripPlanning.setSelectedActivities(List.of(activity("Picasso Museum", "Arts", "120.00")));
 
         when(tripPlanningRepository.findById(10L)).thenReturn(Optional.of(tripPlanning));
@@ -250,6 +252,7 @@ class TripPlanningServiceTest {
 
         assertThat(response.tripName()).isEqualTo("Summer in Barcelona");
         assertThat(response.selectedHotel().hotelName()).isEqualTo("Barcelona Grand");
+        assertThat(response.selectedHotelStaysJson()).isEqualTo("[{\"city\":\"Barcelona\"}]");
         assertThat(response.selectedActivities()).hasSize(1);
         assertThat(response.totalActivitiesCost()).isEqualByComparingTo("120.00");
     }
