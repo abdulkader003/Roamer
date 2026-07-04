@@ -237,7 +237,7 @@ describe('TripComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Pending invites');
     expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
 
-    const cancelButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
+    const cancelButton = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
       .find((button) => button.textContent?.trim() === 'Cancel' && button.classList.contains('inline-danger-action')) as HTMLButtonElement;
     cancelButton.click();
     fixture.detectChanges();

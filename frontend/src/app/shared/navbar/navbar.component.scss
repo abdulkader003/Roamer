@@ -262,12 +262,16 @@
   top: calc(100% + 9px);
   right: 0;
   width: min(360px, calc(100vw - 24px));
+  max-height: min(72vh, 620px);
   background: var(--surface-primary);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.18);
   padding: 8px;
   z-index: 180;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .notification-menu-header {
@@ -295,8 +299,12 @@
 }
 
 .notification-list {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .notification-item {
