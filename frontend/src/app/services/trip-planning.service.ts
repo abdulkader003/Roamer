@@ -22,6 +22,7 @@ export interface TripBudgetResponse {
 
 export interface SelectTripHotelRequest {
   hotelId: number;
+  selectedHotelStaysJson?: string;
 }
 
 export interface TripHotelResponse {
@@ -62,6 +63,7 @@ export interface TripOverviewResponse {
   duration: number;
   travelStyle: string;
   selectedHotel: TripHotelResponse | null;
+  selectedHotelStaysJson?: string | null;
   selectedActivities: SelectedTripActivity[];
   totalActivitiesCost: number;
 }
@@ -92,11 +94,13 @@ export interface CreateTripRequest {
   flightStops?: string;
   flightDetails?: string;
   flightTotal?: number;
+  flightSegmentsJson?: string;
   hotelName?: string;
   hotelCity?: string;
   hotelStars?: number | null;
   hotelDetails?: string;
   hotelTotal?: number;
+  hotelStaysJson?: string;
   activitiesTitle?: string;
   activitiesDetails?: string;
   activitiesJson?: string;
@@ -129,11 +133,13 @@ export interface TripResponse {
   flightStops?: string | null;
   flightDetails?: string | null;
   flightTotal?: number | null;
+  flightSegmentsJson?: string | null;
   hotelName?: string | null;
   hotelCity?: string | null;
   hotelStars?: number | null;
   hotelDetails?: string | null;
   hotelTotal?: number | null;
+  hotelStaysJson?: string | null;
   activitiesTitle?: string | null;
   activitiesDetails?: string | null;
   activitiesJson?: string | null;

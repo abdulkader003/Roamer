@@ -102,6 +102,9 @@ public class Trip {
     @Column(precision = 12, scale = 2)
     private BigDecimal flightTotal;
 
+    @Column(columnDefinition = "TEXT")
+    private String flightSegmentsJson;
+
     @Column(length = 160)
     private String hotelName;
 
@@ -116,6 +119,9 @@ public class Trip {
 
     @Column(precision = 12, scale = 2)
     private BigDecimal hotelTotal;
+
+    @Column(columnDefinition = "TEXT")
+    private String hotelStaysJson;
 
     @Column(length = 160)
     private String activitiesTitle;
@@ -338,6 +344,14 @@ public class Trip {
         this.flightTotal = flightTotal;
     }
 
+    public String getFlightSegmentsJson() {
+        return flightSegmentsJson;
+    }
+
+    public void setFlightSegmentsJson(String flightSegmentsJson) {
+        this.flightSegmentsJson = flightSegmentsJson;
+    }
+
     public String getHotelName() {
         return hotelName;
     }
@@ -376,6 +390,14 @@ public class Trip {
 
     public void setHotelTotal(BigDecimal hotelTotal) {
         this.hotelTotal = hotelTotal;
+    }
+
+    public String getHotelStaysJson() {
+        return hotelStaysJson;
+    }
+
+    public void setHotelStaysJson(String hotelStaysJson) {
+        this.hotelStaysJson = hotelStaysJson;
     }
 
     public String getActivitiesTitle() {

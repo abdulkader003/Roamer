@@ -11,6 +11,7 @@ public record TripOverviewResponse(
         Integer duration,
         String travelStyle,
         TripHotelResponse selectedHotel,
+        String selectedHotelStaysJson,
         List<SelectedTripActivity> selectedActivities,
         BigDecimal totalActivitiesCost
 ) {
