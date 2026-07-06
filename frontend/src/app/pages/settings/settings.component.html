@@ -1,0 +1,301 @@
+<div class="settings-page page-wallpaper wallpaper-settings">
+
+  <div class="settings-header">
+    <h1 class="settings-title">Settings</h1>
+    <p class="settings-subtitle">Manage your preferences and account settings</p>
+  </div>
+
+  <div class="settings-grid">
+
+    <!-- ═══ Section 1: Notifications ═══ -->
+    <section class="settings-card">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </div>
+        <h2 class="card-title">Notifications</h2>
+      </div>
+
+      <div class="toggle-list">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Trip Reminders</span>
+            <span class="toggle-desc">Get reminded about upcoming trips</span>
+          </div>
+	          <button
+	            type="button"
+	            class="toggle-switch"
+	            role="switch"
+	            [class.active]="notifications.tripReminders"
+	            (click)="notifications.tripReminders = !notifications.tripReminders"
+	            aria-label="Trip reminders"
+	            [attr.aria-checked]="notifications.tripReminders">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Budget Alerts</span>
+            <span class="toggle-desc">Get notified when nearing your budget limit</span>
+          </div>
+	          <button
+	            type="button"
+	            class="toggle-switch"
+	            role="switch"
+	            [class.active]="notifications.budgetAlerts"
+	            (click)="notifications.budgetAlerts = !notifications.budgetAlerts"
+	            aria-label="Budget alerts"
+	            [attr.aria-checked]="notifications.budgetAlerts">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Booking Updates</span>
+            <span class="toggle-desc">Receive updates about your bookings</span>
+          </div>
+	          <button
+	            type="button"
+	            class="toggle-switch"
+	            role="switch"
+	            [class.active]="notifications.bookingUpdates"
+	            (click)="notifications.bookingUpdates = !notifications.bookingUpdates"
+	            aria-label="Booking updates"
+	            [attr.aria-checked]="notifications.bookingUpdates">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Section 2: App Preferences ═══ -->
+    <section class="settings-card">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+        </div>
+        <h2 class="card-title">App Preferences</h2>
+      </div>
+
+      <div class="pref-group">
+        <span class="pref-label">Theme</span>
+        <div class="theme-options">
+	          <button type="button" class="theme-option" [class.active]="theme() === 'light'" [attr.aria-pressed]="theme() === 'light'" (click)="selectTheme('light')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            Light
+          </button>
+	          <button type="button" class="theme-option" [class.active]="theme() === 'dark'" [attr.aria-pressed]="theme() === 'dark'" (click)="selectTheme('dark')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            Dark
+          </button>
+	          <button type="button" class="theme-option" [class.active]="theme() === 'system'" [attr.aria-pressed]="theme() === 'system'" (click)="selectTheme('system')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            System
+          </button>
+        </div>
+      </div>
+
+      <div class="pref-group">
+        <span class="pref-label">Default Calendar View</span>
+        <div class="theme-options">
+          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'monthly'" (click)="defaultCalendarView = 'monthly'">
+            Monthly
+          </button>
+          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'weekly'" (click)="defaultCalendarView = 'weekly'">
+            Weekly
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Section 3: Privacy ═══ -->
+    <section class="settings-card">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h2 class="card-title">Privacy</h2>
+      </div>
+
+      <div class="toggle-list">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Share Trip Data</span>
+            <span class="toggle-desc">Allow your trips to be visible to friends</span>
+          </div>
+	          <button
+	            type="button"
+	            class="toggle-switch"
+	            role="switch"
+	            [class.active]="privacy.shareTripData"
+	            (click)="privacy.shareTripData = !privacy.shareTripData"
+	            aria-label="Share trip data"
+	            [attr.aria-checked]="privacy.shareTripData">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-label">Allow Analytics</span>
+            <span class="toggle-desc">Help us improve by sharing usage data</span>
+          </div>
+	          <button
+	            type="button"
+	            class="toggle-switch"
+	            role="switch"
+	            [class.active]="privacy.allowAnalytics"
+	            (click)="privacy.allowAnalytics = !privacy.allowAnalytics"
+	            aria-label="Allow analytics"
+	            [attr.aria-checked]="privacy.allowAnalytics">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Section 4: Help & Support ═══ -->
+    <section class="settings-card full-width">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h2 class="card-title">Help & Support</h2>
+      </div>
+
+      <!-- FAQ -->
+      <div class="faq-list">
+        @for (faq of faqs; track faq.question; let i = $index) {
+          <div class="faq-item" [class.open]="faq.open">
+	            <button
+	              type="button"
+	              class="faq-question"
+	              [id]="'faq-question-' + i"
+	              [attr.aria-expanded]="faq.open"
+	              [attr.aria-controls]="'faq-answer-' + i"
+	              (click)="toggleFaq(i)">
+              <span>{{ faq.question }}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="faq-chevron">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            @if (faq.open) {
+	              <div
+	                class="faq-answer"
+	                role="region"
+	                [id]="'faq-answer-' + i"
+	                [attr.aria-labelledby]="'faq-question-' + i">
+	                {{ faq.answer }}
+	              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Help actions -->
+      <div class="help-actions">
+        <button type="button" class="help-button" (click)="openFeedback()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Share Feedback
+        </button>
+        <button type="button" class="help-button secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Terms & Policies
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Save Button -->
+  <div class="save-bar">
+    <button type="button" class="save-button" (click)="saveSettings()">Save Settings</button>
+  </div>
+
+  <!-- Save Toast -->
+  @if (isSaveToastVisible) {
+    <div class="save-toast">Settings saved successfully!</div>
+  }
+
+  <!-- Feedback Modal -->
+  @if (isFeedbackOpen) {
+	    <div class="feedback-backdrop" (click)="closeFeedback()">
+	      <div
+	        class="feedback-modal"
+	        role="dialog"
+	        aria-modal="true"
+	        aria-labelledby="feedback-title"
+	        (click)="$event.stopPropagation()">
+
+        @if (feedbackSubmitted) {
+          <div class="feedback-success">
+            <div class="feedback-success-emoji">🎉</div>
+	            <h3 id="feedback-title">Thank you for your feedback!</h3>
+            <p>We really appreciate it.</p>
+          </div>
+        } @else {
+          <div class="feedback-header">
+	            <h3 id="feedback-title">Share Your Feedback</h3>
+	            <button type="button" class="feedback-close" aria-label="Close feedback dialog" (click)="closeFeedback()">&times;</button>
+          </div>
+
+          <p class="feedback-subtitle">How would you rate your experience?</p>
+
+          <!-- Stars -->
+          <div class="star-rating">
+            @for (star of [1,2,3,4,5]; track star) {
+	              <button type="button" class="star" [class.active]="star <= feedbackRating" [attr.aria-label]="'Rate ' + star + ' out of 5'" [attr.aria-pressed]="star === feedbackRating" (click)="setRating(star)">★</button>
+            }
+          </div>
+
+          <!-- Emojis -->
+          <div class="emoji-rating">
+            @for (item of emojis; track item.emoji) {
+              <button
+                type="button"
+                class="emoji-option"
+	                [class.active]="feedbackEmoji === item.emoji"
+	                (click)="setEmoji(item.emoji)"
+	                [attr.aria-label]="item.label"
+	                [attr.aria-pressed]="feedbackEmoji === item.emoji"
+	                [title]="item.label">
+                {{ item.emoji }}
+              </button>
+            }
+          </div>
+
+          <!-- Text -->
+          <textarea
+            class="feedback-text"
+            [(ngModel)]="feedbackText"
+            placeholder="Tell us more (optional)..."
+            rows="3">
+          </textarea>
+
+          <button
+            type="button"
+            class="feedback-submit"
+            [disabled]="!feedbackRating"
+            (click)="submitFeedback()">
+            Submit Feedback
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+</div>

@@ -2,8 +2,11 @@
   position: fixed;
   top: 64px; left: 0; bottom: 0;
   width: 220px;
-  background: var(--surface-primary);
-  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-primary) 82%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: 14px 0 36px rgba(0, 0, 0, 0.10);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -38,12 +41,12 @@
   border: 1px solid transparent;
 
   &:hover {
-    background: var(--surface-hover);
+    background: color-mix(in srgb, var(--surface-hover) 84%, transparent);
     color: var(--text-primary);
   }
 
   &.active {
-    background: var(--active-bg);
+    background: color-mix(in srgb, var(--active-bg) 84%, transparent);
     color: var(--active-color);
     border-color: var(--active-border);
 
@@ -65,7 +68,7 @@
 
 .nav-divider {
   height: 1px;
-  background: var(--border);
+  background: color-mix(in srgb, var(--border) 82%, transparent);
   margin: 8px 0;
   transition: background 0.3s;
 }

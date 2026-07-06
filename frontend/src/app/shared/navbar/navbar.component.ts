@@ -25,7 +25,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   authService = inject(AuthService);
   @Output() menuRequested = new EventEmitter<void>();
 
-  isDark = computed(() => this.themeService.theme() === 'dark');
+  isDark = computed(() => this.themeService.resolvedTheme() === 'dark');
   isAuthenticated = computed(() => this.authService.isAuthenticated());
   isAccountMenuOpen = signal(false);
   isNotificationMenuOpen = signal(false);
