@@ -2,6 +2,7 @@ package com.sep.trip;
 
 import com.sep.event.CalendarEventRepository;
 import com.sep.trip.dto.CreateTripRequest;
+import com.sep.auth.dto.MessageResponse;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
@@ -17,11 +18,18 @@ import java.util.List;
 public class TripService {
 
     private final TripRepository tripRepository;
+    private final TripInvitationRepository tripInvitationRepository;
     private final AppUserRepository appUserRepository;
     private final CalendarEventRepository calendarEventRepository;
 
-    public TripService(TripRepository tripRepository, AppUserRepository appUserRepository, CalendarEventRepository calendarEventRepository) {
+    public TripService(
+            TripRepository tripRepository,
+            TripInvitationRepository tripInvitationRepository,
+            AppUserRepository appUserRepository,
+            CalendarEventRepository calendarEventRepository
+    ) {
         this.tripRepository = tripRepository;
+        this.tripInvitationRepository = tripInvitationRepository;
         this.appUserRepository = appUserRepository;
         this.calendarEventRepository = calendarEventRepository;
     }
@@ -33,8 +41,8 @@ public class TripService {
     public List<TripResponse> getTrips(String userEmail) {
         AppUser owner = findOwner(userEmail);
 
-        return tripRepository.findAllByOwnerIdOrderByStartDateAsc(owner.getId()).stream()
-                .map(this::toResponse)
+        return tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(owner.getId()).stream()
+                .map(trip -> toResponse(trip, owner.getId()))
                 .toList();
     }
 
@@ -50,7 +58,8 @@ public class TripService {
         applyEditableFields(trip, request);
         trip.setOwner(findOwner(userEmail));
 
-        return toResponse(tripRepository.save(trip));
+        AppUser owner = trip.getOwner();
+        return toResponse(tripRepository.save(trip), owner.getId());
     }
 
     /**
@@ -59,11 +68,11 @@ public class TripService {
     @Transactional
     public TripResponse updateTrip(String userEmail, Long tripId, CreateTripRequest request) {
         AppUser owner = findOwner(userEmail);
-        Trip trip = findOwnedTrip(tripId, owner);
+        Trip trip = findAccessibleTrip(tripId, owner);
 
         applyEditableFields(trip, request);
 
-        return toResponse(tripRepository.save(trip));
+        return toResponse(tripRepository.save(trip), owner.getId());
     }
 
     /**
@@ -75,7 +84,38 @@ public class TripService {
         Trip trip = findOwnedTrip(tripId, owner);
 
         calendarEventRepository.deleteByTripId(trip.getId());
+        tripInvitationRepository.deleteAllByTripId(trip.getId());
         tripRepository.delete(trip);
+    }
+
+    /**
+     * Removes the authenticated participant from a shared trip without affecting other users.
+     */
+    @Transactional
+    public MessageResponse leaveTrip(String userEmail, Long tripId) {
+        AppUser user = findOwner(userEmail);
+        Trip trip = findAccessibleTrip(tripId, user);
+
+        if (trip.getOwner().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Trip owners must delete the trip instead of leaving it.");
+        }
+
+        var acceptedInvitations = tripInvitationRepository.findAllByTripIdAndInvitedUserIdAndStatusIn(
+                trip.getId(),
+                user.getId(),
+                List.of(TripInvitationStatus.ACCEPTED)
+        );
+
+        if (acceptedInvitations.isEmpty()) {
+            throw new IllegalArgumentException("Trip was not found.");
+        }
+
+        tripInvitationRepository.deleteAllByTripIdAndInvitedUserIdAndStatus(
+                trip.getId(),
+                user.getId(),
+                TripInvitationStatus.ACCEPTED
+        );
+        return new MessageResponse("You left this trip.");
     }
 
     private AppUser findOwner(String userEmail) {
@@ -85,6 +125,11 @@ public class TripService {
 
     private Trip findOwnedTrip(Long tripId, AppUser owner) {
         return tripRepository.findByIdAndOwnerId(tripId, owner.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Trip was not found."));
+    }
+
+    private Trip findAccessibleTrip(Long tripId, AppUser user) {
+        return tripRepository.findAccessibleByIdAndUserId(tripId, user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Trip was not found."));
     }
 
@@ -137,7 +182,11 @@ public class TripService {
         return value.trim();
     }
 
-    private TripResponse toResponse(Trip trip) {
+    private TripResponse toResponse(Trip trip, Long currentUserId) {
+        TripAccessRole accessRole = trip.getOwner().getId().equals(currentUserId)
+                ? TripAccessRole.OWNER
+                : TripAccessRole.PARTICIPANT;
+
         return new TripResponse(
                 trip.getId(),
                 trip.getName(),
@@ -174,7 +223,8 @@ public class TripService {
                 trip.getActivitiesTitle(),
                 trip.getActivitiesDetails(),
                 trip.getActivitiesJson(),
-                trip.getActivitiesTotal()
+                trip.getActivitiesTotal(),
+                accessRole
         );
     }
 }

@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
+import { FriendCommunityService } from '../../../services/friend-community.service';
+import { FriendNotificationService } from '../../../services/friend-notification.service';
 import { TripPlanningService } from '../../../services/trip-planning.service';
 import { TripTempService } from '../create/trip-temp.service';
 import { TripComponent } from './trip.component';
@@ -10,6 +12,8 @@ describe('TripComponent', () => {
   let fixture: ComponentFixture<TripComponent>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
   let tripTempService: jasmine.SpyObj<TripTempService>;
+  let friendCommunityService: jasmine.SpyObj<FriendCommunityService>;
+  let friendNotificationService: jasmine.SpyObj<FriendNotificationService>;
 
   const createPdfExporterSpy = () => ({
     exportTripSummaryPdf: jasmine.createSpy('exportTripSummaryPdf').and.resolveTo(),
@@ -20,12 +24,75 @@ describe('TripComponent', () => {
       'listSavedTrips',
       'updateTrip',
       'deleteTrip',
+      'listIncomingTripInvitations',
+      'listTripParticipants',
+      'listSentTripInvitations',
+      'acceptTripInvitation',
+      'declineTripInvitation',
+      'inviteFriendToTrip',
+      'cancelTripInvitation',
+      'leaveTrip',
     ]);
+    tripPlanningService.listIncomingTripInvitations.and.returnValue(of([]));
+    tripPlanningService.listTripParticipants.and.returnValue(of([
+      {
+        user: {
+          id: 7,
+          username: 'owner',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          email: 'owner@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        role: 'OWNER',
+      },
+    ]));
+    tripPlanningService.listSentTripInvitations.and.returnValue(of([]));
+    tripPlanningService.acceptTripInvitation.and.returnValue(of({ message: 'Trip invitation accepted.' }));
+    tripPlanningService.declineTripInvitation.and.returnValue(of({ message: 'Trip invitation declined.' }));
+    tripPlanningService.cancelTripInvitation.and.returnValue(of({ message: 'Trip invitation cancelled.' }));
+    tripPlanningService.inviteFriendToTrip.and.returnValue(of({
+      id: 1,
+      trip: {
+        id: 1,
+        name: 'Summer in Italy',
+        destination: 'Rome',
+        startDate: '2026-07-15',
+        endDate: '2026-07-22',
+        budget: 2400,
+        status: 'UPCOMING',
+      },
+      invitedBy: {
+        id: 7,
+        username: 'owner',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        email: 'owner@example.com',
+        verified: true,
+        profilePictureUpdatedAt: null,
+      },
+      invitedUser: {
+        id: 9,
+        username: 'friend',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        email: 'friend@example.com',
+        verified: true,
+        profilePictureUpdatedAt: null,
+      },
+      status: 'PENDING',
+      createdAt: '2026-06-20T18:00:00Z',
+    }));
+    tripPlanningService.leaveTrip.and.returnValue(of({ message: 'You left this trip.' }));
     tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', [
       'clearTripTemp',
       'getTripTemp',
       'updateTripTemp',
     ]);
+    friendCommunityService = jasmine.createSpyObj<FriendCommunityService>('FriendCommunityService', ['listFriends']);
+    friendCommunityService.listFriends.and.returnValue(of([]));
+    friendNotificationService = jasmine.createSpyObj<FriendNotificationService>('FriendNotificationService', ['refresh']);
     tripTempService.getTripTemp.and.returnValue(emptyTripTemp());
     tripTempService.updateTripTemp.and.callFake((changes) => ({
       ...emptyTripTemp(),
@@ -38,6 +105,8 @@ describe('TripComponent', () => {
         provideRouter([]),
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: TripTempService, useValue: tripTempService },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: FriendNotificationService, useValue: friendNotificationService },
       ],
     }).compileComponents();
   });
@@ -118,7 +187,62 @@ describe('TripComponent', () => {
     expect(fixture.nativeElement.querySelector('.trip-modal')).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Rome Confirmed');
     expect(fixture.nativeElement.textContent).toContain('Budget Overview');
+    expect(fixture.nativeElement.textContent).toContain('Participants');
     expect(fixture.nativeElement.textContent).toContain('No booking details saved for this trip');
+  });
+
+  it('shows pending sent invitations with a cancel action for the owner', () => {
+    const trip = savedTrip({ id: 22, name: 'Shared Rome', status: 'UPCOMING' });
+    tripPlanningService.listSavedTrips.and.returnValue(of([trip]));
+    tripPlanningService.listSentTripInvitations.and.returnValue(of([
+      {
+        id: 44,
+        trip: {
+          id: 22,
+          name: 'Shared Rome',
+          destination: 'Rome',
+          startDate: '2026-07-15',
+          endDate: '2026-07-22',
+          budget: 2400,
+          status: 'UPCOMING',
+        },
+        invitedBy: {
+          id: 7,
+          username: 'owner',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          email: 'owner@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        invitedUser: {
+          id: 9,
+          username: 'friend',
+          firstName: 'Grace',
+          lastName: 'Hopper',
+          email: 'friend@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        status: 'PENDING',
+        createdAt: '2026-06-20T18:00:00Z',
+      },
+    ]));
+
+    fixture = TestBed.createComponent(TripComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.openTrip(trip);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Pending invites');
+    expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
+
+    const cancelButton = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
+      .find((button) => button.textContent?.trim() === 'Cancel' && button.classList.contains('inline-danger-action')) as HTMLButtonElement;
+    cancelButton.click();
+    fixture.detectChanges();
+
+    expect(tripPlanningService.cancelTripInvitation).toHaveBeenCalledWith(44);
   });
 
   it('renders stored wizard details inside the trip overview modal', () => {

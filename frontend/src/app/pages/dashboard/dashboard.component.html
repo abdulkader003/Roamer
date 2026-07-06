@@ -100,6 +100,9 @@
               <span [class]="trip.status === 'confirmed' ? 'badge badge-confirmed' : 'badge badge-pending'">
                 {{ trip.status }}
               </span>
+              @if (trip.shared) {
+                <span class="badge badge-shared">Shared with you</span>
+              }
             </div>
             <div class="trip-budget-wrap">
               <p class="trip-budget">{{ trip.budget }}</p>

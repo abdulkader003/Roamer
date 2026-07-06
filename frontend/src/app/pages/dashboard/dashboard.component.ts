@@ -46,6 +46,7 @@ interface Trip {
   budget: string;
   status: 'confirmed' | 'pending';
   image: string;
+  shared: boolean;
 }
 
 interface Experience {
@@ -453,7 +454,8 @@ export class DashboardComponent implements OnDestroy {
       dates: this.formatTripDates(trip),
       budget: this.formatTripBudget(trip),
       status: trip.status === 'UPCOMING' ? 'confirmed' : 'pending',
-      image: this.tripImageFor(trip)
+      image: this.tripImageFor(trip),
+      shared: trip.accessRole === 'PARTICIPANT'
     };
   }
 
