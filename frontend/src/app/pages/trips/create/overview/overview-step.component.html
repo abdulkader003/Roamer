@@ -62,51 +62,198 @@
           <article class="hero-summary">
             <span>Trip Name</span>
             <h2>{{ tripName() }}</h2>
-            <p>{{ destinationName() }} · {{ nights() }} nights · {{ travelerLabel() }}</p>
+            <p>{{ tripRouteSummary() }} · {{ nights() }} nights · {{ travelerLabel() }}</p>
             <p>{{ dateRange() }}</p>
           </article>
 
-          <article class="summary-card">
-            <div>
-              <span class="eyebrow">→ Flight</span>
-              <h3>
-                {{ flightTitle() }}
-                @if (tripTemp.selectedFlightAirline && tripTemp.selectedFlightNumber) {
-                  · {{ tripTemp.selectedFlightNumber }}
-                }
-              </h3>
-              <p>{{ flightDetails() }}</p>
+          <article class="summary-card summary-card--detailed">
+            <div class="summary-card-header">
+              <div>
+                <span class="eyebrow">→ Flights</span>
+                <h3>{{ flightSegments().length }} {{ flightSegments().length === 1 ? 'segment' : 'segments' }}</h3>
+              </div>
+              <strong>{{ currencySymbol() }}{{ flightTotal() | number:'1.0-0' }}</strong>
             </div>
-            <strong>{{ currencySymbol() }}{{ flightTotal() | number:'1.0-0' }}</strong>
+
+            <div class="detail-list">
+              @for (segment of flightSegments(); track segment.label) {
+                <section class="detail-item">
+                  <div class="detail-item-title">
+                    <span>{{ segment.label }}</span>
+                    <strong>{{ cityOnly(segment.from) }} → {{ cityOnly(segment.to) }}</strong>
+                  </div>
+
+                  <dl class="detail-grid">
+                    @if (segment.airline) {
+                      <div>
+                        <dt>Airline</dt>
+                        <dd>{{ segment.airline }}</dd>
+                      </div>
+                    }
+                    @if (segment.flightNumber) {
+                      <div>
+                        <dt>Flight</dt>
+                        <dd>{{ segment.flightNumber }}</dd>
+                      </div>
+                    }
+                    @if (segment.date) {
+                      <div>
+                        <dt>Date</dt>
+                        <dd>{{ formatDisplayDate(segment.date) }}</dd>
+                      </div>
+                    }
+                    @if (segment.departureTime) {
+                      <div>
+                        <dt>Departure</dt>
+                        <dd>{{ segment.departureTime }}</dd>
+                      </div>
+                    }
+                    @if (segment.arrivalTime) {
+                      <div>
+                        <dt>Arrival</dt>
+                        <dd>{{ segment.arrivalTime }}</dd>
+                      </div>
+                    }
+                    @if (segment.duration) {
+                      <div>
+                        <dt>Duration</dt>
+                        <dd>{{ segment.duration }}</dd>
+                      </div>
+                    }
+                    @if (segment.stops) {
+                      <div>
+                        <dt>Stops</dt>
+                        <dd>{{ segment.stops }}</dd>
+                      </div>
+                    }
+                    @if (segment.price) {
+                      <div>
+                        <dt>Price</dt>
+                        <dd>{{ currencySymbol() }}{{ segment.price | number:'1.0-0' }}</dd>
+                      </div>
+                    }
+                  </dl>
+                </section>
+              }
+            </div>
           </article>
 
-          <article class="summary-card">
-            <div>
-              <span class="eyebrow">⌂ Hotel</span>
-              <h3>{{ hotelName() }}</h3>
-              <p>
-                {{ hotelCity() }}
-                @if (hotelStars()) {
-                  · {{ hotelStars() }} stars
-                }
-              </p>
+          <article class="summary-card summary-card--detailed">
+            <div class="summary-card-header">
+              <div>
+                <span class="eyebrow">⌂ Hotels</span>
+                <h3>{{ hotelStays().length ? hotelStays().length + ' selected' : 'Hotel not selected' }}</h3>
+              </div>
+              <strong>{{ currencySymbol() }}{{ hotelTotal() | number:'1.0-0' }}</strong>
             </div>
-            <strong>{{ currencySymbol() }}{{ hotelTotal() | number:'1.0-0' }}</strong>
+
+            <div class="detail-list">
+              @for (group of hotelGroups(); track group.city) {
+                <section class="detail-group">
+                  <h4>{{ group.city }}</h4>
+                  @for (stay of group.stays; track stay.hotelName) {
+                    <section class="detail-item detail-item--priced">
+                      <div class="detail-item-title">
+                        <span>Hotel</span>
+                        <strong>{{ stay.hotelName }}</strong>
+                      </div>
+
+                      <dl class="detail-grid">
+                        <div>
+                          <dt>City</dt>
+                          <dd>{{ stay.city }}</dd>
+                        </div>
+                        @if (stay.checkIn) {
+                          <div>
+                            <dt>Check-in</dt>
+                            <dd>{{ formatDisplayDate(stay.checkIn) }}</dd>
+                          </div>
+                        }
+                        @if (stay.checkOut) {
+                          <div>
+                            <dt>Check-out</dt>
+                            <dd>{{ formatDisplayDate(stay.checkOut) }}</dd>
+                          </div>
+                        }
+                        <div>
+                          <dt>Nights</dt>
+                          <dd>{{ stay.nights }}</dd>
+                        </div>
+                        @if (stay.stars) {
+                          <div>
+                            <dt>Rating</dt>
+                            <dd>{{ stay.stars }} stars</dd>
+                          </div>
+                        }
+                      </dl>
+
+                      @if (stay.price) {
+                        <strong class="detail-item-price">
+                          {{ currencySymbol() }}{{ stay.price | number:'1.0-0' }}
+                          <small>Total for {{ travelerLabel() }}</small>
+                        </strong>
+                      }
+                    </section>
+                  }
+                </section>
+              } @empty {
+                <p class="empty-detail">No hotel selected yet.</p>
+              }
+            </div>
           </article>
 
-          <article class="summary-card">
-            <div>
-              <span class="eyebrow">● Activities</span>
-              <h3>{{ selectedActivities().length }} selected</h3>
-              <p>
-                @for (activity of selectedActivities(); track activity.name; let last = $last) {
-                  {{ activity.name }}@if (!last) {, }
-                } @empty {
-                  No activities selected
-                }
-              </p>
+          <article class="summary-card summary-card--detailed">
+            <div class="summary-card-header">
+              <div>
+                <span class="eyebrow">● Activities</span>
+                <h3>{{ selectedActivities().length }} selected</h3>
+              </div>
+              <strong>{{ currencySymbol() }}{{ activitiesTotal() | number:'1.0-0' }}</strong>
             </div>
-            <strong>{{ currencySymbol() }}{{ activitiesTotal() | number:'1.0-0' }}</strong>
+
+            <div class="detail-list">
+              @for (group of activityGroups(); track group.city) {
+                <section class="detail-group">
+                  <h4>{{ group.city }}</h4>
+                  @for (activity of group.activities; track activity.name) {
+                    <section class="detail-item detail-item--priced">
+                      <div class="detail-item-title">
+                        <span>{{ activity.category }}</span>
+                        <strong>{{ activity.name }}</strong>
+                      </div>
+
+                      <dl class="detail-grid">
+                        <div>
+                          <dt>City</dt>
+                          <dd>{{ activity.city }}</dd>
+                        </div>
+                        @if (activity.date) {
+                          <div>
+                            <dt>Date</dt>
+                            <dd>{{ activity.date }}</dd>
+                          </div>
+                        }
+                        @if (activity.time) {
+                          <div>
+                            <dt>Time</dt>
+                            <dd>{{ activity.time }}</dd>
+                          </div>
+                        }
+                      </dl>
+
+                      @if (activity.price) {
+                        <strong class="detail-item-price">
+                          {{ currencySymbol() }}{{ activityTotal(activity) | number:'1.0-0' }}
+                          <small>Total for {{ travelerLabel() }}</small>
+                        </strong>
+                      }
+                    </section>
+                  }
+                </section>
+              } @empty {
+                <p class="empty-detail">No activities selected.</p>
+              }
+            </div>
           </article>
         </section>
 
@@ -156,6 +303,31 @@
           @if (saveError()) {
             <span class="save-error">{{ saveError() }}</span>
           }
+          @if (exportError()) {
+            <span class="save-error">{{ exportError() }}</span>
+          }
+          <div class="export-wrapper">
+            <button
+              class="secondary-button"
+              type="button"
+              aria-haspopup="menu"
+              [attr.aria-expanded]="isExportMenuOpen()"
+              [disabled]="isExportingPdf()"
+              (click)="toggleExportMenu()">
+              @if (isExportingPdf()) {
+                Exporting...
+              } @else {
+                Export Trip Summary
+              }
+            </button>
+            @if (isExportMenuOpen()) {
+              <div class="export-menu" role="menu">
+                <button type="button" class="export-menu-item" role="menuitem" (click)="exportTripSummary()">
+                  Export as PDF
+                </button>
+              </div>
+            }
+          </div>
           <button class="draft-button" type="button" [disabled]="isSaving()" (click)="saveLater()">
             Save Later
           </button>

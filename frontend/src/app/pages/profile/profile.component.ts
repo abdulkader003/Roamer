@@ -36,6 +36,21 @@ type TravelAchievementOption = {
   label: string;
 };
 
+type ProfileLevelSummary = {
+  level: number;
+  title: string;
+  totalXp: number;
+  currentLevelXp: number;
+  nextLevelXp: number;
+  progressPercent: number;
+  xpIntoLevel: number;
+  xpNeededForNextLevel: number;
+};
+
+type XpHint = {
+  label: string;
+  points: number;
+};
 
 const TRAVEL_ACHIEVEMENTS: TravelAchievementOption[] = [
   { key: 'BEACH_LOVER', label: '🏖 Beach Lover' },
@@ -48,6 +63,28 @@ const TRAVEL_ACHIEVEMENTS: TravelAchievementOption[] = [
   { key: 'RELAXATION_TRAVELER', label: '🧘 Relaxation Traveler' },
   { key: 'TRAVEL_PHOTOGRAPHER', label: '📸 Travel Photographer' },
   { key: 'NATURE_EXPLORER', label: '🌿 Nature Explorer' }
+];
+
+const PROFILE_LEVEL_THRESHOLDS = [0, 250, 600, 1000, 1500, 2200, 3000, 4000];
+const PROFILE_LEVEL_TITLES = [
+  'New Explorer',
+  'Weekend Planner',
+  'Route Builder',
+  'Globe Scout',
+  'Journey Pro',
+  'World Voyager',
+  'Roamer Elite',
+  'Legend Traveler'
+];
+
+const PROFILE_XP_HINTS: XpHint[] = [
+  { label: 'Verify your account', points: 100 },
+  { label: 'Upload a profile picture', points: 75 },
+  { label: 'Complete each profile field', points: 35 },
+  { label: 'Select each travel interest', points: 45 },
+  { label: 'Add a visited country', points: 60 },
+  { label: 'Plan or confirm an upcoming trip', points: 120 },
+  { label: 'Connect with another traveler', points: 40 },
 ];
 
 @Component({
@@ -106,10 +143,12 @@ export class ProfileComponent implements OnInit {
   friendSearchError = '';
   friendCommunityError = '';
   upcomingTripCount = 0;
+  isXpHintOpen = false;
   private selectedHomeAirport: AirportOption | null = null;
 
   readonly maxPictureSizeMb = 2;
   readonly travelAchievementOptions = TRAVEL_ACHIEVEMENTS;
+  readonly profileXpHints = PROFILE_XP_HINTS;
   readonly friendSearchControl = this.fb.nonNullable.control('');
 
   readonly profileForm = this.fb.nonNullable.group({
@@ -178,8 +217,64 @@ export class ProfileComponent implements OnInit {
       .join('') || 'RO';
   }
 
+  get profileLevelSummary(): ProfileLevelSummary {
+    const totalXp = this.profileXpPoints;
+    const normalizedLevelIndex = PROFILE_LEVEL_THRESHOLDS
+      .reduce((levelIndex, threshold, index) => totalXp >= threshold ? index : levelIndex, 0);
+    const currentLevelXp = PROFILE_LEVEL_THRESHOLDS[normalizedLevelIndex] ?? 0;
+    const nextLevelXp = PROFILE_LEVEL_THRESHOLDS[normalizedLevelIndex + 1] ?? currentLevelXp;
+    const xpRange = Math.max(1, nextLevelXp - currentLevelXp);
+    const xpIntoLevel = Math.max(0, totalXp - currentLevelXp);
+    const isMaxLevel = normalizedLevelIndex >= PROFILE_LEVEL_THRESHOLDS.length - 1;
+
+    return {
+      level: normalizedLevelIndex + 1,
+      title: PROFILE_LEVEL_TITLES[normalizedLevelIndex] ?? PROFILE_LEVEL_TITLES.at(-1) ?? 'Traveler',
+      totalXp,
+      currentLevelXp,
+      nextLevelXp,
+      progressPercent: isMaxLevel ? 100 : Math.min(100, Math.round((xpIntoLevel / xpRange) * 100)),
+      xpIntoLevel,
+      xpNeededForNextLevel: isMaxLevel ? 0 : Math.max(0, nextLevelXp - totalXp),
+    };
+  }
+
+  get profileXpPoints(): number {
+    const profile = this.profile;
+
+    if (!profile) {
+      return 0;
+    }
+
+    const completedProfileFields = [
+      profile.username,
+      profile.firstName,
+      profile.lastName,
+      profile.phoneNumber,
+      profile.homeAirport,
+    ].filter((value) => Boolean(value?.trim())).length;
+
+    const verifiedXp = profile.verified ? 100 : 0;
+    const pictureXp = profile.hasProfilePicture ? 75 : 0;
+    const profileFieldsXp = completedProfileFields * 35;
+    const interestsXp = this.selectedTravelAchievements.length * 45;
+    const visitedCountriesXp = this.visitedCountries.length * 60;
+    const upcomingTripsXp = this.upcomingTripCount * 120;
+    const friendsXp = this.friends.length * 40;
+
+    return verifiedXp + pictureXp + profileFieldsXp + interestsXp + visitedCountriesXp + upcomingTripsXp + friendsXp;
+  }
+
+  get profileLevelMilestones(): number[] {
+    return PROFILE_LEVEL_THRESHOLDS.slice(0, 6);
+  }
+
   achievementLabel(key: string): string {
     return this.travelAchievementOptions.find((option) => option.key === key)?.label ?? key;
+  }
+
+  toggleXpHint(): void {
+    this.isXpHintOpen = !this.isXpHintOpen;
   }
 
   loadProfile(): void {

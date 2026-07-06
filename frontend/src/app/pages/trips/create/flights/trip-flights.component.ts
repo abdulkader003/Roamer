@@ -70,7 +70,7 @@ export class TripFlightsComponent implements OnInit {
   flights: Flight[] = [];
   returnFlights: Flight[] = [];
   segmentFlights: SegmentFlights[] = [];
-  selectedSegmentFlightIds: Record<number, string> = {};
+  selectedSegmentFlightIds: Record<number, string> = this.segmentSelectionFromTripTemp();
 
   ngOnInit(): void {
     this.searchFlights();
@@ -179,6 +179,12 @@ export class TripFlightsComponent implements OnInit {
         ? `${this.stopsLabel(outboundFlight)} outbound · ${this.stopsLabel(returnFlight)} return`
         : this.stopsLabel(outboundFlight),
       selectedFlightTotal: this.totalPrice(outboundFlight) + (returnFlight ? this.totalPrice(returnFlight) : 0),
+      selectedFlightSegments: [
+        this.toFlightSegmentSnapshot('Outbound', this.tripTemp.origin, this.tripTemp.destination, this.tripTemp.departureDate, outboundFlight),
+        ...(returnFlight
+          ? [this.toFlightSegmentSnapshot('Return', this.tripTemp.destination, this.tripTemp.origin, this.tripTemp.returnDate, returnFlight)]
+          : []),
+      ],
     });
   }
 
@@ -280,9 +286,14 @@ export class TripFlightsComponent implements OnInit {
           }
 
           if (this.isMultiCity()) {
+            const savedSegmentFlightIds = this.segmentSelectionFromTripTemp();
             this.selectedSegmentFlightIds = this.segmentFlights.reduce<Record<number, string>>((selected, segment) => ({
               ...selected,
-              [segment.segmentIndex]: this.selectedSegmentFlightIds[segment.segmentIndex] || segment.flights[0]?.id || '',
+              [segment.segmentIndex]:
+                this.selectedSegmentFlightIds[segment.segmentIndex]
+                || savedSegmentFlightIds[segment.segmentIndex]
+                || segment.flights[0]?.id
+                || '',
             }), {});
           }
 
@@ -356,6 +367,16 @@ export class TripFlightsComponent implements OnInit {
         .map((flight, index) => `Segment ${index + 1} ${this.stopsLabel(flight)}`)
         .join(' · '),
       selectedFlightTotal: selectedFlights.reduce((total, flight) => total + this.totalPrice(flight), 0),
+      selectedFlightSegments: selectedFlights.map((flight, index) => {
+        const segment = this.segmentFlights[index];
+        return this.toFlightSegmentSnapshot(
+          `Segment ${index + 1}`,
+          segment?.fromText ?? flight.departure.city,
+          segment?.toText ?? flight.arrival.city,
+          segment?.date ?? '',
+          flight,
+        );
+      }),
     });
   }
 
@@ -363,6 +384,33 @@ export class TripFlightsComponent implements OnInit {
     return this.segmentFlights
       .map((segment) => segment.flights.find((flight) => flight.id === this.selectedSegmentFlightIds[segment.segmentIndex]))
       .filter((flight): flight is Flight => !!flight);
+  }
+
+  private segmentSelectionFromTripTemp(): Record<number, string> {
+    return this.tripTemp.selectedFlightId
+      .split('|')
+      .map((flightId) => flightId.trim())
+      .filter(Boolean)
+      .reduce<Record<number, string>>((selected, flightId, index) => ({
+        ...selected,
+        [index]: flightId,
+      }), {});
+  }
+
+  private toFlightSegmentSnapshot(label: string, from: string, to: string, date: string, flight: Flight) {
+    return {
+      label,
+      airline: flight.airline.name,
+      flightNumber: flight.flightNumber || flight.id,
+      from: from || `${flight.departure.city} (${flight.departure.airport})`,
+      to: to || `${flight.arrival.city} (${flight.arrival.airport})`,
+      date,
+      departureTime: flight.departure.time,
+      arrivalTime: flight.arrival.time,
+      duration: flight.duration,
+      stops: this.stopsLabel(flight),
+      price: this.totalPrice(flight),
+    };
   }
 
   allSegmentsSelected(): boolean {

@@ -161,7 +161,7 @@ describe('TripFlightsComponent', () => {
 
     component.selectFlight(flight);
 
-    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith(jasmine.objectContaining({
       selectedFlightId: 'LH-1182|LH-1183',
       selectedFlightAirline: 'Lufthansa + Lufthansa',
       selectedFlightNumber: 'LH 1182 / LH 1183',
@@ -170,7 +170,25 @@ describe('TripFlightsComponent', () => {
       selectedFlightDuration: 'Outbound 2h 15m · Return 2h 15m',
       selectedFlightStops: 'Direct outbound · Direct return',
       selectedFlightTotal: 730,
-    });
+      selectedFlightSegments: [
+        jasmine.objectContaining({
+          label: 'Outbound',
+          from: 'Frankfurt (FRA)',
+          to: 'Barcelona (BCN)',
+          date: '2026-07-14',
+          departureTime: '07:10',
+          arrivalTime: '09:25',
+        }),
+        jasmine.objectContaining({
+          label: 'Return',
+          from: 'Barcelona (BCN)',
+          to: 'Frankfurt (FRA)',
+          date: '2026-07-21',
+          departureTime: '18:20',
+          arrivalTime: '20:35',
+        }),
+      ],
+    }));
   });
 
   it('expands a clicked flight to show its details', () => {
@@ -304,6 +322,87 @@ describe('TripFlightsComponent', () => {
     expect(tripTempService.updateTripTemp).toHaveBeenCalledWith(jasmine.objectContaining({
       selectedFlightId: 'LH-1182|AZ-77',
       selectedFlightTotal: 618,
+      selectedFlightSegments: [
+        jasmine.objectContaining({ from: 'Frankfurt (FRA)', to: 'Barcelona (BCN)', date: '2026-07-14' }),
+        jasmine.objectContaining({ from: 'Barcelona (BCN)', to: 'Rome (FCO)', date: '2026-07-18' }),
+      ],
+    }));
+  });
+
+  it('preselects saved multi-city flights instead of defaulting to the first segment option', async () => {
+    TestBed.resetTestingModule();
+    const multiCitySegments = [
+      { fromText: 'Frankfurt (FRA)', toText: 'Barcelona (BCN)', date: '2026-07-14' },
+      { fromText: 'Barcelona (BCN)', toText: 'Rome (FCO)', date: '2026-07-18' },
+    ];
+    const savedFirstSegmentFlight = {
+      ...flightSearchResponse.outboundFlights[0],
+      id: 'LH-SAVED',
+      flightNumber: 'LH SAVED',
+      price: 210,
+    };
+    const savedSecondSegmentFlight = {
+      ...flightSearchResponse.returnFlights[0],
+      id: 'AZ-SAVED',
+      flightNumber: 'AZ SAVED',
+      airline: { code: 'AZ', name: 'ITA Airways', colorClass: 'az' },
+      departure: { time: '11:30', airport: 'BCN', city: 'Barcelona', terminal: '1' },
+      arrival: { time: '13:10', airport: 'FCO', city: 'Rome', terminal: '3' },
+      price: 120,
+    };
+
+    await configureTestBed(
+      {
+        ...tripTemp,
+        origin: 'Frankfurt (FRA)',
+        destination: 'Rome (FCO)',
+        departureDate: '2026-07-14',
+        returnDate: '2026-07-18',
+        selectedFlightId: 'LH-SAVED|AZ-SAVED',
+      },
+      {
+        tripType: 'multi-city',
+        multiCitySegments: JSON.stringify(multiCitySegments),
+      },
+    );
+    flightsService.search.and.returnValue(of({
+      ...flightSearchResponse,
+      tripType: 'multi-city',
+      outboundFlights: [],
+      returnFlights: [],
+      flights: [],
+      segmentFlights: [
+        {
+          segmentIndex: 0,
+          fromText: 'Frankfurt (FRA)',
+          toText: 'Barcelona (BCN)',
+          date: '2026-07-14',
+          flights: [flightSearchResponse.outboundFlights[0], savedFirstSegmentFlight],
+        },
+        {
+          segmentIndex: 1,
+          fromText: 'Barcelona (BCN)',
+          toText: 'Rome (FCO)',
+          date: '2026-07-18',
+          flights: [{
+            ...flightSearchResponse.returnFlights[0],
+            id: 'AZ-FIRST',
+          }, savedSecondSegmentFlight],
+        },
+      ],
+    }));
+
+    fixture = TestBed.createComponent(TripFlightsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.selectedSegmentFlightIds).toEqual({
+      0: 'LH-SAVED',
+      1: 'AZ-SAVED',
+    });
+    expect(component.allSegmentsSelected()).toBeTrue();
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith(jasmine.objectContaining({
+      selectedFlightId: 'LH-SAVED|AZ-SAVED',
     }));
   });
 });

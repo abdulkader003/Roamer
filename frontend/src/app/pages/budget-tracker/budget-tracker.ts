@@ -20,6 +20,16 @@ type CategoryBudgetDraft = {
   name: string;
   budget: string;
 };
+type CategoryBudgetResponse = {
+  category: string;
+  spent: number;
+  budget: number;
+  percentage: number;
+  isNearLimit?: boolean;
+  nearLimit?: boolean;
+  isOverLimit?: boolean;
+  overLimit?: boolean;
+};
 type TripBudget = {
   tripId: number;
   name: string;
@@ -290,27 +300,36 @@ export class BudgetTracker implements OnInit {
       return;
     }
 
-    const updates = this.categoryBudgetDrafts.map(draft => ({
+    const updates = this.categoryBudgetDrafts.map((draft, index) => ({
       draft,
-      budget: Number(draft.budget)
+      budget: Number(draft.budget),
+      current: this.categoryBudgets[index]
     }));
 
     if (updates.some(update => Number.isNaN(update.budget) || update.budget < 0)) {
       return;
     }
 
+    const changedUpdates = updates.filter(update => !update.current || update.current.budget !== update.budget);
+
+    if (!changedUpdates.length) {
+      this.closeCategoryBudgetForm();
+      return;
+    }
+
     forkJoin(
-      updates.map(update =>
-        this.http.put(
+      changedUpdates.map(update =>
+        this.http.put<CategoryBudgetResponse>(
           `${this.apiBase}/categories/${update.draft.categoryKey}`,
           { budget: update.budget },
           { headers: this.getHeaders() }
         )
       )
     ).subscribe({
-      next: () => {
+      next: (responses) => {
+        this.categoryBudgets = this.mergeSavedCategoryBudgets(this.categoryBudgets, responses);
         this.closeCategoryBudgetForm();
-        this.loadAllData();
+        this.loadError = '';
         this.cdr.detectChanges();
       },
       error: () => {
@@ -904,6 +923,38 @@ export class BudgetTracker implements OnInit {
         percentage: Math.min(Math.max(percentage, 0), 100),
         status,
         statusClass
+      };
+    });
+  }
+
+  private mergeSavedCategoryBudgets(current: CategoryBudget[], responses: CategoryBudgetResponse[]): CategoryBudget[] {
+    const updates = new Map<string, CategoryBudgetResponse>();
+
+    responses.forEach(response => {
+      if (!response?.category) {
+        return;
+      }
+
+      updates.set(this.normalizeCategoryKey(response.category), response);
+    });
+
+    return current.map(category => {
+      const update = updates.get(category.categoryKey);
+      if (!update) {
+        return category;
+      }
+
+      const isOverLimit = Boolean(update.isOverLimit ?? update.overLimit);
+      const isNearLimit = Boolean(update.isNearLimit ?? update.nearLimit);
+      const percentage = Number.isFinite(Number(update.percentage)) ? Number(update.percentage) : category.percentage;
+
+      return {
+        ...category,
+        spent: Number(update.spent ?? category.spent),
+        budget: Number(update.budget ?? category.budget),
+        percentage: Math.min(Math.max(percentage, 0), 100),
+        status: isOverLimit ? 'Over Budget' : isNearLimit ? 'Near Limit' : 'Normal',
+        statusClass: isOverLimit ? 'over-limit' : isNearLimit ? 'near-limit' : 'normal'
       };
     });
   }

@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
 import { Hotel } from '../../../hotels/models/hotel.model';
 import { HotelService } from '../../../hotels/services/hotel.service';
 import { TripPlanningService } from '../../../../services/trip-planning.service';
-import { TripTempService } from '../trip-temp.service';
+import { TripTempHotelStay, TripTempService } from '../trip-temp.service';
 
 interface TripStep {
   label: string;
@@ -43,6 +43,7 @@ export class HotelsStepComponent implements OnInit {
   ];
   readonly hotels = signal<TripPlanningHotel[]>([]);
   readonly selectedHotel = signal<TripPlanningHotel | null>(null);
+  readonly selectedHotelsByCity = signal<Record<string, TripPlanningHotel>>({});
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
   readonly loadError = signal('');
@@ -52,17 +53,19 @@ export class HotelsStepComponent implements OnInit {
   readonly selectedCities = signal<string[]>(['Barcelona']);
   readonly imageIndexes = signal<Record<string, number>>({});
   readonly failedImageUrls = signal<Record<string, string[]>>({});
+  readonly savedHotelId = signal<number | null>(null);
 
-  readonly nights = Math.max(this.tripTemp.durationNights ?? 0, 0);
+  readonly nights = this.resolveNights();
   readonly guests = Math.max(this.tripTemp.travelers || 1, 1);
   readonly checkIn = this.tripTemp.departureDate || this.formatDate(this.addDays(new Date(), 30));
-  readonly checkOut = this.tripTemp.returnDate || this.formatDate(this.addDays(new Date(), 30 + Math.max(this.nights, 1)));
+  readonly checkOut = this.tripTemp.returnDate || this.formatDate(this.addDays(this.parseDateOnly(this.checkIn) ?? new Date(), Math.max(this.nights, 1)));
   readonly fallbackHotelImage =
     'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 520%22%3E%3Crect width=%22800%22 height=%22520%22 fill=%22%23eef4fb%22/%3E%3Cpath d=%22M130 390h540L535 245l-95 105-70-75z%22 fill=%22%23c9d8eb%22/%3E%3Ccircle cx=%22595%22 cy=%22150%22 r=%2245%22 fill=%22%23dbe6f4%22/%3E%3Ctext x=%22400%22 y=%22455%22 text-anchor=%22middle%22 fill=%22%2370879f%22 font-family=%22Arial,sans-serif%22 font-size=%2232%22 font-weight=%22700%22%3EHotel image unavailable%3C/text%3E%3C/svg%3E';
 
   ngOnInit(): void {
     this.tripPlanningId.set(this.readTripPlanningId());
     this.selectedCities.set(this.readSelectedCities());
+    this.loadSavedHotelSelection();
     this.loadHotels();
   }
 
@@ -70,7 +73,6 @@ export class HotelsStepComponent implements OnInit {
     this.isLoading.set(true);
     this.loadError.set('');
     this.loadWarning.set('');
-    this.selectedHotel.set(null);
     const cities = this.selectedCities();
 
     // Fetches hotels for each selected city using the existing hotel API.
@@ -88,6 +90,7 @@ export class HotelsStepComponent implements OnInit {
           const hotels = successfulResults.flatMap((result) => result.hotels);
 
           this.hotels.set(hotels);
+          this.preselectSavedHotel(hotels);
 
           if (failedCities.length && hotels.length) {
             this.loadWarning.set(`Some hotel searches failed: ${failedCities.join(', ')}.`);
@@ -101,8 +104,25 @@ export class HotelsStepComponent implements OnInit {
   }
 
   selectHotel(hotel: TripPlanningHotel): void {
-    // Allows users to change their mind and remove a hotel selection.
-    this.selectedHotel.set(this.isSelectedHotel(hotel) ? null : hotel);
+    if (this.isMultiCityTrip()) {
+      // Keeps one hotel per destination city without overwriting earlier cities.
+      this.selectedHotelsByCity.update((selectedHotels) => {
+        const nextSelectedHotels = { ...selectedHotels };
+
+        if (this.isSelectedHotel(hotel)) {
+          delete nextSelectedHotels[hotel.tripCity];
+        } else {
+          nextSelectedHotels[hotel.tripCity] = hotel;
+        }
+
+        return nextSelectedHotels;
+      });
+      this.selectedHotel.set(hotel);
+    } else {
+      // Allows users to change their mind and remove a hotel selection.
+      this.selectedHotel.set(this.isSelectedHotel(hotel) ? null : hotel);
+    }
+
     this.saveError.set('');
   }
 
@@ -116,6 +136,11 @@ export class HotelsStepComponent implements OnInit {
   }
 
   isSelectedHotel(hotel: TripPlanningHotel): boolean {
+    if (this.isMultiCityTrip()) {
+      const selectedHotel = this.selectedHotelsByCity()[hotel.tripCity];
+      return selectedHotel?.id === hotel.id;
+    }
+
     const selectedHotel = this.selectedHotel();
     return selectedHotel?.id === hotel.id && selectedHotel.tripCity === hotel.tripCity;
   }
@@ -176,12 +201,12 @@ export class HotelsStepComponent implements OnInit {
   }
 
   continueToActivities(): void {
-    const hotel = this.selectedHotel();
+    const selectedHotels = this.selectedHotelStays();
+    const hotel = this.primarySelectedHotel();
 
-    if (!hotel || this.isSaving()) {
+    if (!hotel || !selectedHotels.length || this.isSaving()) {
       return;
     }
-    // TODO: allow selecting one hotel per city for multi-city trips.
 
     const tripPlanningId = this.tripPlanningId();
 
@@ -196,11 +221,15 @@ export class HotelsStepComponent implements OnInit {
       selectedHotelName: hotel.name,
       selectedHotelCity: hotel.tripCity || hotel.city,
       selectedHotelStars: hotel.stars ?? null,
-      selectedHotelTotal: this.totalPrice(hotel),
+      selectedHotelTotal: selectedHotels.reduce((total, stay) => total + stay.price, 0),
+      selectedHotels,
     });
 
     this.tripPlanningService
-      .saveHotelStep(tripPlanningId, { hotelId: hotel.id })
+      .saveHotelStep(tripPlanningId, {
+        hotelId: hotel.id,
+        selectedHotelStaysJson: JSON.stringify(selectedHotels),
+      })
       .pipe(finalize(() => this.isSaving.set(false)))
       .subscribe({
         next: () => {
@@ -234,9 +263,9 @@ export class HotelsStepComponent implements OnInit {
     return step.route && this.routeExists(step.route) ? step.route : null;
   }
 
-  tripPlanningQueryParams(): { tripPlanningId: number } | undefined {
+  tripPlanningQueryParams(): Params {
     const tripPlanningId = this.tripPlanningId();
-    return tripPlanningId ? { tripPlanningId } : undefined;
+    return tripPlanningId ? { ...this.route.snapshot.queryParams, tripPlanningId } : this.route.snapshot.queryParams;
   }
 
   private readTripPlanningId(): number | null {
@@ -248,6 +277,100 @@ export class HotelsStepComponent implements OnInit {
     }
 
     return this.tripTempService.getTripTemp().tripPlanningId ?? null;
+  }
+
+  private loadSavedHotelSelection(): void {
+    const tripPlanningId = this.tripPlanningId();
+
+    if (!tripPlanningId) {
+      return;
+    }
+
+    this.tripPlanningService.getOverview(tripPlanningId).subscribe({
+      next: (overview) => {
+        const savedHotel = overview.selectedHotel;
+        this.hydrateSavedHotelStays(overview.selectedHotelStaysJson);
+
+        if (!savedHotel) {
+          this.preselectSavedHotel(this.hotels());
+          return;
+        }
+
+        this.savedHotelId.set(savedHotel.hotelId);
+        this.tripTempService.updateTripTemp({
+          selectedHotelName: savedHotel.hotelName,
+          selectedHotelCity: savedHotel.hotelCity,
+          selectedHotelStars: savedHotel.stars ?? null,
+        });
+        this.preselectSavedHotel(this.hotels());
+      },
+      error: () => this.preselectSavedHotel(this.hotels()),
+    });
+  }
+
+  private hydrateSavedHotelStays(selectedHotelStaysJson: string | null | undefined): void {
+    const selectedHotels = this.parseHotelStays(selectedHotelStaysJson);
+
+    if (selectedHotels.length) {
+      this.tripTempService.updateTripTemp({ selectedHotels });
+    }
+  }
+
+  private parseHotelStays(value: string | null | undefined): TripTempHotelStay[] {
+    if (!value) {
+      return [];
+    }
+
+    try {
+      const stays = JSON.parse(value) as TripTempHotelStay[];
+      return Array.isArray(stays) ? stays : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private preselectSavedHotel(hotels: TripPlanningHotel[]): void {
+    if ((this.selectedHotel() || Object.keys(this.selectedHotelsByCity()).length) || !hotels.length) {
+      return;
+    }
+
+    const savedHotelId = this.savedHotelId();
+    const tripTemp = this.tripTempService.getTripTemp();
+    const savedHotelName = tripTemp.selectedHotelName.trim().toLowerCase();
+    const savedHotelCity = tripTemp.selectedHotelCity.trim().toLowerCase();
+    const savedHotelStays = this.tripTempService.getTripTemp().selectedHotels ?? [];
+    const matchedHotelsByCity = savedHotelStays.reduce<Record<string, TripPlanningHotel>>((selectedHotels, stay) => {
+      const matchedHotel = hotels.find((hotel) => (
+        hotel.name.trim().toLowerCase() === stay.hotelName.trim().toLowerCase()
+        && (hotel.tripCity || hotel.city).trim().toLowerCase() === stay.city.trim().toLowerCase()
+      ));
+
+      return matchedHotel
+        ? { ...selectedHotels, [matchedHotel.tripCity]: matchedHotel }
+        : selectedHotels;
+    }, {});
+
+    if (Object.keys(matchedHotelsByCity).length) {
+      this.selectedHotelsByCity.set(matchedHotelsByCity);
+      this.selectedHotel.set(Object.values(matchedHotelsByCity)[0] ?? null);
+      return;
+    }
+
+    const matchedHotel = hotels.find((hotel) => (
+      (savedHotelId && hotel.id === savedHotelId)
+      || (
+        savedHotelName
+        && hotel.name.trim().toLowerCase() === savedHotelName
+        && (!savedHotelCity || (hotel.tripCity || hotel.city).trim().toLowerCase() === savedHotelCity)
+      )
+    ));
+
+    if (matchedHotel) {
+      if (this.isMultiCityTrip()) {
+        this.selectedHotelsByCity.set({ [matchedHotel.tripCity]: matchedHotel });
+      }
+      this.selectedHotel.set(matchedHotel);
+    }
   }
 
   subtitle(): string {
@@ -278,6 +401,16 @@ export class HotelsStepComponent implements OnInit {
 
   totalPrice(hotel: Hotel): number {
     return Math.round((hotel.pricePerNight || 0) * this.nights);
+  }
+
+  totalPriceForNights(hotel: Hotel, nights: number): number {
+    return Math.round((hotel.pricePerNight || 0) * nights);
+  }
+
+  canContinue(): boolean {
+    return this.isMultiCityTrip()
+      ? Object.keys(this.selectedHotelsByCity()).length > 0
+      : Boolean(this.selectedHotel());
   }
 
   ratingScore(hotel: Hotel): string {
@@ -332,6 +465,78 @@ export class HotelsStepComponent implements OnInit {
       );
   }
 
+  private primarySelectedHotel(): TripPlanningHotel | null {
+    if (!this.isMultiCityTrip()) {
+      return this.selectedHotel();
+    }
+
+    return this.selectedCities()
+      .map((city) => this.selectedHotelsByCity()[city])
+      .find(Boolean) ?? null;
+  }
+
+  private selectedHotelStays(): TripTempHotelStay[] {
+    if (!this.isMultiCityTrip()) {
+      const hotel = this.selectedHotel();
+      return hotel ? [this.toHotelStay(hotel)] : [];
+    }
+
+    return this.selectedCities()
+      .map((city) => this.selectedHotelsByCity()[city])
+      .filter((hotel): hotel is TripPlanningHotel => !!hotel)
+      .map((hotel) => this.toHotelStay(hotel));
+  }
+
+  private toHotelStay(hotel: TripPlanningHotel): TripTempHotelStay {
+    const stayDates = this.hotelStayDates(hotel.tripCity || hotel.city);
+    const stayNights = this.nightsBetween(stayDates.checkIn, stayDates.checkOut) ?? this.nights;
+
+    return {
+      hotelName: hotel.name,
+      city: hotel.tripCity || hotel.city,
+      checkIn: stayDates.checkIn,
+      checkOut: stayDates.checkOut,
+      nights: stayNights,
+      stars: hotel.stars ?? null,
+      rating: hotel.ratingLabel || this.ratingLabel(hotel),
+      price: this.totalPriceForNights(hotel, stayNights),
+    };
+  }
+
+  private hotelStayDates(city: string): { checkIn: string; checkOut: string } {
+    const segments = this.tripSegments();
+    const cityName = this.cityOnly(city);
+    const arrivalIndex = segments.findIndex((segment) => this.cityOnly(segment.to) === cityName);
+    const arrivalSegment = arrivalIndex >= 0 ? segments[arrivalIndex] : null;
+    const nextSegment = arrivalIndex >= 0 ? segments[arrivalIndex + 1] : null;
+    const departureSegment = segments.find((segment) => (
+      this.cityOnly(segment.from) === cityName
+      && segment.date > (arrivalSegment?.date ?? '')
+    ));
+    const checkIn = arrivalSegment?.date || this.checkIn;
+    const checkOut = departureSegment?.date || nextSegment?.date || this.checkOut;
+
+    return { checkIn, checkOut };
+  }
+
+  private tripSegments(): Array<{ from: string; to: string; date: string }> {
+    const selectedFlightSegments = this.tripTemp.selectedFlightSegments ?? [];
+
+    if (selectedFlightSegments.length) {
+      return selectedFlightSegments.map((segment) => ({
+        from: segment.from,
+        to: segment.to,
+        date: segment.date,
+      }));
+    }
+
+    return this.multiCitySegmentsFromQuery().map((segment) => ({
+      from: segment.fromText,
+      to: segment.toText,
+      date: segment.date,
+    }));
+  }
+
   private setHotelImageIndex(hotel: TripPlanningHotel, index: number): void {
     const imageCount = this.cardImages(hotel).length;
 
@@ -373,13 +578,21 @@ export class HotelsStepComponent implements OnInit {
   }
 
   private destinationCitiesFromMultiCitySegments(rawSegments: string | null): string[] {
+    return this.multiCitySegmentsFromQuery(rawSegments).map((segment) => segment.toText);
+  }
+
+  private multiCitySegmentsFromQuery(rawSegments = this.route.snapshot.queryParamMap.get('multiCitySegments')): Array<{ fromText: string; toText: string; date: string }> {
     if (!rawSegments) {
       return [];
     }
 
     try {
-      const segments = JSON.parse(rawSegments) as Array<{ toText?: string }>;
-      return segments.map((segment) => segment.toText ?? '');
+      const segments = JSON.parse(rawSegments) as Array<{ fromText?: string; toText?: string; date?: string }>;
+      return segments.map((segment) => ({
+        fromText: segment.fromText ?? '',
+        toText: segment.toText ?? '',
+        date: segment.date ?? '',
+      }));
     } catch {
       return [];
     }
@@ -424,6 +637,35 @@ export class HotelsStepComponent implements OnInit {
       month: 'short',
       year: 'numeric',
     }).format(date);
+  }
+
+  private resolveNights(): number {
+    // Destination dates override the initial Budget duration estimate.
+    return this.nightsBetween(this.tripTemp.departureDate, this.tripTemp.returnDate)
+      ?? Math.max(this.tripTemp.durationNights ?? 0, 1);
+  }
+
+  private nightsBetween(start: string, end: string): number | null {
+    const startDate = this.parseDateOnly(start);
+    const endDate = this.parseDateOnly(end);
+
+    if (!startDate || !endDate) {
+      return null;
+    }
+
+    const nights = Math.round((endDate.getTime() - startDate.getTime()) / 86400000);
+    return nights > 0 ? nights : null;
+  }
+
+  private parseDateOnly(value: string): Date | null {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!match) {
+      return null;
+    }
+
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   private addDays(date: Date, days: number): Date {

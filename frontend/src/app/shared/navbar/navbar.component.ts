@@ -35,6 +35,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
   accountDisplayName = computed(() => this.profileState.displayName());
   notificationItems = this.friendNotificationService.items;
   unreadNotificationCount = this.friendNotificationService.unreadCount;
+  hasFriendNotifications = computed(() => this.notificationItems().some((notification) => notification.type === 'FRIEND_REQUEST'));
+  hasTripNotifications = computed(() => this.notificationItems().some((notification) => notification.type !== 'FRIEND_REQUEST'));
 
   ngOnInit(): void {
     this.syncProfileState();
@@ -81,6 +83,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
 
     this.friendNotificationService.markAllAsRead();
+  }
+
+  dismissNotification(event: MouseEvent, notification: { type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE'; requestId: number }): void {
+    event.stopPropagation();
+    const item = this.notificationItems().find((entry) => entry.type === notification.type && entry.requestId === notification.requestId);
+    if (item) {
+      this.friendNotificationService.dismissNotification(item);
+    }
   }
 
   toggleAccountMenu(event: MouseEvent): void {

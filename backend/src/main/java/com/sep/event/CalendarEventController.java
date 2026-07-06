@@ -79,6 +79,13 @@ public class CalendarEventController {
         calendarEventRepository.deleteById(id);
     }
 
+    @Operation(summary = "Delete calendar events for one trip")
+    @DeleteMapping("/trip/{tripId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCalendarEventsForTrip(@PathVariable Long tripId) {
+        calendarEventRepository.deleteByTripId(tripId);
+    }
+
     /**
      * Applies fallback values that older clients may omit.
      */

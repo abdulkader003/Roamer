@@ -65,8 +65,7 @@ class BudgetServiceTest {
     @Test
     void summaryReturnsZeroValuesForEmptyTrips() {
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of());
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of());
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of());
 
         BudgetSummaryResponse response = budgetService.getSummary("traveler@example.com");
 
@@ -74,21 +73,25 @@ class BudgetServiceTest {
         assertThat(response.totalSpent()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(response.remainingBalance()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(response.usagePercentage()).isZero();
-        verify(tripRepository).findAllByOwnerIdOrderByStartDateAsc(7L);
-        verify(expenseRepository).findAllByTripOwnerIdOrderByDateDesc(7L);
+        verify(tripRepository).findAllAccessibleByUserIdOrderByStartDateAsc(7L);
+        verify(expenseRepository, never()).findAllByTripIdInOrderByDateDesc(any());
     }
 
     @Test
     void summaryAggregatesBudgetSpentRemainingAndUsagePercentage() {
         Trip rome = trip(11L, "Rome", "1000.00");
         Trip vienna = trip(12L, "Vienna", "500.00");
+        AppUser friend = new AppUser();
+        friend.setId(8L);
+        friend.setEmail("friend@example.com");
+        vienna.setOwner(friend);
         rome.setFlightTotal(new BigDecimal("300.00"));
         rome.setHotelTotal(new BigDecimal("250.00"));
         vienna.setActivitiesTotal(new BigDecimal("50.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(rome, vienna));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L))
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(rome, vienna));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L, 12L)))
                 .thenReturn(List.of(expense(rome, "200.00"), expense(vienna, "100.00")));
 
         BudgetSummaryResponse response = budgetService.getSummary("traveler@example.com");
@@ -109,9 +112,9 @@ class BudgetServiceTest {
         under.setFlightTotal(new BigDecimal("120.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L))
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L))
                 .thenReturn(List.of(under, near, almostOver, over, zeroBudget));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L, 12L, 13L, 14L, 15L))).thenReturn(List.of(
                 expense(near, "800.00"),
                 expense(almostOver, "995.00"),
                 expense(over, "1000.00"),
@@ -124,8 +127,8 @@ class BudgetServiceTest {
                 .containsExactly("Under Budget", "Near Limit", "Near Limit", "Over Budget", "Over Budget");
         assertThat(response.get(0).spent()).isEqualByComparingTo("120.00");
         assertThat(response.get(4).remaining()).isEqualByComparingTo("-5.00");
-        verify(tripRepository).findAllByOwnerIdOrderByStartDateAsc(7L);
-        verify(expenseRepository).findAllByTripOwnerIdOrderByDateDesc(7L);
+        verify(tripRepository).findAllAccessibleByUserIdOrderByStartDateAsc(7L);
+        verify(expenseRepository).findAllByTripIdInOrderByDateDesc(List.of(11L, 12L, 13L, 14L, 15L));
     }
 
     @Test
@@ -136,8 +139,8 @@ class BudgetServiceTest {
         trip.setActivitiesTotal(new BigDecimal("60.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "35.00"),
                 expense(trip, ExpenseCategory.TRANSPORT, "18.00"),
                 expense(trip, ExpenseCategory.OTHERS, "9.00")
@@ -163,8 +166,8 @@ class BudgetServiceTest {
         vienna.setActivitiesTotal(new BigDecimal("15.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(rome, vienna));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(rome, vienna));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L, 12L))).thenReturn(List.of(
                 expense(rome, ExpenseCategory.FLIGHTS, "100.00"),
                 expense(vienna, ExpenseCategory.FLIGHTS, "140.00"),
                 expense(rome, ExpenseCategory.HOTELS, "240.00"),
@@ -213,8 +216,8 @@ class BudgetServiceTest {
         flights.setAmount(new BigDecimal("400.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of());
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of());
         when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of(flights));
 
         List<CategoryBudgetResponse> response = budgetService.getCategoryBudgets("traveler@example.com");
@@ -226,12 +229,33 @@ class BudgetServiceTest {
     }
 
     @Test
+    void categoryBudgetsPreferOthersBudgetOverLegacyTransportBudget() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        CategoryBudgetLimit legacyTransport = new CategoryBudgetLimit();
+        legacyTransport.setCategory(ExpenseCategory.TRANSPORT);
+        legacyTransport.setAmount(new BigDecimal("50.00"));
+        CategoryBudgetLimit others = new CategoryBudgetLimit();
+        others.setCategory(ExpenseCategory.OTHERS);
+        others.setAmount(new BigDecimal("250.00"));
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of());
+        when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of(legacyTransport, others));
+
+        List<CategoryBudgetResponse> response = budgetService.getCategoryBudgets("traveler@example.com");
+
+        CategoryBudgetResponse othersRow = category(response, ExpenseCategory.OTHERS);
+        assertThat(othersRow.budget()).isEqualByComparingTo("250.00");
+    }
+
+    @Test
     void categoryBudgetsReturnConsistentPercentageForZeroBudgetWithSpending() {
         Trip zeroBudget = trip(11L, "Zero Budget", "0.00");
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(zeroBudget));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(zeroBudget));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(
                 expense(zeroBudget, ExpenseCategory.FOOD, "5.00")
         ));
         when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of());
@@ -290,7 +314,8 @@ class BudgetServiceTest {
         second.setId(2L);
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(first, second));
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(first, second));
 
         List<ExpenseResponse> response = budgetService.getExpenses("traveler@example.com");
 
@@ -381,19 +406,21 @@ class BudgetServiceTest {
         CategoryBudgetLimit limit = new CategoryBudgetLimit();
         limit.setId(1L);
         limit.setOwner(owner);
-        limit.setCategory(ExpenseCategory.FLIGHTS);
+        limit.setCategory(ExpenseCategory.OTHERS);
         limit.setAmount(new BigDecimal("250.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(categoryBudgetLimitRepository.findByOwnerIdAndCategory(7L, ExpenseCategory.FLIGHTS)).thenReturn(Optional.of(limit));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(expense(trip, ExpenseCategory.FLIGHTS, "100.00")));
+        when(appUserRepository.findById(7L)).thenReturn(Optional.of(owner));
+        when(categoryBudgetLimitRepository.findByOwnerIdAndCategory(7L, ExpenseCategory.OTHERS)).thenReturn(Optional.empty());
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(expense(trip, ExpenseCategory.OTHERS, "100.00")));
         when(categoryBudgetLimitRepository.save(any(CategoryBudgetLimit.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CategoryBudgetResponse response = budgetService.updateCategoryBudget("traveler@example.com", ExpenseCategory.FLIGHTS, request);
+        CategoryBudgetResponse response = budgetService.updateCategoryBudget("traveler@example.com", ExpenseCategory.OTHERS, request);
 
         assertThat(response.budget()).isEqualByComparingTo("400.00");
         assertThat(response.spent()).isEqualByComparingTo("100.00");
+        assertThat(limit.getCategory()).isEqualTo(ExpenseCategory.OTHERS);
         verify(categoryBudgetLimitRepository).save(any(CategoryBudgetLimit.class));
     }
 
@@ -417,8 +444,8 @@ class BudgetServiceTest {
         trip.setFlightTotal(new BigDecimal("125.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "50.00", LocalDate.of(2026, 4, 5)),
                 expense(trip, ExpenseCategory.FOOD, "25.00", LocalDate.of(2026, 2, 10)),
                 expense(trip, ExpenseCategory.HOTELS, "10.00", LocalDate.of(2026, 1, 1)),
@@ -445,8 +472,8 @@ class BudgetServiceTest {
         trip.setHotelTotal(new BigDecimal("75.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "50.00", LocalDate.of(2026, 4, 5)),
                 expense(trip, ExpenseCategory.HOTELS, "25.00", LocalDate.of(2025, 2, 10)),
                 expense(trip, ExpenseCategory.FLIGHTS, "15.00", LocalDate.of(2025, 1, 12)),
@@ -469,7 +496,7 @@ class BudgetServiceTest {
                 .hasMessage("View must be either monthly or yearly.");
 
         verify(appUserRepository, never()).findByEmailIgnoreCase(any());
-        verify(expenseRepository, never()).findAllByTripOwnerIdOrderByDateDesc(any());
+        verify(expenseRepository, never()).findAllByTripIdInOrderByDateDesc(any());
     }
 
     @Test
@@ -479,8 +506,8 @@ class BudgetServiceTest {
         trip.setActivitiesTotal(new BigDecimal("50.00"));
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FLIGHTS, "30.00"),
                 expense(trip, ExpenseCategory.HOTELS, "20.00")
         ));
@@ -510,8 +537,8 @@ class BudgetServiceTest {
         Trip trip = trip(11L, "Rome", "1000.00");
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
-        when(expenseRepository.findAllByTripOwnerIdOrderByDateDesc(7L)).thenReturn(List.of(
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(expenseRepository.findAllByTripIdInOrderByDateDesc(List.of(11L))).thenReturn(List.of(
                 expense(trip, ExpenseCategory.FOOD, "100.00")
         ));
         when(categoryBudgetLimitRepository.findAllByOwnerId(7L)).thenReturn(List.of());

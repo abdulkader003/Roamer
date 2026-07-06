@@ -30,6 +30,9 @@ class TripServiceTest {
     private TripRepository tripRepository;
 
     @Mock
+    private TripInvitationRepository tripInvitationRepository;
+
+    @Mock
     private AppUserRepository appUserRepository;
 
     @Mock
@@ -40,7 +43,7 @@ class TripServiceTest {
 
     @BeforeEach
     void setUp() {
-        tripService = new TripService(tripRepository, appUserRepository, calendarEventRepository);
+        tripService = new TripService(tripRepository, tripInvitationRepository, appUserRepository, calendarEventRepository);
         owner = new AppUser();
         owner.setId(7L);
         owner.setEmail("traveler@example.com");
@@ -51,13 +54,13 @@ class TripServiceTest {
         Trip trip = trip("Summer Getaway");
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(trip));
 
         List<TripResponse> response = tripService.getTrips("traveler@example.com");
 
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().name()).isEqualTo("Summer Getaway");
-        verify(tripRepository).findAllByOwnerIdOrderByStartDateAsc(7L);
+        verify(tripRepository).findAllAccessibleByUserIdOrderByStartDateAsc(7L);
     }
 
     @Test
@@ -80,6 +83,7 @@ class TripServiceTest {
         assertThat(response.destination()).isEqualTo("Rome, Italy");
         assertThat(response.budget()).isEqualByComparingTo("2400.00");
         assertThat(response.status()).isEqualTo(TripStatus.UPCOMING);
+        assertThat(response.accessRole()).isEqualTo(TripAccessRole.OWNER);
     }
 
     @Test
@@ -129,7 +133,7 @@ class TripServiceTest {
         );
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findByIdAndOwnerId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
         TripResponse response = tripService.updateTrip("traveler@example.com", 11L, request);
@@ -137,7 +141,8 @@ class TripServiceTest {
         assertThat(response.name()).isEqualTo("Updated Name");
         assertThat(response.destination()).isEqualTo("Barcelona");
         assertThat(response.status()).isEqualTo(TripStatus.PLANNING);
-        verify(tripRepository).findByIdAndOwnerId(11L, 7L);
+        assertThat(response.accessRole()).isEqualTo(TripAccessRole.OWNER);
+        verify(tripRepository).findAccessibleByIdAndUserId(11L, 7L);
     }
 
     @Test
@@ -148,7 +153,7 @@ class TripServiceTest {
         );
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findByIdAndOwnerId(99L, 7L)).thenReturn(Optional.empty());
+        when(tripRepository.findAccessibleByIdAndUserId(99L, 7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> tripService.updateTrip("traveler@example.com", 99L, request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -166,7 +171,63 @@ class TripServiceTest {
 
         tripService.deleteTrip("traveler@example.com", 11L);
 
+        verify(tripInvitationRepository).deleteAllByTripId(11L);
         verify(tripRepository).delete(trip);
+    }
+
+    @Test
+    void leaveTripRemovesAuthenticatedParticipantFromSharedTrip() {
+        Trip trip = trip("Shared Trip");
+        AppUser sharedOwner = new AppUser();
+        sharedOwner.setId(99L);
+        trip.setOwner(sharedOwner);
+
+        TripInvitation acceptedInvitation = new TripInvitation();
+        acceptedInvitation.setId(42L);
+        acceptedInvitation.setTrip(trip);
+        acceptedInvitation.setInvitedUser(owner);
+        acceptedInvitation.setStatus(TripInvitationStatus.ACCEPTED);
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripInvitationRepository.findAllByTripIdAndInvitedUserIdAndStatusIn(11L, 7L, List.of(TripInvitationStatus.ACCEPTED)))
+                .thenReturn(List.of(acceptedInvitation));
+
+        tripService.leaveTrip("traveler@example.com", 11L);
+
+        verify(tripInvitationRepository).deleteAllByTripIdAndInvitedUserIdAndStatus(11L, 7L, TripInvitationStatus.ACCEPTED);
+    }
+
+    @Test
+    void leaveTripRejectsOwnersTryingToLeaveTheirOwnTrip() {
+        Trip trip = trip("Shared Trip");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+
+        assertThatThrownBy(() -> tripService.leaveTrip("traveler@example.com", 11L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Trip owners must delete the trip instead of leaving it.");
+    }
+
+    @Test
+    void updateTripAllowsAccessibleParticipantTrips() {
+        Trip trip = trip("Shared Trip");
+        AppUser sharedOwner = new AppUser();
+        sharedOwner.setId(99L);
+        trip.setOwner(sharedOwner);
+        CreateTripRequest request = request(
+                LocalDate.of(2026, 7, 15),
+                LocalDate.of(2026, 7, 22)
+        );
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        TripResponse response = tripService.updateTrip("traveler@example.com", 11L, request);
+
+        assertThat(response.accessRole()).isEqualTo(TripAccessRole.PARTICIPANT);
     }
 
     @Test
@@ -177,7 +238,7 @@ class TripServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Authenticated user was not found.");
 
-        verify(tripRepository, never()).findAllByOwnerIdOrderByStartDateAsc(any());
+        verify(tripRepository, never()).findAllAccessibleByUserIdOrderByStartDateAsc(any());
     }
 
     private Trip trip(String name) {

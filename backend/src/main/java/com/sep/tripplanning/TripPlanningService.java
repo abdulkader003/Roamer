@@ -1,5 +1,7 @@
 package com.sep.tripplanning;
 
+import com.sep.trip.Trip;
+import com.sep.trip.TripRepository;
 import com.sep.tripplanning.dto.CreateTripBudgetRequest;
 import com.sep.tripplanning.dto.SelectTripActivitiesRequest;
 import com.sep.tripplanning.dto.SelectTripHotelRequest;
@@ -24,15 +26,18 @@ import java.util.List;
 public class TripPlanningService {
 
     private final TripPlanningRepository tripPlanningRepository;
+    private final TripRepository tripRepository;
     private final AppUserRepository appUserRepository;
     private final HotelRepository hotelRepository;
 
     public TripPlanningService(
             TripPlanningRepository tripPlanningRepository,
+            TripRepository tripRepository,
             AppUserRepository appUserRepository,
             HotelRepository hotelRepository
     ) {
         this.tripPlanningRepository = tripPlanningRepository;
+        this.tripRepository = tripRepository;
         this.appUserRepository = appUserRepository;
         this.hotelRepository = hotelRepository;
     }
@@ -76,6 +81,8 @@ public class TripPlanningService {
         tripPlanning.setSelectedHotelStars(hotel.getStars());
         tripPlanning.setSelectedHotelRatingScore(hotel.getRatingScore());
         tripPlanning.setSelectedHotelRatingLabel(hotel.getRatingLabel());
+        // Keeps multi-city hotel snapshots without changing the existing single-hotel contract.
+        tripPlanning.setSelectedHotelStaysJson(cleanOptionalText(request.selectedHotelStaysJson()));
 
         return toHotelResponse(tripPlanningRepository.save(tripPlanning));
     }
@@ -114,7 +121,7 @@ public class TripPlanningService {
 
     @Transactional(readOnly = true)
     public TripOverviewResponse getOverview(Long tripPlanningId, String authenticatedEmail) {
-        TripPlanning tripPlanning = findOwnedTripPlanning(tripPlanningId, authenticatedEmail);
+        TripPlanning tripPlanning = findAccessibleTripPlanning(tripPlanningId, authenticatedEmail);
 
         return new TripOverviewResponse(
                 tripPlanning.getId(),
@@ -124,6 +131,7 @@ public class TripPlanningService {
                 tripPlanning.getDuration(),
                 tripPlanning.getTravelStyle(),
                 tripPlanning.getSelectedHotelName() != null ? toHotelResponse(tripPlanning) : null,
+                tripPlanning.getSelectedHotelStaysJson(),
                 selectedActivities(tripPlanning),
                 totalActivitiesCost(tripPlanning)
         );
@@ -176,11 +184,21 @@ public class TripPlanningService {
         );
     }
 
-    private TripPlanning findOwnedTripPlanning(Long tripPlanningId, String authenticatedEmail) {
+    private TripPlanning findAccessibleTripPlanning(Long tripPlanningId, String authenticatedEmail) {
         TripPlanning tripPlanning = tripPlanningRepository.findById(tripPlanningId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip planning record not found"));
 
-        if (!tripPlanning.getUser().getEmail().equalsIgnoreCase(authenticatedEmail)) {
+        if (tripPlanning.getUser().getEmail().equalsIgnoreCase(authenticatedEmail)) {
+            return tripPlanning;
+        }
+
+        AppUser user = appUserRepository.findByEmailIgnoreCase(authenticatedEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user not found"));
+
+        Trip accessibleTrip = tripRepository.findAccessibleByTripPlanningIdAndUserId(tripPlanningId, user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip planning record belongs to another user"));
+
+        if (accessibleTrip.getTripPlanningId() == null) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip planning record belongs to another user");
         }
 
@@ -203,5 +221,13 @@ public class TripPlanningService {
         return selectedActivities(tripPlanning).stream()
                 .map(SelectedTripActivity::price)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private String cleanOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 }
