@@ -21,6 +21,7 @@ import { TripFlightsComponent } from './pages/trips/create/flights/trip-flights.
 import { TripComponent } from './pages/trips/trip/trip.component';
 import { BudgetTracker } from './pages/budget-tracker/budget-tracker';
 import { ProfileComponent } from './pages/profile/profile.component';
+import { SettingsComponent } from './pages/settings/settings.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -37,6 +38,7 @@ export const routes: Routes = [
   { path: 'trips/create/destination', component: TripDestinationComponent, canActivate: [authGuard] },
   { path: 'trips/create/flights', component: TripFlightsComponent, canActivate: [authGuard] },
   { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
+  { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
 
   { path: 'flights', component: FlightsComponent },
   { path: 'activities', component: ActivitiesListComponent },
