@@ -465,6 +465,78 @@
         </div>
       </section>
 
+      <section class="profile-panel level-panel" id="profile-level" aria-labelledby="profile-level-title">
+        <div class="level-panel__copy">
+          <span class="section-eyebrow">Traveler progress</span>
+          <h2 id="profile-level-title">Profile level</h2>
+          <p>Earn XP by completing your profile, adding interests, saving visited countries, planning trips, and connecting with travelers.</p>
+        </div>
+
+        <div class="level-card" aria-label="Profile XP progress">
+          <div class="level-card__summary">
+            <div class="level-badge" aria-hidden="true">
+              <span>LVL</span>
+              <strong>{{ profileLevelSummary.level }}</strong>
+            </div>
+            <div class="level-card__title">
+              <span>{{ profileLevelSummary.title }}</span>
+              <strong>{{ profileLevelSummary.totalXp }} XP</strong>
+            </div>
+            <div class="level-card__next">
+              @if (profileLevelSummary.xpNeededForNextLevel > 0) {
+                <span>{{ profileLevelSummary.xpNeededForNextLevel }} XP to next level</span>
+              } @else {
+                <span>Max level reached</span>
+              }
+              <button
+                type="button"
+                class="xp-hint-button"
+                [attr.aria-expanded]="isXpHintOpen"
+                aria-controls="xp-hint-panel"
+                (click)="toggleXpHint()">
+                {{ isXpHintOpen ? 'Hide XP tips' : 'How to gain XP' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="xp-tape" role="progressbar" [attr.aria-valuenow]="profileLevelSummary.progressPercent" aria-valuemin="0" aria-valuemax="100">
+            <div class="xp-tape__track">
+              <span class="xp-tape__fill" [style.width.%]="profileLevelSummary.progressPercent"></span>
+            </div>
+            <div class="xp-tape__labels">
+              <span>{{ profileLevelSummary.currentLevelXp }} XP</span>
+              <strong>{{ profileLevelSummary.progressPercent }}%</strong>
+              <span>{{ profileLevelSummary.nextLevelXp }} XP</span>
+            </div>
+          </div>
+
+          <div class="level-milestones" aria-label="Level milestone scale">
+            @for (milestone of profileLevelMilestones; track milestone; let index = $index) {
+              <span class="level-milestone" [class.level-milestone--active]="profileLevelSummary.totalXp >= milestone">
+                {{ index + 1 }}
+              </span>
+            }
+          </div>
+
+          @if (isXpHintOpen) {
+            <div class="xp-hint-panel" id="xp-hint-panel">
+              <div>
+                <span class="section-eyebrow">Rank up faster</span>
+                <strong>Ways to earn XP</strong>
+              </div>
+              <ul>
+                @for (hint of profileXpHints; track hint.label) {
+                  <li>
+                    <span>{{ hint.label }}</span>
+                    <strong>+{{ hint.points }} XP</strong>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+      </section>
+
       <section class="profile-panel danger-panel" id="danger-zone">
         <div>
           <h2>Delete Account</h2>
