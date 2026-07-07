@@ -183,7 +183,7 @@ export interface TripParticipantResponse {
 
 export interface TripRealtimeEvent {
   eventType: string;
-  notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+  notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
   notificationId: number;
   tripId: number;
   title: string;
@@ -345,7 +345,9 @@ export class TripPlanningService {
     if (
       message.notificationType !== 'TRIP_INVITATION_RESPONSE' &&
       message.notificationType !== 'TRIP_UPDATE' &&
-      message.notificationType !== 'TRIP_BUDGET_UPDATE'
+      message.notificationType !== 'TRIP_BUDGET_UPDATE' &&
+      message.notificationType !== 'TRIP_PARTICIPANT_JOINED' &&
+      message.notificationType !== 'TRIP_PARTICIPANT_LEFT'
     ) {
       return;
     }

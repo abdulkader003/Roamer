@@ -10,6 +10,7 @@ import {
   CreateTripRequest,
   TripInvitationResponse,
   TripParticipantResponse,
+  TripRealtimeEvent,
   TripPlanningService,
   TripResponse,
 } from '../../../services/trip-planning.service';
@@ -92,7 +93,11 @@ export class TripComponent implements OnInit, OnDestroy {
     this.loadAcceptedFriends();
     this.tripRealtimeSubscription.add(
       this.tripPlanningService.observeTripUpdates().subscribe((event) => {
-        this.refreshTripById(event.tripId);
+        this.refreshTripById(event.tripId, event.notificationType);
+
+        if (event.notificationType === 'TRIP_PARTICIPANT_JOINED' || event.notificationType === 'TRIP_PARTICIPANT_LEFT') {
+          this.loadTrips();
+        }
       })
     );
   }
@@ -117,7 +122,7 @@ export class TripComponent implements OnInit, OnDestroy {
     });
   }
 
-  private refreshTripById(tripId: number): void {
+  private refreshTripById(tripId: number, notificationType?: TripRealtimeEvent['notificationType']): void {
     this.tripPlanningService.getTrip(tripId).subscribe({
       next: (updatedTrip) => {
         const currentSelectedTrip = this.selectedTrip();
@@ -147,7 +152,11 @@ export class TripComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        // Ignore stale or inaccessible trip events.
+        if (this.selectedTrip()?.id === tripId) {
+          this.closeTripModal();
+        }
+
+        this.loadTrips();
       },
     });
   }

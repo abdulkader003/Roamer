@@ -217,7 +217,7 @@ describe('TripPlanningService', () => {
 
   it('emits realtime trip budget updates from websocket notifications', (done) => {
     const updates: Array<{
-      notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+      notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
       tripId: number;
     }> = [];
 
@@ -236,6 +236,32 @@ describe('TripPlanningService', () => {
       title: 'Trip budget updated',
       description: 'Ada Lovelace added an expense to Shared Rome.',
       details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · food',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
+  });
+
+  it('emits realtime trip participant updates from websocket notifications', (done) => {
+    const updates: Array<{
+      notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+      tripId: number;
+    }> = [];
+
+    service.observeTripUpdates().subscribe((event) => {
+      updates.push(event);
+      expect(updates).toHaveSize(1);
+      expect(event.notificationType).toBe('TRIP_PARTICIPANT_JOINED');
+      expect(event.tripId).toBe(20);
+      done();
+    });
+
+    realtimeMessages.next({
+      eventType: 'TRIP_PARTICIPANT_JOINED',
+      notificationType: 'TRIP_PARTICIPANT_JOINED',
+      notificationId: 78,
+      title: 'Trip participants updated',
+      description: 'Grace Hopper joined Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · Grace Hopper',
       createdAt: '2026-07-03T08:15:30Z',
       relatedEntityId: 20,
     });

@@ -403,7 +403,7 @@ describe('FriendNotificationService', () => {
   it('ingests realtime trip budget update notifications', () => {
     const realtimeMessages = new Subject<{
       eventType: string;
-      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
       notificationId: number;
       title: string;
       description: string;
@@ -452,6 +452,59 @@ describe('FriendNotificationService', () => {
     expect(service.items().length).toBe(1);
     expect(service.items()[0].type).toBe('TRIP_BUDGET_UPDATE');
     expect(service.items()[0].description).toContain('added an expense to Shared Rome');
+  });
+
+  it('ingests realtime participant join notifications', () => {
+    const realtimeMessages = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+      notificationId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+      relatedEntityId?: number | null;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const realtimeWebSocketService = {
+      observe: () => realtimeMessages.asObservable(),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authService },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    realtimeMessages.next({
+      eventType: 'TRIP_PARTICIPANT_JOINED',
+      notificationType: 'TRIP_PARTICIPANT_JOINED',
+      notificationId: 90,
+      title: 'Trip participants updated',
+      description: 'Grace Hopper joined Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · Grace Hopper',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].type).toBe('TRIP_PARTICIPANT_JOINED');
   });
 
   it('does not duplicate realtime notifications with the same type and id', () => {

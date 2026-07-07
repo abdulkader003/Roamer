@@ -154,6 +154,15 @@ export class DashboardComponent implements OnDestroy {
   private readonly tripUpdateSubscription = this.tripPlanningService.observeTripUpdates().subscribe((event) => {
     this.refreshTripById(event.tripId);
 
+    if (
+      event.notificationType === 'TRIP_PARTICIPANT_JOINED' ||
+      event.notificationType === 'TRIP_PARTICIPANT_LEFT'
+    ) {
+      this.loadUpcomingTrips();
+      this.loadBudgetOverview();
+      return;
+    }
+
     if (event.notificationType === 'TRIP_UPDATE' || event.notificationType === 'TRIP_BUDGET_UPDATE') {
       this.loadBudgetOverview();
     }
@@ -490,7 +499,7 @@ export class DashboardComponent implements OnDestroy {
         }
       },
       error: () => {
-        // Ignore stale trip update events.
+        this.loadUpcomingTrips();
       }
     });
   }

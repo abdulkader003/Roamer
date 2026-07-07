@@ -11,18 +11,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -196,7 +198,9 @@ class TripInvitationServiceTest {
         assertThat(response.message()).isEqualTo("Trip invitation accepted.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.ACCEPTED);
         verify(tripNotificationWebSocketPublisher).publishTripInvitationAccepted(invitation);
-        verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoined(any(Trip.class), any(AppUser.class), anyCollection());
+        ArgumentCaptor<Collection<AppUser>> recipientsCaptor = ArgumentCaptor.forClass(Collection.class);
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoined(eq(trip), eq(invitedUser), recipientsCaptor.capture());
+        assertThat(recipientsCaptor.getValue()).extracting(AppUser::getEmail).containsExactly("owner@example.com");
     }
 
     @Test
