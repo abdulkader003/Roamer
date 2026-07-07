@@ -7,7 +7,7 @@ import { TripPlanningService, TripInvitationResponse } from './trip-planning.ser
 
 export interface FriendNotificationItem {
   id: number;
-  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE';
+  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
   requestId: number;
   title: string;
   description: string;

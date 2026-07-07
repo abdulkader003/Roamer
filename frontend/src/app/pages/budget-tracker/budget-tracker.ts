@@ -1,8 +1,10 @@
-import { ChangeDetectorRef, Component, HostListener, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { TripPlanningService } from '../../services/trip-planning.service';
 
 type SpendingPoint = { label: string; amount: number };
 type DistributionCategory = { name: string; amount: number; color: string };
@@ -80,8 +82,10 @@ type BudgetReport = {
   templateUrl: './budget-tracker.html',
   styleUrl: './budget-tracker.css'
 })
-export class BudgetTracker implements OnInit {
+export class BudgetTracker implements OnInit, OnDestroy {
   private readonly apiBase = '/api/budget';
+  private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly tripUpdateSubscription = new Subscription();
 
   isLoading = true;
   loadError = '';
@@ -833,7 +837,16 @@ export class BudgetTracker implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.tripUpdateSubscription.add(
+      this.tripPlanningService.observeTripUpdates().subscribe(() => {
+        this.loadAllData();
+      })
+    );
     this.loadAllData();
+  }
+
+  ngOnDestroy(): void {
+    this.tripUpdateSubscription.unsubscribe();
   }
 
   private getHeaders(): HttpHeaders {

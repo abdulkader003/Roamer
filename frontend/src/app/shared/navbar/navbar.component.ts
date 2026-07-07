@@ -85,7 +85,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.friendNotificationService.markAllAsRead();
   }
 
-  dismissNotification(event: MouseEvent, notification: { type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE'; requestId: number }): void {
+  dismissNotification(event: MouseEvent, notification: { type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE'; requestId: number }): void {
     event.stopPropagation();
     const item = this.notificationItems().find((entry) => entry.type === notification.type && entry.requestId === notification.requestId);
     if (item) {

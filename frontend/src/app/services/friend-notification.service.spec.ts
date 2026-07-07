@@ -400,6 +400,60 @@ describe('FriendNotificationService', () => {
     expect(service.items()[0].details).toContain('€2,000');
   });
 
+  it('ingests realtime trip budget update notifications', () => {
+    const realtimeMessages = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+      notificationId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+      relatedEntityId?: number | null;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const realtimeWebSocketService = {
+      observe: () => realtimeMessages.asObservable(),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authService },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    realtimeMessages.next({
+      eventType: 'TRIP_EXPENSE_CREATED',
+      notificationType: 'TRIP_BUDGET_UPDATE',
+      notificationId: 88,
+      title: 'Trip budget updated',
+      description: 'Ada Lovelace added an expense to Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · food',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].type).toBe('TRIP_BUDGET_UPDATE');
+    expect(service.items()[0].description).toContain('added an expense to Shared Rome');
+  });
+
   it('does not duplicate realtime notifications with the same type and id', () => {
     const realtimeMessages = new Subject<{
       eventType: string;

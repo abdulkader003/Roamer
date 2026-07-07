@@ -153,6 +153,10 @@ export class DashboardComponent implements OnDestroy {
   private readonly budgetCategoryOrder = ['FLIGHTS', 'HOTELS', 'FOOD', 'ACTIVITIES', 'OTHERS'];
   private readonly tripUpdateSubscription = this.tripPlanningService.observeTripUpdates().subscribe((event) => {
     this.refreshTripById(event.tripId);
+
+    if (event.notificationType === 'TRIP_UPDATE' || event.notificationType === 'TRIP_BUDGET_UPDATE') {
+      this.loadBudgetOverview();
+    }
   });
 
   ngOnInit(): void {

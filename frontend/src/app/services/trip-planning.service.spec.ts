@@ -1,14 +1,19 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { AuthService } from './auth';
+import { RealtimeWebSocketService } from './realtime-websocket.service';
 import { CreateTripBudgetRequest, TripPlanningService } from './trip-planning.service';
 
 describe('TripPlanningService', () => {
   let service: TripPlanningService;
   let httpTesting: HttpTestingController;
+  let realtimeMessages: Subject<unknown>;
 
   beforeEach(() => {
+    realtimeMessages = new Subject<unknown>();
+
     TestBed.configureTestingModule({
       providers: [
         TripPlanningService,
@@ -17,6 +22,10 @@ describe('TripPlanningService', () => {
         {
           provide: AuthService,
           useValue: { authHeader: () => ({ Authorization: 'Bearer test-token' }) },
+        },
+        {
+          provide: RealtimeWebSocketService,
+          useValue: { observe: () => realtimeMessages.asObservable() },
         },
       ],
     });
@@ -203,6 +212,32 @@ describe('TripPlanningService', () => {
       budget: 2000,
       status: 'PLANNING',
       createdAt: '2026-06-20T18:00:00Z',
+    });
+  });
+
+  it('emits realtime trip budget updates from websocket notifications', (done) => {
+    const updates: Array<{
+      notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+      tripId: number;
+    }> = [];
+
+    service.observeTripUpdates().subscribe((event) => {
+      updates.push(event);
+      expect(updates).toHaveSize(1);
+      expect(event.notificationType).toBe('TRIP_BUDGET_UPDATE');
+      expect(event.tripId).toBe(20);
+      done();
+    });
+
+    realtimeMessages.next({
+      eventType: 'TRIP_EXPENSE_CREATED',
+      notificationType: 'TRIP_BUDGET_UPDATE',
+      notificationId: 77,
+      title: 'Trip budget updated',
+      description: 'Ada Lovelace added an expense to Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · food',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
     });
   });
 

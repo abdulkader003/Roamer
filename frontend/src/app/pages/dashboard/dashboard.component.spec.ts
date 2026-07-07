@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { EMPTY, of, Subject, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { BudgetApiService, BudgetCategoryResponse } from '../../services/budget-api.service';
 import { AuthService } from '../../services/auth';
@@ -41,6 +41,16 @@ describe('DashboardComponent weather rotation', () => {
   let budgetApiService: jasmine.SpyObj<BudgetApiService>;
   let weatherService: jasmine.SpyObj<WeatherService>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let tripUpdateEvents: Subject<{
+    eventType: string;
+    notificationType: 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+    notificationId: number;
+    tripId: number;
+    title: string;
+    description: string;
+    details?: string | null;
+    createdAt: string;
+  }>;
 
   beforeEach(async () => {
     budgetApiService = jasmine.createSpyObj<BudgetApiService>('BudgetApiService', ['getSummary', 'getCategoryBudgets']);
@@ -53,9 +63,20 @@ describe('DashboardComponent weather rotation', () => {
     budgetApiService.getCategoryBudgets.and.returnValue(of([]));
     weatherService = jasmine.createSpyObj<WeatherService>('WeatherService', ['getWeather']);
     weatherService.getWeather.and.callFake((cities: readonly string[]) => of(weatherFor(cities)));
-    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips', 'observeTripUpdates']);
+    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips', 'getTrip', 'observeTripUpdates']);
+    tripUpdateEvents = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+      notificationId: number;
+      tripId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+    }>();
     tripPlanningService.listSavedTrips.and.returnValue(of([]));
-    tripPlanningService.observeTripUpdates.and.returnValue(EMPTY);
+    tripPlanningService.getTrip.and.returnValue(of(tripResponse({ id: 1 })));
+    tripPlanningService.observeTripUpdates.and.returnValue(tripUpdateEvents.asObservable());
     spyOn(window, 'fetch').and.resolveTo(new Response('[]', { status: 200 }));
 
     await TestBed.configureTestingModule({
@@ -132,6 +153,29 @@ describe('DashboardComponent weather rotation', () => {
     expect(component.remainingBalance).toBe(2650);
     expect(component.usagePercentage).toBe(47);
     expect(component.budgetItems().map((item) => item.label)).toEqual(['Flights', 'Hotels', 'Food', 'Activities', 'Others']);
+  }));
+
+  it('refreshes the budget overview when a shared trip budget update arrives', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+
+    budgetApiService.getSummary.calls.reset();
+    budgetApiService.getCategoryBudgets.calls.reset();
+
+    tripUpdateEvents.next({
+      eventType: 'TRIP_EXPENSE_CREATED',
+      notificationType: 'TRIP_BUDGET_UPDATE',
+      notificationId: 77,
+      tripId: 1,
+      title: 'Trip budget updated',
+      description: 'Ada Lovelace added an expense to Paris Summer.',
+      details: 'Paris · 15 Jun 2026 → 22 Jun 2026 · €120 · flights',
+      createdAt: '2026-07-01T12:00:00Z'
+    });
+    tick();
+
+    expect(budgetApiService.getSummary).toHaveBeenCalledTimes(1);
+    expect(budgetApiService.getCategoryBudgets).toHaveBeenCalledTimes(1);
   }));
 
   it('rotates after 20 seconds and requests weather for the next 3 cities', fakeAsync(() => {
