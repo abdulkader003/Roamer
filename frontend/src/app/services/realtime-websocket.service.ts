@@ -1,4 +1,4 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Observable, Subject } from 'rxjs';
@@ -40,6 +40,10 @@ export class RealtimeWebSocketService {
       },
       { allowSignalWrites: true }
     );
+  }
+
+  ngOnDestroy(): void {
+    this.disconnect();
   }
 
   observe<T>(destination: string): Observable<T> {

@@ -10,7 +10,6 @@ import {
   CreateTripRequest,
   TripInvitationResponse,
   TripParticipantResponse,
-  TripRealtimeEvent,
   TripPlanningService,
   TripResponse,
 } from '../../../services/trip-planning.service';
@@ -93,7 +92,7 @@ export class TripComponent implements OnInit, OnDestroy {
     this.loadAcceptedFriends();
     this.tripRealtimeSubscription.add(
       this.tripPlanningService.observeTripUpdates().subscribe((event) => {
-        this.refreshTripById(event.tripId, event.notificationType);
+        this.refreshTripById(event.tripId);
 
         if (event.notificationType === 'TRIP_PARTICIPANT_JOINED' || event.notificationType === 'TRIP_PARTICIPANT_LEFT') {
           this.loadTrips();
@@ -122,7 +121,7 @@ export class TripComponent implements OnInit, OnDestroy {
     });
   }
 
-  private refreshTripById(tripId: number, notificationType?: TripRealtimeEvent['notificationType']): void {
+  private refreshTripById(tripId: number): void {
     this.tripPlanningService.getTrip(tripId).subscribe({
       next: (updatedTrip) => {
         const currentSelectedTrip = this.selectedTrip();
