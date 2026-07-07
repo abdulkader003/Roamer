@@ -24,17 +24,20 @@ public class TripInvitationService {
     private final TripInvitationRepository tripInvitationRepository;
     private final AppUserRepository appUserRepository;
     private final FriendRequestRepository friendRequestRepository;
+    private final TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher;
 
     public TripInvitationService(
             TripRepository tripRepository,
             TripInvitationRepository tripInvitationRepository,
             AppUserRepository appUserRepository,
-            FriendRequestRepository friendRequestRepository
+            FriendRequestRepository friendRequestRepository,
+            TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher
     ) {
         this.tripRepository = tripRepository;
         this.tripInvitationRepository = tripInvitationRepository;
         this.appUserRepository = appUserRepository;
         this.friendRequestRepository = friendRequestRepository;
+        this.tripNotificationWebSocketPublisher = tripNotificationWebSocketPublisher;
     }
 
     @Transactional
@@ -51,7 +54,9 @@ public class TripInvitationService {
         invitation.setInvitedUser(invitedUser);
         invitation.setStatus(TripInvitationStatus.PENDING);
 
-        return toResponse(tripInvitationRepository.save(invitation));
+        TripInvitation savedInvitation = tripInvitationRepository.save(invitation);
+        tripNotificationWebSocketPublisher.publishTripInvitationCreated(savedInvitation);
+        return toResponse(savedInvitation);
     }
 
     @Transactional(readOnly = true)
@@ -101,7 +106,8 @@ public class TripInvitationService {
     public MessageResponse acceptInvitation(String authenticatedEmail, Long invitationId) {
         TripInvitation invitation = findPendingInvitationForCurrentUser(authenticatedEmail, invitationId);
         invitation.setStatus(TripInvitationStatus.ACCEPTED);
-        tripInvitationRepository.save(invitation);
+        TripInvitation savedInvitation = tripInvitationRepository.save(invitation);
+        tripNotificationWebSocketPublisher.publishTripInvitationAccepted(savedInvitation);
         return new MessageResponse("Trip invitation accepted.");
     }
 
@@ -109,7 +115,8 @@ public class TripInvitationService {
     public MessageResponse declineInvitation(String authenticatedEmail, Long invitationId) {
         TripInvitation invitation = findPendingInvitationForCurrentUser(authenticatedEmail, invitationId);
         invitation.setStatus(TripInvitationStatus.DECLINED);
-        tripInvitationRepository.save(invitation);
+        TripInvitation savedInvitation = tripInvitationRepository.save(invitation);
+        tripNotificationWebSocketPublisher.publishTripInvitationDeclined(savedInvitation);
         return new MessageResponse("Trip invitation declined.");
     }
 

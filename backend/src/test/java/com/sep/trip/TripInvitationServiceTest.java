@@ -41,6 +41,9 @@ class TripInvitationServiceTest {
     @Mock
     private FriendRequestRepository friendRequestRepository;
 
+    @Mock
+    private TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher;
+
     private TripInvitationService tripInvitationService;
     private AppUser owner;
     private AppUser invitedUser;
@@ -52,7 +55,8 @@ class TripInvitationServiceTest {
                 tripRepository,
                 tripInvitationRepository,
                 appUserRepository,
-                friendRequestRepository
+                friendRequestRepository,
+                tripNotificationWebSocketPublisher
         );
 
         owner = user(7L, "owner@example.com", "owner");
@@ -89,6 +93,7 @@ class TripInvitationServiceTest {
         assertThat(response.trip().id()).isEqualTo(11L);
         assertThat(response.status()).isEqualTo(TripInvitationStatus.PENDING);
         verify(tripInvitationRepository).save(any(TripInvitation.class));
+        verify(tripNotificationWebSocketPublisher).publishTripInvitationCreated(any(TripInvitation.class));
     }
 
     @Test
@@ -185,6 +190,7 @@ class TripInvitationServiceTest {
 
         assertThat(response.message()).isEqualTo("Trip invitation accepted.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.ACCEPTED);
+        verify(tripNotificationWebSocketPublisher).publishTripInvitationAccepted(invitation);
     }
 
     @Test
@@ -211,6 +217,7 @@ class TripInvitationServiceTest {
 
         assertThat(response.message()).isEqualTo("Trip invitation declined.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.DECLINED);
+        verify(tripNotificationWebSocketPublisher).publishTripInvitationDeclined(invitation);
     }
 
     private AppUser user(Long id, String email, String username) {

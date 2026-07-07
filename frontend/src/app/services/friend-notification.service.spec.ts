@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService } from './friend-community.service';
 import { FriendNotificationService } from './friend-notification.service';
+import { RealtimeWebSocketService } from './realtime-websocket.service';
 import { TripPlanningService } from './trip-planning.service';
 
 describe('FriendNotificationService', () => {
@@ -236,6 +237,165 @@ describe('FriendNotificationService', () => {
     expect(service.items()[0].details).toContain('Rome');
     expect(service.items()[0].details).toContain('€2,000');
     expect(service.unreadCount()).toBe(1);
+  });
+
+  it('ingests realtime trip invitation notifications', () => {
+    const realtimeMessages = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE';
+      notificationId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const realtimeWebSocketService = {
+      observe: () => realtimeMessages.asObservable(),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authService },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    realtimeMessages.next({
+      eventType: 'TRIP_INVITATION_CREATED',
+      notificationType: 'TRIP_INVITATION',
+      notificationId: 44,
+      title: 'Trip invitation',
+      description: 'Ada Lovelace invited you to Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €2,000',
+      createdAt: '2026-07-01T10:15:30Z',
+    });
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].title).toBe('Trip invitation');
+    expect(service.unreadCount()).toBe(1);
+  });
+
+  it('ingests realtime trip invitation response notifications', () => {
+    const realtimeMessages = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE';
+      notificationId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const realtimeWebSocketService = {
+      observe: () => realtimeMessages.asObservable(),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authService },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    realtimeMessages.next({
+      eventType: 'TRIP_INVITATION_ACCEPTED',
+      notificationType: 'TRIP_INVITATION_RESPONSE',
+      notificationId: 44,
+      title: 'Trip invite accepted',
+      description: 'Grace Hopper accepted your invitation to Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €2,000',
+      createdAt: '2026-07-02T09:15:30Z',
+    });
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].type).toBe('TRIP_INVITATION_RESPONSE');
+    expect(service.items()[0].title).toBe('Trip invite accepted');
+    expect(service.unreadCount()).toBe(1);
+  });
+
+  it('does not duplicate realtime notifications with the same type and id', () => {
+    const realtimeMessages = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE';
+      notificationId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const realtimeWebSocketService = {
+      observe: () => realtimeMessages.asObservable(),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authService },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    const payload = {
+      eventType: 'TRIP_INVITATION_CREATED',
+      notificationType: 'TRIP_INVITATION' as const,
+      notificationId: 44,
+      title: 'Trip invitation',
+      description: 'Ada Lovelace invited you to Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €2,000',
+      createdAt: '2026-07-01T10:15:30Z',
+    };
+
+    realtimeMessages.next(payload);
+    realtimeMessages.next(payload);
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].requestId).toBe(44);
   });
 
   it('keeps trip invitations after the backend stops returning them', () => {
