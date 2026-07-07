@@ -1,8 +1,9 @@
 import { NgIf } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/sidebar/sidebar.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
+import { RealtimeWebSocketService } from './services/realtime-websocket.service';
 
 @Component({
   selector: 'app-root',
@@ -13,6 +14,7 @@ import { NavbarComponent } from './shared/navbar/navbar.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
+  private readonly realtimeWebSocketService = inject(RealtimeWebSocketService);
   private readonly mobileBreakpoint = 900;
   private touchStartX = 0;
   private touchStartY = 0;
