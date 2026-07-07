@@ -29,7 +29,7 @@ export class RealtimeWebSocketService {
   constructor() {
     effect(
       () => {
-        const token = this.authService.token().trim();
+        const token = (this.authService.token?.() ?? '').trim();
 
         if (!token) {
           this.disconnect();
@@ -49,7 +49,7 @@ export class RealtimeWebSocketService {
   }
 
   connect(token?: string): void {
-    const nextToken = token?.trim() || this.authService.token().trim();
+    const nextToken = token?.trim() || (this.authService.token?.() ?? '').trim() || '';
 
     if (!nextToken) {
       this.disconnect();
@@ -89,7 +89,7 @@ export class RealtimeWebSocketService {
     };
 
     client.onWebSocketClose = () => {
-      if (this.authService.token().trim()) {
+      if ((this.authService.token?.() ?? '').trim()) {
         this.state.set('connecting');
         return;
       }

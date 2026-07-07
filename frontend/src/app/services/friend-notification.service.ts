@@ -7,7 +7,7 @@ import { TripPlanningService, TripInvitationResponse } from './trip-planning.ser
 
 export interface FriendNotificationItem {
   id: number;
-  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE';
+  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE';
   requestId: number;
   title: string;
   description: string;
@@ -24,6 +24,7 @@ export interface RealtimeNotificationMessage {
   description: string;
   details?: string | null;
   createdAt: string;
+  relatedEntityId?: number | null;
 }
 
 @Injectable({

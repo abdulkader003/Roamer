@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +45,9 @@ class TripInvitationServiceTest {
     @Mock
     private TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher;
 
+    @Mock
+    private TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
+
     private TripInvitationService tripInvitationService;
     private AppUser owner;
     private AppUser invitedUser;
@@ -56,7 +60,8 @@ class TripInvitationServiceTest {
                 tripInvitationRepository,
                 appUserRepository,
                 friendRequestRepository,
-                tripNotificationWebSocketPublisher
+                tripNotificationWebSocketPublisher,
+                tripRealtimeWebSocketPublisher
         );
 
         owner = user(7L, "owner@example.com", "owner");
@@ -191,6 +196,7 @@ class TripInvitationServiceTest {
         assertThat(response.message()).isEqualTo("Trip invitation accepted.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.ACCEPTED);
         verify(tripNotificationWebSocketPublisher).publishTripInvitationAccepted(invitation);
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoined(any(Trip.class), any(AppUser.class), anyCollection());
     }
 
     @Test

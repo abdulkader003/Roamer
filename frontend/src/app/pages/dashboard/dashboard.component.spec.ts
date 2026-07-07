@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, Subject, throwError } from 'rxjs';
+import { EMPTY, of, Subject, throwError } from 'rxjs';
 
 import { BudgetApiService, BudgetCategoryResponse } from '../../services/budget-api.service';
 import { AuthService } from '../../services/auth';
@@ -53,8 +53,9 @@ describe('DashboardComponent weather rotation', () => {
     budgetApiService.getCategoryBudgets.and.returnValue(of([]));
     weatherService = jasmine.createSpyObj<WeatherService>('WeatherService', ['getWeather']);
     weatherService.getWeather.and.callFake((cities: readonly string[]) => of(weatherFor(cities)));
-    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips']);
+    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips', 'observeTripUpdates']);
     tripPlanningService.listSavedTrips.and.returnValue(of([]));
+    tripPlanningService.observeTripUpdates.and.returnValue(EMPTY);
     spyOn(window, 'fetch').and.resolveTo(new Response('[]', { status: 200 }));
 
     await TestBed.configureTestingModule({

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 
 import { FriendCommunityService } from '../../../services/friend-community.service';
 import { FriendNotificationService } from '../../../services/friend-notification.service';
@@ -27,6 +27,7 @@ describe('TripComponent', () => {
       'listIncomingTripInvitations',
       'listTripParticipants',
       'listSentTripInvitations',
+      'observeTripUpdates',
       'acceptTripInvitation',
       'declineTripInvitation',
       'inviteFriendToTrip',
@@ -49,6 +50,7 @@ describe('TripComponent', () => {
       },
     ]));
     tripPlanningService.listSentTripInvitations.and.returnValue(of([]));
+    tripPlanningService.observeTripUpdates.and.returnValue(EMPTY);
     tripPlanningService.acceptTripInvitation.and.returnValue(of({ message: 'Trip invitation accepted.' }));
     tripPlanningService.declineTripInvitation.and.returnValue(of({ message: 'Trip invitation declined.' }));
     tripPlanningService.cancelTripInvitation.and.returnValue(of({ message: 'Trip invitation cancelled.' }));

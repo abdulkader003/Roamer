@@ -186,6 +186,26 @@ describe('TripPlanningService', () => {
     ]);
   });
 
+  it('loads one accessible trip with the existing JWT header', () => {
+    service.getTrip(20).subscribe((trip) => {
+      expect(trip.name).toBe('Draft Barcelona');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/20');
+    expect(httpRequest.request.method).toBe('GET');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({
+      id: 20,
+      name: 'Draft Barcelona',
+      destination: 'Barcelona',
+      startDate: '2026-07-14',
+      endDate: '2026-07-21',
+      budget: 2000,
+      status: 'PLANNING',
+      createdAt: '2026-06-20T18:00:00Z',
+    });
+  });
+
   it('invites an accepted friend to a trip with the existing JWT header', () => {
     service.inviteFriendToTrip(20, { invitedUserId: 9 }).subscribe((response) => {
       expect(response.trip.id).toBe(20);

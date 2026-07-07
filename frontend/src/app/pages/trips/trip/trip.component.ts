@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { FriendCommunityService, FriendItem } from '../../../services/friend-community.service';
 import { FriendNotificationService } from '../../../services/friend-notification.service';
@@ -44,12 +45,13 @@ interface SummaryDetailRow {
   styleUrl: './trip.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TripComponent implements OnInit {
+export class TripComponent implements OnInit, OnDestroy {
   private readonly tripPlanningService = inject(TripPlanningService);
   private readonly friendCommunityService = inject(FriendCommunityService);
   private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly tripTempService = inject(TripTempService);
   private readonly router = inject(Router);
+  private readonly tripRealtimeSubscription = new Subscription();
 
   readonly trips = signal<TripResponse[]>([]);
   readonly incomingInvitations = signal<TripInvitationResponse[]>([]);
@@ -88,6 +90,15 @@ export class TripComponent implements OnInit {
     this.loadTrips();
     this.loadIncomingInvitations();
     this.loadAcceptedFriends();
+    this.tripRealtimeSubscription.add(
+      this.tripPlanningService.observeTripUpdates().subscribe((event) => {
+        this.refreshTripById(event.tripId);
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.tripRealtimeSubscription.unsubscribe();
   }
 
   loadTrips(): void {
@@ -102,6 +113,41 @@ export class TripComponent implements OnInit {
       error: () => {
         this.loadError.set('Could not load your trips. Please try again.');
         this.isLoading.set(false);
+      },
+    });
+  }
+
+  private refreshTripById(tripId: number): void {
+    this.tripPlanningService.getTrip(tripId).subscribe({
+      next: (updatedTrip) => {
+        const currentSelectedTrip = this.selectedTrip();
+        const wasSelected = currentSelectedTrip?.id === updatedTrip.id;
+
+        this.trips.update((trips) => {
+          const existingIndex = trips.findIndex((trip) => trip.id === updatedTrip.id);
+
+          if (existingIndex === -1) {
+            return trips;
+          }
+
+          const nextTrips = [...trips];
+          nextTrips[existingIndex] = updatedTrip;
+          return nextTrips;
+        });
+
+        if (wasSelected) {
+          this.selectedTrip.set(updatedTrip);
+
+          if (!this.isEditing()) {
+            this.editTripForm = this.toEditForm(updatedTrip);
+          }
+
+          this.loadTripParticipants(updatedTrip.id);
+          this.loadTripSentInvitations(updatedTrip.id);
+        }
+      },
+      error: () => {
+        // Ignore stale or inaccessible trip events.
       },
     });
   }

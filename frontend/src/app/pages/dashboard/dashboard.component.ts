@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, computed, signal, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
 import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
@@ -151,6 +151,9 @@ export class DashboardComponent implements OnDestroy {
   };
 
   private readonly budgetCategoryOrder = ['FLIGHTS', 'HOTELS', 'FOOD', 'ACTIVITIES', 'OTHERS'];
+  private readonly tripUpdateSubscription = this.tripPlanningService.observeTripUpdates().subscribe((event) => {
+    this.refreshTripById(event.tripId);
+  });
 
   ngOnInit(): void {
     this.loadUpcomingTrips();
@@ -210,6 +213,7 @@ export class DashboardComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.tripUpdateSubscription.unsubscribe();
     if (this.weatherRotationIntervalId !== null) {
       clearInterval(this.weatherRotationIntervalId);
       this.weatherRotationIntervalId = null;
@@ -457,6 +461,34 @@ export class DashboardComponent implements OnDestroy {
       image: this.tripImageFor(trip),
       shared: trip.accessRole === 'PARTICIPANT'
     };
+  }
+
+  private refreshTripById(tripId: number): void {
+    this.tripPlanningService.getTrip(tripId).subscribe({
+      next: (updatedTrip) => {
+        let updatedVisibleTrip = false;
+
+        this.trips.update((trips) => {
+          const index = trips.findIndex((trip) => trip.id === updatedTrip.id);
+
+          if (index === -1) {
+            return trips;
+          }
+
+          const nextTrips = [...trips];
+          nextTrips[index] = this.toDashboardTrip(updatedTrip);
+          updatedVisibleTrip = true;
+          return nextTrips;
+        });
+
+        if (updatedVisibleTrip) {
+          this.cdr.detectChanges();
+        }
+      },
+      error: () => {
+        // Ignore stale trip update events.
+      }
+    });
   }
 
   private formatTripBudget(trip: TripResponse): string {

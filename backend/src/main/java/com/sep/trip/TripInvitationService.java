@@ -25,19 +25,22 @@ public class TripInvitationService {
     private final AppUserRepository appUserRepository;
     private final FriendRequestRepository friendRequestRepository;
     private final TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher;
+    private final TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
 
     public TripInvitationService(
             TripRepository tripRepository,
             TripInvitationRepository tripInvitationRepository,
             AppUserRepository appUserRepository,
             FriendRequestRepository friendRequestRepository,
-            TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher
+            TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher,
+            TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher
     ) {
         this.tripRepository = tripRepository;
         this.tripInvitationRepository = tripInvitationRepository;
         this.appUserRepository = appUserRepository;
         this.friendRequestRepository = friendRequestRepository;
         this.tripNotificationWebSocketPublisher = tripNotificationWebSocketPublisher;
+        this.tripRealtimeWebSocketPublisher = tripRealtimeWebSocketPublisher;
     }
 
     @Transactional
@@ -108,6 +111,11 @@ public class TripInvitationService {
         invitation.setStatus(TripInvitationStatus.ACCEPTED);
         TripInvitation savedInvitation = tripInvitationRepository.save(invitation);
         tripNotificationWebSocketPublisher.publishTripInvitationAccepted(savedInvitation);
+        tripRealtimeWebSocketPublisher.publishTripParticipantJoined(
+                savedInvitation.getTrip(),
+                savedInvitation.getInvitedUser(),
+                tripUpdateRecipients(savedInvitation.getTrip(), savedInvitation.getInvitedUser().getId(), false)
+        );
         return new MessageResponse("Trip invitation accepted.");
     }
 
@@ -224,5 +232,21 @@ public class TripInvitationService {
     private Trip findAccessibleTrip(Long tripId, AppUser user) {
         return tripRepository.findAccessibleByIdAndUserId(tripId, user.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip was not found."));
+    }
+
+    private List<AppUser> tripUpdateRecipients(Trip trip, Long actorId, boolean includeOwner) {
+        var recipients = new java.util.LinkedHashMap<Long, AppUser>();
+
+        if (includeOwner && !trip.getOwner().getId().equals(actorId)) {
+            recipients.put(trip.getOwner().getId(), trip.getOwner());
+        }
+
+        tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(trip.getId(), TripInvitationStatus.ACCEPTED)
+                .stream()
+                .map(TripInvitation::getInvitedUser)
+                .filter(user -> user.getId() != null && !user.getId().equals(actorId))
+                .forEach(user -> recipients.putIfAbsent(user.getId(), user));
+
+        return new java.util.ArrayList<>(recipients.values());
     }
 }

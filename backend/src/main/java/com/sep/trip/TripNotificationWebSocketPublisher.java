@@ -29,7 +29,8 @@ public class TripNotificationWebSocketPublisher {
                         invitation.getId(),
                         "Trip invitation",
                         displayName(invitation.getInvitedBy()) + " invited you to " + invitation.getTrip().getName() + ".",
-                        formatTripDetails(invitation)
+                        formatTripDetails(invitation),
+                        invitation.getTrip().getId()
                 )
         );
     }
@@ -52,7 +53,8 @@ public class TripNotificationWebSocketPublisher {
                         invitation.getId(),
                         "Trip invite " + statusLabel,
                         displayName(invitation.getInvitedUser()) + " " + statusLabel + " your invitation to " + invitation.getTrip().getName() + ".",
-                        formatTripDetails(invitation)
+                        formatTripDetails(invitation),
+                        invitation.getTrip().getId()
                 )
         );
     }
@@ -63,7 +65,8 @@ public class TripNotificationWebSocketPublisher {
             Long notificationId,
             String title,
             String description,
-            String details
+            String details,
+            Long relatedEntityId
     ) {
         return new RealtimeNotificationMessage(
                 eventType,
@@ -72,7 +75,8 @@ public class TripNotificationWebSocketPublisher {
                 title,
                 description,
                 details,
-                Instant.now().toString()
+                Instant.now().toString(),
+                relatedEntityId
         );
     }
 

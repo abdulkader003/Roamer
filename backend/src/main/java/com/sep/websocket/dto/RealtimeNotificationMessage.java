@@ -10,6 +10,7 @@ public record RealtimeNotificationMessage(
         String title,
         String description,
         String details,
-        String createdAt
+        String createdAt,
+        Long relatedEntityId
 ) {
 }

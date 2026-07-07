@@ -70,7 +70,8 @@ public class FriendNotificationWebSocketPublisher {
                 title,
                 description,
                 details,
-                Instant.now().toString()
+                Instant.now().toString(),
+                null
         );
     }
 

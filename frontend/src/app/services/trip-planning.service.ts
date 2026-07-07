@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, Subject, map } from 'rxjs';
 import { AuthService } from './auth';
+import { RealtimeWebSocketService } from './realtime-websocket.service';
 import { FriendUserSummary } from './friend-community.service';
 
 export interface CreateTripBudgetRequest {
@@ -180,14 +181,44 @@ export interface TripParticipantResponse {
   role: 'OWNER' | 'PARTICIPANT';
 }
 
+export interface TripRealtimeEvent {
+  eventType: string;
+  notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE';
+  notificationId: number;
+  tripId: number;
+  title: string;
+  description: string;
+  details?: string | null;
+  createdAt: string;
+}
+
+interface TripRealtimeNotificationMessage {
+  eventType: string;
+  notificationType: TripRealtimeEvent['notificationType'];
+  notificationId: number;
+  title: string;
+  description: string;
+  details?: string | null;
+  createdAt: string;
+  relatedEntityId?: number | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class TripPlanningService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
+  private readonly realtimeWebSocketService = inject(RealtimeWebSocketService, { optional: true });
   private readonly apiUrl = '/api/trip-planning';
   private readonly tripsUrl = '/api/trips';
+  private readonly tripRealtimeEvents = new Subject<TripRealtimeEvent>();
+
+  constructor() {
+    this.realtimeWebSocketService?.observe<TripRealtimeNotificationMessage>('/user/queue/notifications').subscribe((message) => {
+      this.ingestTripRealtimeMessage(message);
+    });
+  }
 
   saveBudgetStep(request: CreateTripBudgetRequest): Observable<TripBudgetResponse> {
     // Uses the existing JWT header pattern because no auth interceptor exists.
@@ -235,6 +266,12 @@ export class TripPlanningService {
     });
   }
 
+  getTrip(tripId: number): Observable<TripResponse> {
+    return this.http.get<TripResponse>(`${this.tripsUrl}/${tripId}`, {
+      headers: this.authService.authHeader(),
+    });
+  }
+
   inviteFriendToTrip(tripId: number, request: InviteTripFriendRequest): Observable<TripInvitationResponse> {
     return this.http.post<TripInvitationResponse>(`${this.tripsUrl}/${tripId}/invitations`, request, {
       headers: this.authService.authHeader(),
@@ -257,6 +294,10 @@ export class TripPlanningService {
     return this.http.get<TripParticipantResponse[]>(`${this.tripsUrl}/${tripId}/participants`, {
       headers: this.authService.authHeader(),
     });
+  }
+
+  observeTripUpdates(): Observable<TripRealtimeEvent> {
+    return this.tripRealtimeEvents.asObservable();
   }
 
   acceptTripInvitation(invitationId: number): Observable<{ message: string }> {
@@ -293,6 +334,27 @@ export class TripPlanningService {
   leaveTrip(tripId: number): Observable<MessageResponse> {
     return this.http.delete<MessageResponse>(`${this.tripsUrl}/${tripId}/leave`, {
       headers: this.authService.authHeader(),
+    });
+  }
+
+  private ingestTripRealtimeMessage(message: TripRealtimeNotificationMessage): void {
+    if (!message?.notificationId || !message.notificationType || !message.relatedEntityId) {
+      return;
+    }
+
+    if (message.notificationType !== 'TRIP_INVITATION_RESPONSE' && message.notificationType !== 'TRIP_UPDATE') {
+      return;
+    }
+
+    this.tripRealtimeEvents.next({
+      eventType: message.eventType,
+      notificationType: message.notificationType,
+      notificationId: message.notificationId,
+      tripId: message.relatedEntityId,
+      title: message.title,
+      description: message.description,
+      details: message.details ?? null,
+      createdAt: message.createdAt,
     });
   }
 }
