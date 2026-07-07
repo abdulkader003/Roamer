@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService, FriendRequestItem } from './friend-community.service';
+import { RealtimeWebSocketService } from './realtime-websocket.service';
 import { TripPlanningService, TripInvitationResponse } from './trip-planning.service';
 
 export interface FriendNotificationItem {
@@ -15,6 +16,16 @@ export interface FriendNotificationItem {
   read: boolean;
 }
 
+export interface RealtimeNotificationMessage {
+  eventType: string;
+  notificationType: FriendNotificationItem['type'];
+  notificationId: number;
+  title: string;
+  description: string;
+  details?: string | null;
+  createdAt: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -22,6 +33,7 @@ export class FriendNotificationService {
   private readonly authService = inject(AuthService);
   private readonly friendCommunityService = inject(FriendCommunityService);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly realtimeWebSocketService = inject(RealtimeWebSocketService, { optional: true });
   private dismissedNotificationsStorageKey = this.buildDismissedNotificationsStorageKey();
   private notificationsStorageKey = this.buildNotificationsStorageKey();
   private readonly notifications = signal<FriendNotificationItem[]>(this.loadStoredNotifications());
@@ -33,7 +45,14 @@ export class FriendNotificationService {
   readonly unreadCount = computed(() => this.notifications().filter((notification) => !notification.read && !this.isRead(notification.type, notification.requestId) && !this.isDismissed(notification.type, notification.requestId)).length);
   readonly hasNotifications = computed(() => this.notifications().length > 0);
 
+  constructor() {
+    this.realtimeWebSocketService?.observe<RealtimeNotificationMessage>('/user/queue/notifications').subscribe((message) => {
+      this.ingestRealtimeNotification(message);
+    });
+  }
+
   refresh(): void {
+    this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
 
     forkJoin({
@@ -66,6 +85,7 @@ export class FriendNotificationService {
   }
 
   syncIncomingRequests(requests: FriendRequestItem[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     this.mergeNotifications(
       requests.map((request) => this.friendRequestNotification(request, new Map(this.notifications().map((notification) => [`${notification.type}:${notification.requestId}`, notification.read]))))
@@ -73,6 +93,7 @@ export class FriendNotificationService {
   }
 
   syncTripInvitations(invitations: TripInvitationResponse[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     this.mergeNotifications(
       this.filterVisibleNotifications(
@@ -99,6 +120,7 @@ export class FriendNotificationService {
   }
 
   syncSentTripInvitationResponses(invitations: TripInvitationResponse[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const responseNotifications = this.filterVisibleNotifications(
       invitations
@@ -129,6 +151,7 @@ export class FriendNotificationService {
   }
 
   private syncNotifications(requests: FriendRequestItem[], invitations: TripInvitationResponse[], sentInvitations: TripInvitationResponse[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const previousState = new Map(this.notifications().map((notification) => [`${notification.type}:${notification.requestId}`, notification.read]));
     const friendNotifications = requests.map((request) => this.friendRequestNotification(request, previousState));
@@ -179,6 +202,7 @@ export class FriendNotificationService {
   }
 
   dismissNotification(notification: FriendNotificationItem): void {
+    this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
     const key = this.notificationKey(notification.type, notification.requestId);
     this.dismissedNotificationKeys.update((keys) => (keys.includes(key) ? keys : [...keys, key]));
@@ -209,6 +233,7 @@ export class FriendNotificationService {
   }
 
   markAllAsRead(): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const keys = this.notifications().map((notification) => this.notificationKey(notification.type, notification.requestId));
     this.readNotificationKeys.set(Array.from(new Set([...this.readNotificationKeys(), ...keys])));
@@ -433,6 +458,7 @@ export class FriendNotificationService {
   }
 
   private mergeNotifications(nextNotifications: FriendNotificationItem[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const existingNotifications = new Map(
@@ -459,6 +485,36 @@ export class FriendNotificationService {
 
     this.notifications.set(merged);
     this.persistNotifications();
+  }
+
+  private ingestRealtimeNotification(message: RealtimeNotificationMessage): void {
+    if (!message?.notificationId || !message.notificationType) {
+      return;
+    }
+
+    this.mergeNotifications([
+      {
+        id: message.notificationId,
+        type: message.notificationType,
+        requestId: message.notificationId,
+        title: message.title,
+        description: message.description,
+        details: message.details ?? undefined,
+        createdAt: message.createdAt,
+        read: false,
+      },
+    ]);
+  }
+
+  private ensureNotificationsLoaded(): void {
+    const nextStorageKey = this.buildNotificationsStorageKey();
+
+    if (this.notificationsStorageKey === nextStorageKey) {
+      return;
+    }
+
+    this.notificationsStorageKey = nextStorageKey;
+    this.notifications.set(this.loadStoredNotifications());
   }
 
   private getStorage(): Storage | null {
