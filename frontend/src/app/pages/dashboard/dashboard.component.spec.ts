@@ -7,6 +7,8 @@ import { AuthService } from '../../services/auth';
 import { ThemeService } from '../../services/theme.service';
 import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
+import { ActivitiesService, Activity } from '../../services/activities';
+import { CalendarService } from '../hotels/services/calendar.service';
 import { DashboardComponent, DESTINATION_WEATHER_CITIES } from './dashboard.component';
 
 function weatherFor(cities: readonly string[]): WeatherDto[] {
@@ -35,12 +37,36 @@ function tripResponse(overrides: Partial<TripResponse>): TripResponse {
   };
 }
 
+function activity(overrides: Partial<Activity> = {}): Activity {
+  return {
+    id: 'tm-1',
+    title: 'FIFA Fan Festival',
+    city: 'Barcelona',
+    country: 'Spain',
+    category: 'Sports',
+    priceLevel: 'Budget',
+    price: 35,
+    rating: 4.7,
+    timeOfDay: 'Evening',
+    duration: '2 hours',
+    venue: 'Olympic Stadium',
+    description: 'A football celebration with live entertainment.',
+    image: 'https://example.com/fifa.jpg',
+    startDate: '2026-06-12T19:30:00',
+    source: 'Ticketmaster',
+    genre: 'Football',
+    ...overrides
+  };
+}
+
 describe('DashboardComponent weather rotation', () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let component: DashboardComponent;
   let budgetApiService: jasmine.SpyObj<BudgetApiService>;
   let weatherService: jasmine.SpyObj<WeatherService>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let activitiesService: jasmine.SpyObj<ActivitiesService>;
+  let calendarService: jasmine.SpyObj<CalendarService>;
 
   beforeEach(async () => {
     budgetApiService = jasmine.createSpyObj<BudgetApiService>('BudgetApiService', ['getSummary', 'getCategoryBudgets']);
@@ -55,6 +81,26 @@ describe('DashboardComponent weather rotation', () => {
     weatherService.getWeather.and.callFake((cities: readonly string[]) => of(weatherFor(cities)));
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips']);
     tripPlanningService.listSavedTrips.and.returnValue(of([]));
+    activitiesService = jasmine.createSpyObj<ActivitiesService>('ActivitiesService', ['getActivities']);
+    activitiesService.getActivities.and.callFake((city?: string, keyword?: string) => of({
+      items: keyword === 'football'
+        ? [
+          activity({ id: `football-${city}`, title: `FIFA Fan Festival ${city}`, city: city ?? 'Barcelona' }),
+          activity({ id: `music-${city}`, title: `Summer Concert ${city}`, city: city ?? 'Barcelona', genre: 'Music' })
+        ]
+        : [activity({ id: `general-${city}`, title: `City Experience ${city}`, city: city ?? 'Barcelona', genre: 'Culture' })],
+      page: 0,
+      size: 6,
+      hasMore: false
+    }));
+    calendarService = jasmine.createSpyObj<CalendarService>('CalendarService', ['addEvent']);
+    calendarService.addEvent.and.resolveTo({
+      id: 1,
+      title: 'FIFA Fan Festival',
+      startDateTime: '2026-06-12T19:30:00',
+      endDateTime: '2026-06-12T23:59:00',
+      category: 'Activity'
+    } as never);
     spyOn(window, 'fetch').and.resolveTo(new Response('[]', { status: 200 }));
 
     await TestBed.configureTestingModule({
@@ -64,6 +110,8 @@ describe('DashboardComponent weather rotation', () => {
         { provide: BudgetApiService, useValue: budgetApiService },
         { provide: WeatherService, useValue: weatherService },
         { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: ActivitiesService, useValue: activitiesService },
+        { provide: CalendarService, useValue: calendarService },
         { provide: AuthService, useValue: { authHeader: () => ({}) } },
         { provide: ThemeService, useValue: {} }
       ]
@@ -131,6 +179,71 @@ describe('DashboardComponent weather rotation', () => {
     expect(component.remainingBalance).toBe(2650);
     expect(component.usagePercentage).toBe(47);
     expect(component.budgetItems().map((item) => item.label)).toEqual(['Flights', 'Hotels', 'Food', 'Activities', 'Others']);
+  }));
+
+  it('renders recommended experiences from the activities backend service', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(activitiesService.getActivities).toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Recommended Experiences');
+    expect(fixture.nativeElement.textContent).toContain('FIFA Fan Festival Barcelona');
+    expect(fixture.nativeElement.textContent).toContain('12 Jun 2026');
+    expect(fixture.nativeElement.textContent).toContain('19:30');
+    expect(fixture.nativeElement.textContent).toContain('$35');
+    expect(fixture.nativeElement.querySelector('.rec-img')).toBeTruthy();
+  }));
+
+  it('opens recommended experience details and adds the event to calendar', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('.rec-card') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Olympic Stadium');
+    expect(fixture.nativeElement.textContent).toContain('Add to Calendar');
+
+    (fixture.nativeElement.querySelector('.experience-calendar-btn') as HTMLButtonElement).click();
+    tick();
+    fixture.detectChanges();
+
+    expect(calendarService.addEvent).toHaveBeenCalled();
+    expect(calendarService.addEvent.calls.mostRecent().args[0]).toEqual(jasmine.objectContaining({
+      title: 'FIFA Fan Festival Barcelona',
+      startDate: '2026-06-12',
+      startTime: '19:30',
+      location: 'Olympic Stadium, Barcelona, Spain',
+      category: 'Activity'
+    }));
+    expect(fixture.nativeElement.textContent).toContain('Added to calendar.');
+  }));
+
+  it('shows an empty state when recommended activities have no usable events', fakeAsync(() => {
+    activitiesService.getActivities.and.returnValue(of({
+      items: [],
+      page: 0,
+      size: 6,
+      hasMore: false
+    }));
+
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('No recommended experiences found right now.');
+  }));
+
+  it('shows an error state when recommended activity requests fail', fakeAsync(() => {
+    activitiesService.getActivities.and.returnValue(throwError(() => new Error('Ticketmaster unavailable')));
+
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Recommended experiences are unavailable right now.');
   }));
 
   it('rotates after 20 seconds and requests weather for the next 3 cities', fakeAsync(() => {

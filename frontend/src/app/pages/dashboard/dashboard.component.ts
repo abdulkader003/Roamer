@@ -1,12 +1,15 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, computed, signal, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, map, of } from 'rxjs';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth';
 import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
 import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { TripTempService } from '../trips/create/trip-temp.service';
 import { BudgetApiService, BudgetCategoryResponse, BudgetSummaryResponse } from '../../services/budget-api.service';
+import { ActivitiesService, Activity } from '../../services/activities';
+import { CalendarEvent } from '../hotels/models/hotel.model';
+import { CalendarService } from '../hotels/services/calendar.service';
 
 
 export const DESTINATION_WEATHER_CITIES = [
@@ -38,6 +41,19 @@ export const DESTINATION_WEATHER_CITIES = [
 
 const WEATHER_ROTATION_INTERVAL_MS = 20000;
 const VISIBLE_WEATHER_CITY_COUNT = 3;
+const RECOMMENDED_EXPERIENCE_CITIES = [
+  'Barcelona',
+  'Berlin',
+  'Madrid',
+  'London',
+  'Paris',
+  'Rome',
+  'New York',
+  'Los Angeles',
+  'Toronto',
+  'Mexico City',
+] as const;
+const WORLD_CUP_EXPERIENCE_KEYWORDS = ['football', 'soccer', 'FIFA', 'World Cup', 'fan festival', 'sports'] as const;
 
 interface Trip {
   id: number;
@@ -50,10 +66,22 @@ interface Trip {
 }
 
 interface Experience {
+  id: string;
   name: string;
+  city: string;
+  country: string;
   location: string;
+  venue: string;
+  date: string;
+  dateLabel: string;
+  time: string;
   price: string;
+  priceValue: number;
+  category: string;
+  description: string;
+  source: string;
   image: string;
+  activity: Activity;
 }
 
 interface BudgetItem {
@@ -89,6 +117,8 @@ export class DashboardComponent implements OnDestroy {
   private readonly weatherService = inject(WeatherService);
   private readonly budgetApiService = inject(BudgetApiService);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly activitiesService = inject(ActivitiesService);
+  private readonly calendarService = inject(CalendarService);
   private readonly tripTempService = inject(TripTempService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly router = inject(Router);
@@ -111,12 +141,13 @@ export class DashboardComponent implements OnDestroy {
   isTripsLoading = signal(false);
   tripsError = signal('');
 
-  experiences = signal<Experience[]>([
-    { name: 'Sunset Yacht Party', location: 'Dubai, UAE', price: '€120.00', image: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=400&q=80' },
-    { name: 'Summer Music Festival', location: 'Barcelona, Spain', price: '€89.00', image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&q=80' },
-    { name: 'Bali Surf Experience', location: 'Bali, Indonesia', price: '€75.00', image: 'https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=400&q=80' },
-    { name: 'Mixology Masterclass', location: 'London, UK', price: '€45.00', image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80' },
-  ]);
+  experiences = signal<Experience[]>([]);
+  isExperiencesLoading = signal(false);
+  experiencesError = signal('');
+  selectedExperience = signal<Experience | null>(null);
+  isAddingExperienceToCalendar = signal(false);
+  experienceCalendarMessage = signal('');
+  experienceCalendarMessageType = signal<'success' | 'error'>('success');
 
   weather = signal<WeatherDto[]>([]);
   visibleWeatherCities = signal<string[]>(DESTINATION_WEATHER_CITIES.slice(0, VISIBLE_WEATHER_CITY_COUNT));
@@ -157,6 +188,7 @@ export class DashboardComponent implements OnDestroy {
     this.loadBudgetOverview();
     void this.loadCalendarEventDates();
     this.loadWeather();
+    this.loadRecommendedExperiences();
     this.weatherRotationIntervalId = setInterval(() => this.rotateWeatherCities(), WEATHER_ROTATION_INTERVAL_MS);
   }
 
@@ -207,6 +239,79 @@ export class DashboardComponent implements OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  loadRecommendedExperiences(): void {
+    this.isExperiencesLoading.set(true);
+    this.experiencesError.set('');
+
+    this.loadExperienceBatch('football').subscribe({
+      next: (worldCupActivities) => {
+        const worldCupExperiences = this.toRecommendedExperiences(worldCupActivities);
+
+        if (worldCupExperiences.length >= 4) {
+          this.experiences.set(worldCupExperiences.slice(0, 4));
+          this.isExperiencesLoading.set(false);
+          this.cdr.detectChanges();
+          return;
+        }
+
+        this.loadExperienceBatch().subscribe({
+          next: (generalActivities) => {
+            const merged = this.toRecommendedExperiences([...worldCupActivities, ...generalActivities]);
+            this.experiences.set(merged.slice(0, 4));
+            this.isExperiencesLoading.set(false);
+            this.cdr.detectChanges();
+          },
+          error: (error) => this.handleRecommendedExperiencesError(error)
+        });
+      },
+      error: (error) => this.handleRecommendedExperiencesError(error)
+    });
+  }
+
+  openExperienceDetails(experience: Experience): void {
+    this.selectedExperience.set(experience);
+    this.experienceCalendarMessage.set('');
+  }
+
+  closeExperienceDetails(): void {
+    this.selectedExperience.set(null);
+    this.experienceCalendarMessage.set('');
+    this.isAddingExperienceToCalendar.set(false);
+  }
+
+  async addSelectedExperienceToCalendar(): Promise<void> {
+    const experience = this.selectedExperience();
+
+    if (!experience || this.isAddingExperienceToCalendar()) {
+      return;
+    }
+
+    const calendarEvent = this.buildExperienceCalendarEvent(experience);
+
+    if (!calendarEvent) {
+      this.experienceCalendarMessageType.set('error');
+      this.experienceCalendarMessage.set('This event is missing a valid date, so it cannot be added yet.');
+      return;
+    }
+
+    this.isAddingExperienceToCalendar.set(true);
+    this.experienceCalendarMessage.set('');
+
+    try {
+      await this.calendarService.addEvent(calendarEvent);
+      this.experienceCalendarMessageType.set('success');
+      this.experienceCalendarMessage.set('Added to calendar.');
+      await this.loadCalendarEventDates();
+    } catch (error) {
+      console.error('Failed to add recommended experience to calendar:', error);
+      this.experienceCalendarMessageType.set('error');
+      this.experienceCalendarMessage.set('Could not add this event to your calendar.');
+    } finally {
+      this.isAddingExperienceToCalendar.set(false);
+      this.cdr.detectChanges();
+    }
   }
 
   ngOnDestroy(): void {
@@ -305,6 +410,18 @@ export class DashboardComponent implements OnDestroy {
       windKph: null,
       error: 'Weather unavailable'
     };
+  }
+
+  trackByExperienceId(_index: number, experience: Experience): string {
+    return experience.id;
+  }
+
+  useFallbackExperienceImage(event: Event): void {
+    const image = event.target as HTMLImageElement | null;
+
+    if (image) {
+      image.src = this.fallbackExperienceImage();
+    }
   }
 
   getWeatherIcon(weather: WeatherDto | null): string {
@@ -432,6 +549,199 @@ export class DashboardComponent implements OnDestroy {
     } catch (error) {
       console.error('Failed to load dashboard calendar event indicators:', error);
     }
+  }
+
+  private loadExperienceBatch(keyword = '') {
+    const requests = RECOMMENDED_EXPERIENCE_CITIES.map((city) =>
+      this.activitiesService.getActivities(city, keyword, 0, 6).pipe(
+        map((response) => response.items ?? []),
+        catchError(() => of(null))
+      )
+    );
+
+    return forkJoin(requests).pipe(
+      map((results) => {
+        if (results.every((result) => result === null)) {
+          throw new Error('All recommended experience requests failed.');
+        }
+
+        return results.flatMap((result) => result ?? []);
+      })
+    );
+  }
+
+  private handleRecommendedExperiencesError(error: unknown): void {
+    console.error('Failed to load recommended experiences:', error);
+    this.experiences.set([]);
+    this.experiencesError.set('Recommended experiences are unavailable right now.');
+    this.isExperiencesLoading.set(false);
+    this.cdr.detectChanges();
+  }
+
+  private toRecommendedExperiences(activities: Activity[]): Experience[] {
+    const unique = new Map<string, Activity>();
+
+    activities
+      .filter((activity) => this.hasRecommendedExperienceQuality(activity))
+      .forEach((activity) => {
+        if (!unique.has(activity.id)) {
+          unique.set(activity.id, activity);
+        }
+      });
+
+    return [...unique.values()]
+      .sort((first, second) => this.experienceScore(second) - this.experienceScore(first))
+      .map((activity) => this.toDashboardExperience(activity));
+  }
+
+  private hasRecommendedExperienceQuality(activity: Activity): boolean {
+    return Boolean(
+      activity?.id &&
+      activity.title?.trim() &&
+      activity.city?.trim() &&
+      activity.image?.trim() &&
+      this.activityDate(activity)
+    );
+  }
+
+  private experienceScore(activity: Activity): number {
+    let score = 0;
+    const searchable = [
+      activity.title,
+      activity.category,
+      activity.segment,
+      activity.genre,
+      activity.subGenre,
+      activity.description,
+      activity.venue,
+    ].join(' ').toLowerCase();
+
+    if (WORLD_CUP_EXPERIENCE_KEYWORDS.some((keyword) => searchable.includes(keyword.toLowerCase()))) {
+      score += 1000;
+    }
+
+    if (activity.image) {
+      score += 120;
+    }
+
+    if (activity.venue) {
+      score += 60;
+    }
+
+    if (activity.price > 0 || activity.minPrice || activity.maxPrice) {
+      score += 40;
+    }
+
+    score += Number(activity.rating ?? 0);
+    return score;
+  }
+
+  private toDashboardExperience(activity: Activity): Experience {
+    return {
+      id: activity.id,
+      name: activity.title,
+      city: activity.city,
+      country: activity.country,
+      location: [activity.city, activity.country].filter(Boolean).join(', '),
+      venue: activity.venue || activity.venueDetails?.name || '',
+      date: this.activityDate(activity) ?? '',
+      dateLabel: this.formatActivityDate(activity),
+      time: this.formatActivityTime(activity),
+      price: this.formatActivityPrice(activity),
+      priceValue: this.activityPriceValue(activity),
+      category: activity.genre || activity.category || activity.segment || activity.type || 'Experience',
+      description: activity.description || activity.info || activity.pleaseNote || '',
+      source: activity.source || 'Ticketmaster',
+      image: activity.image || this.fallbackExperienceImage(),
+      activity,
+    };
+  }
+
+  private buildExperienceCalendarEvent(experience: Experience): CalendarEvent | null {
+    if (!experience.date) {
+      return null;
+    }
+
+    return {
+      title: experience.name,
+      startDate: experience.date,
+      endDate: experience.date,
+      startTime: experience.time || undefined,
+      price: experience.priceValue,
+      location: [experience.venue, experience.location].filter(Boolean).join(', '),
+      category: 'Activity',
+      description: experience.description,
+      notes: `Source: ${experience.source}`,
+    };
+  }
+
+  private activityDate(activity: Activity): string | null {
+    const rawDate = activity.startDate?.trim();
+
+    if (!rawDate) {
+      return null;
+    }
+
+    return rawDate.split('T')[0] || null;
+  }
+
+  private formatActivityDate(activity: Activity): string {
+    const date = this.parseDateOnly(this.activityDate(activity) ?? '');
+
+    if (!date) {
+      return '';
+    }
+
+    return date.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  }
+
+  private formatActivityTime(activity: Activity): string {
+    const rawDate = activity.startDate?.trim() ?? '';
+
+    if (!rawDate.includes('T')) {
+      return '';
+    }
+
+    const timePart = rawDate.split('T')[1]?.slice(0, 5) ?? '';
+    return timePart === '00:00' ? '' : timePart;
+  }
+
+  private formatActivityPrice(activity: Activity): string {
+    const value = this.activityPriceValue(activity);
+
+    if (value <= 0) {
+      return 'Price unavailable';
+    }
+
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: activity.priceCurrency || 'EUR',
+      maximumFractionDigits: 0
+    }).format(value);
+  }
+
+  private activityPriceValue(activity: Activity): number {
+    return Number(activity.price || activity.minPrice || activity.maxPrice || 0);
+  }
+
+  private fallbackExperienceImage(): string {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop stop-color="#0f172a"/>
+            <stop offset="1" stop-color="#2563eb"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="675" fill="url(#bg)"/>
+        <text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle"
+          font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#ffffff">Roamer Experience</text>
+      </svg>
+    `)}`;
   }
 
   private formatDate(date: Date): string {
