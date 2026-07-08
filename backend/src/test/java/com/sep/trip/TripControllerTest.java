@@ -85,6 +85,17 @@ class TripControllerTest {
     }
 
     @Test
+    void leaveTripUsesAuthenticatedEmailAndTripId() {
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(tripService.leaveTrip("traveler@example.com", 11L)).thenReturn(new com.sep.auth.dto.MessageResponse("You left this trip."));
+
+        ResponseEntity<com.sep.auth.dto.MessageResponse> response = tripController.leaveTrip(authentication, 11L);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(tripService).leaveTrip("traveler@example.com", 11L);
+    }
+
+    @Test
     void illegalArgumentsBecomeClientSafeBadRequests() {
         ResponseEntity<Map<String, String>> response =
                 tripController.handleIllegalArgument(new IllegalArgumentException("Invalid trip dates"));

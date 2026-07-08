@@ -65,6 +65,9 @@ public class TripPlanning {
 
     private String selectedHotelRatingLabel;
 
+    @Column(columnDefinition = "TEXT")
+    private String selectedHotelStaysJson;
+
     @ElementCollection
     @CollectionTable(name = "trip_planning_activities", joinColumns = @JoinColumn(name = "trip_planning_id"))
     private List<TripPlanningActivity> selectedActivities = new ArrayList<>();
@@ -197,6 +200,14 @@ public class TripPlanning {
 
     public void setSelectedHotelRatingLabel(String selectedHotelRatingLabel) {
         this.selectedHotelRatingLabel = selectedHotelRatingLabel;
+    }
+
+    public String getSelectedHotelStaysJson() {
+        return selectedHotelStaysJson;
+    }
+
+    public void setSelectedHotelStaysJson(String selectedHotelStaysJson) {
+        this.selectedHotelStaysJson = selectedHotelStaysJson;
     }
 
     public List<TripPlanningActivity> getSelectedActivities() {

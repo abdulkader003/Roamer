@@ -1,6 +1,7 @@
 package com.sep.trip.dto;
 
 import com.sep.trip.TripStatus;
+import com.sep.trip.TripAccessRole;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,20 +36,23 @@ public record TripResponse(
         String flightStops,
         String flightDetails,
         BigDecimal flightTotal,
+        String flightSegmentsJson,
         String hotelName,
         String hotelCity,
         Integer hotelStars,
         String hotelDetails,
         BigDecimal hotelTotal,
+        String hotelStaysJson,
         String activitiesTitle,
         String activitiesDetails,
         String activitiesJson,
-        BigDecimal activitiesTotal
+        BigDecimal activitiesTotal,
+        TripAccessRole accessRole
 ) {
-        public TripResponse(
-                Long id,
-                String name,
-                String destination,
+    public TripResponse(
+            Long id,
+            String name,
+            String destination,
                 LocalDate startDate,
                 LocalDate endDate,
                 BigDecimal budget,
@@ -89,7 +93,11 @@ public record TripResponse(
                         null,
                         null,
                         null,
+                        null,
+                        null,
+                        null,
                         null
                 );
         }
+
 }

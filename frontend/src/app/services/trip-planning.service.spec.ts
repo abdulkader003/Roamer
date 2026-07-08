@@ -186,6 +186,194 @@ describe('TripPlanningService', () => {
     ]);
   });
 
+  it('invites an accepted friend to a trip with the existing JWT header', () => {
+    service.inviteFriendToTrip(20, { invitedUserId: 9 }).subscribe((response) => {
+      expect(response.trip.id).toBe(20);
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/20/invitations');
+    expect(httpRequest.request.method).toBe('POST');
+    expect(httpRequest.request.body).toEqual({ invitedUserId: 9 });
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({
+      id: 30,
+      trip: {
+        id: 20,
+        name: 'Draft Barcelona',
+        destination: 'Barcelona',
+        startDate: '2026-07-14',
+        endDate: '2026-07-21',
+        budget: 2000,
+        status: 'PLANNING',
+      },
+      invitedBy: {
+        id: 1,
+        username: 'owner',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        email: 'owner@example.com',
+        verified: true,
+        profilePictureUpdatedAt: null,
+      },
+      invitedUser: {
+        id: 9,
+        username: 'friend',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        email: 'friend@example.com',
+        verified: true,
+        profilePictureUpdatedAt: null,
+      },
+      status: 'PENDING',
+      createdAt: '2026-06-20T18:00:00Z',
+    });
+  });
+
+  it('loads incoming trip invitations with the existing JWT header', () => {
+    service.listIncomingTripInvitations().subscribe((invitations) => {
+      expect(invitations[0].trip.name).toBe('Shared Rome');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/invitations/incoming');
+    expect(httpRequest.request.method).toBe('GET');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush([
+      {
+        id: 44,
+        trip: {
+          id: 20,
+          name: 'Shared Rome',
+          destination: 'Rome',
+          startDate: '2026-07-14',
+          endDate: '2026-07-21',
+          budget: 2000,
+          status: 'PLANNING',
+        },
+        invitedBy: {
+          id: 1,
+          username: 'owner',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          email: 'owner@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        invitedUser: {
+          id: 9,
+          username: 'friend',
+          firstName: 'Grace',
+          lastName: 'Hopper',
+          email: 'friend@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        status: 'PENDING',
+        createdAt: '2026-06-20T18:00:00Z',
+      },
+    ]);
+  });
+
+  it('loads sent trip invitations with the existing JWT header', () => {
+    service.listSentTripInvitations().subscribe((invitations) => {
+      expect(invitations[0].invitedUser.username).toBe('friend');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/invitations/sent');
+    expect(httpRequest.request.method).toBe('GET');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush([
+      {
+        id: 55,
+        trip: {
+          id: 20,
+          name: 'Shared Rome',
+          destination: 'Rome',
+          startDate: '2026-07-14',
+          endDate: '2026-07-21',
+          budget: 2000,
+          status: 'PLANNING',
+        },
+        invitedBy: {
+          id: 1,
+          username: 'owner',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          email: 'owner@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        invitedUser: {
+          id: 9,
+          username: 'friend',
+          firstName: 'Grace',
+          lastName: 'Hopper',
+          email: 'friend@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        status: 'ACCEPTED',
+        createdAt: '2026-06-20T18:00:00Z',
+      },
+    ]);
+  });
+
+  it('loads trip participants with the existing JWT header', () => {
+    service.listTripParticipants(20).subscribe((participants) => {
+      expect(participants[0].role).toBe('OWNER');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/20/participants');
+    expect(httpRequest.request.method).toBe('GET');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush([
+      {
+        user: {
+          id: 1,
+          username: 'owner',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          email: 'owner@example.com',
+          verified: true,
+          profilePictureUpdatedAt: null,
+        },
+        role: 'OWNER',
+      },
+    ]);
+  });
+
+  it('cancels a trip invitation with the existing JWT header', () => {
+    service.cancelTripInvitation(55).subscribe((response) => {
+      expect(response.message).toBe('Trip invitation cancelled.');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/invitations/55');
+    expect(httpRequest.request.method).toBe('DELETE');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({ message: 'Trip invitation cancelled.' });
+  });
+
+  it('accepts a trip invitation with the existing JWT header', () => {
+    service.acceptTripInvitation(44).subscribe((response) => {
+      expect(response.message).toBe('Trip invitation accepted.');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/invitations/44/accept');
+    expect(httpRequest.request.method).toBe('POST');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({ message: 'Trip invitation accepted.' });
+  });
+
+  it('declines a trip invitation with the existing JWT header', () => {
+    service.declineTripInvitation(44).subscribe((response) => {
+      expect(response.message).toBe('Trip invitation declined.');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/invitations/44/decline');
+    expect(httpRequest.request.method).toBe('POST');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({ message: 'Trip invitation declined.' });
+  });
+
   it('updates a saved trip with the existing JWT header', () => {
     const request = {
       name: 'Updated Barcelona',
@@ -214,5 +402,16 @@ describe('TripPlanningService', () => {
     expect(httpRequest.request.method).toBe('DELETE');
     expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
     httpRequest.flush(null);
+  });
+
+  it('leaves a shared trip with the existing JWT header', () => {
+    service.leaveTrip(20).subscribe((response) => {
+      expect(response.message).toBe('You left this trip.');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/20/leave');
+    expect(httpRequest.request.method).toBe('DELETE');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({ message: 'You left this trip.' });
   });
 });

@@ -1,10 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
-import { CreateTripRequest, TripPlanningService, TripResponse } from '../../../services/trip-planning.service';
-import { TripTemp, TripTempService } from '../create/trip-temp.service';
+import { FriendCommunityService, FriendItem } from '../../../services/friend-community.service';
+import { FriendNotificationService } from '../../../services/friend-notification.service';
+import {
+  CreateTripRequest,
+  TripInvitationResponse,
+  TripParticipantResponse,
+  TripPlanningService,
+  TripResponse,
+} from '../../../services/trip-planning.service';
+import { TripTemp, TripTempActivity, TripTempFlightSegment, TripTempHotelStay, TripTempService } from '../create/trip-temp.service';
+import type { TripSummaryPdfSource } from '../create/overview/trip-summary-pdf.exporter';
 
 interface TripEditForm {
   name: string;
@@ -22,6 +31,11 @@ interface CalendarDay {
   isInRange: boolean;
 }
 
+interface SummaryDetailRow {
+  label: string;
+  value: string;
+}
+
 @Component({
   selector: 'app-trip',
   standalone: true,
@@ -32,16 +46,37 @@ interface CalendarDay {
 })
 export class TripComponent implements OnInit {
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly friendCommunityService = inject(FriendCommunityService);
+  private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly tripTempService = inject(TripTempService);
   private readonly router = inject(Router);
 
   readonly trips = signal<TripResponse[]>([]);
+  readonly incomingInvitations = signal<TripInvitationResponse[]>([]);
+  readonly tripParticipants = signal<TripParticipantResponse[]>([]);
+  readonly tripSentInvitations = signal<TripInvitationResponse[]>([]);
+  readonly acceptedFriends = signal<FriendItem[]>([]);
   readonly isLoading = signal(false);
+  readonly isInvitationsLoading = signal(false);
+  readonly isParticipantsLoading = signal(false);
+  readonly isSentInvitationsLoading = signal(false);
+  readonly isFriendsLoading = signal(false);
   readonly loadError = signal('');
+  readonly invitationError = signal('');
+  readonly participantsError = signal('');
+  readonly sentInvitationsError = signal('');
+  readonly friendsError = signal('');
   readonly selectedTrip = signal<TripResponse | null>(null);
   readonly isEditing = signal(false);
   readonly isActionSaving = signal(false);
   readonly actionError = signal('');
+  readonly isExportingPdf = signal(false);
+  readonly isExportMenuOpen = signal(false);
+  readonly isInviteDialogOpen = signal(false);
+  readonly isInviting = signal(false);
+  readonly inviteError = signal('');
+  readonly inviteSuccess = signal('');
+  readonly exportError = signal('');
   readonly showDeleteConfirm = signal(false);
   readonly activeEditDatePicker = signal<'startDate' | 'endDate' | null>(null);
   readonly editManualDateText = signal('');
@@ -51,6 +86,8 @@ export class TripComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTrips();
+    this.loadIncomingInvitations();
+    this.loadAcceptedFriends();
   }
 
   loadTrips(): void {
@@ -69,12 +106,98 @@ export class TripComponent implements OnInit {
     });
   }
 
+  loadIncomingInvitations(): void {
+    this.isInvitationsLoading.set(true);
+    this.invitationError.set('');
+
+    this.tripPlanningService.listIncomingTripInvitations().subscribe({
+      next: (invitations) => {
+        this.incomingInvitations.set(invitations);
+        this.isInvitationsLoading.set(false);
+      },
+      error: () => {
+        this.incomingInvitations.set([]);
+        this.invitationError.set('Could not load trip invitations.');
+        this.isInvitationsLoading.set(false);
+      },
+    });
+  }
+
+  loadAcceptedFriends(): void {
+    this.isFriendsLoading.set(true);
+    this.friendsError.set('');
+
+    this.friendCommunityService.listFriends().subscribe({
+      next: (friends) => {
+        this.acceptedFriends.set(friends);
+        this.isFriendsLoading.set(false);
+      },
+      error: () => {
+        this.acceptedFriends.set([]);
+        this.friendsError.set('Could not load your friends list.');
+        this.isFriendsLoading.set(false);
+      },
+    });
+  }
+
+  private loadTripParticipants(tripId: number): void {
+    this.isParticipantsLoading.set(true);
+    this.participantsError.set('');
+
+    this.tripPlanningService.listTripParticipants(tripId).subscribe({
+      next: (participants) => {
+        this.tripParticipants.set(participants);
+        this.isParticipantsLoading.set(false);
+      },
+      error: () => {
+        this.tripParticipants.set([]);
+        this.participantsError.set('Could not load participants for this trip.');
+        this.isParticipantsLoading.set(false);
+      },
+    });
+  }
+
+  private loadTripSentInvitations(tripId: number): void {
+    this.isSentInvitationsLoading.set(true);
+    this.sentInvitationsError.set('');
+
+    this.tripPlanningService.listSentTripInvitations().subscribe({
+      next: (invitations) => {
+        this.tripSentInvitations.set(invitations.filter((invitation) => invitation.trip.id === tripId));
+        this.isSentInvitationsLoading.set(false);
+      },
+      error: () => {
+        this.tripSentInvitations.set([]);
+        this.sentInvitationsError.set('Could not load sent invitations for this trip.');
+        this.isSentInvitationsLoading.set(false);
+      },
+    });
+  }
+
+  private refreshTripNotifications(): void {
+    this.friendNotificationService.refresh();
+  }
+
   formatBudget(trip: TripResponse): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'EUR',
       maximumFractionDigits: 0,
     }).format(trip.budget);
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+  }
+
+  formatNumber(value: number): string {
+    return new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 0,
+    }).format(value);
   }
 
   statusFor(trip: TripResponse): string {
@@ -94,7 +217,14 @@ export class TripComponent implements OnInit {
     this.isEditing.set(false);
     this.isActionSaving.set(false);
     this.actionError.set('');
+    this.isExportMenuOpen.set(false);
+    this.exportError.set('');
     this.showDeleteConfirm.set(false);
+    this.isInviteDialogOpen.set(false);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+    this.loadTripParticipants(trip.id);
+    this.loadTripSentInvitations(trip.id);
     this.editTripForm = this.toEditForm(trip);
   }
 
@@ -115,9 +245,146 @@ export class TripComponent implements OnInit {
     this.selectedTrip.set(null);
     this.isEditing.set(false);
     this.actionError.set('');
+    this.isExportMenuOpen.set(false);
+    this.exportError.set('');
     this.showDeleteConfirm.set(false);
+    this.isInviteDialogOpen.set(false);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+    this.isParticipantsLoading.set(false);
+    this.isSentInvitationsLoading.set(false);
+    this.tripParticipants.set([]);
+    this.tripSentInvitations.set([]);
+    this.participantsError.set('');
+    this.sentInvitationsError.set('');
     this.closeEditDatePicker();
     this.editTripForm = null;
+  }
+
+  toggleExportMenu(): void {
+    if (this.isExportingPdf()) {
+      return;
+    }
+
+    this.isExportMenuOpen.update((isOpen) => !isOpen);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeExportMenuOnOutsideClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+
+    if (!target?.closest('.export-wrapper')) {
+      this.isExportMenuOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  closeExportMenuOnEscape(): void {
+    this.isExportMenuOpen.set(false);
+  }
+
+  openInviteDialog(): void {
+    const trip = this.selectedTrip();
+
+    if (!trip || !this.canInvite(trip) || this.isInviting()) {
+      return;
+    }
+
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+    this.isInviteDialogOpen.set(true);
+
+    if (!this.acceptedFriends().length && !this.isFriendsLoading()) {
+      this.loadAcceptedFriends();
+    }
+  }
+
+  closeInviteDialog(): void {
+    if (this.isInviting()) {
+      return;
+    }
+
+    this.isInviteDialogOpen.set(false);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+  }
+
+  inviteFriend(friend: FriendItem): void {
+    const trip = this.selectedTrip();
+
+    if (!trip || !this.canInvite(trip) || this.isInviting()) {
+      return;
+    }
+
+    this.isInviting.set(true);
+    this.inviteError.set('');
+    this.inviteSuccess.set('');
+
+    this.tripPlanningService.inviteFriendToTrip(trip.id, { invitedUserId: friend.user.id }).subscribe({
+      next: () => {
+        this.inviteSuccess.set(`Invitation sent to ${this.friendLabel(friend)}.`);
+        this.loadTripSentInvitations(trip.id);
+        this.isInviting.set(false);
+      },
+      error: (error) => {
+        this.inviteError.set(this.extractInviteError(error));
+        this.isInviting.set(false);
+      },
+    });
+  }
+
+  tripActionLabel(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT' ? 'Leave Trip' : 'Delete Trip';
+  }
+
+  tripActionTitle(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT'
+      ? 'Are you sure you want to leave this shared trip?'
+      : 'Are you sure you want to delete this trip?';
+  }
+
+  acceptTripInvitation(invitation: TripInvitationResponse): void {
+    this.tripPlanningService.acceptTripInvitation(invitation.id).subscribe({
+      next: () => {
+        this.loadIncomingInvitations();
+        this.loadTrips();
+        this.refreshTripNotifications();
+      },
+      error: () => {
+        this.invitationError.set('Could not accept this trip invitation.');
+      },
+    });
+  }
+
+  declineTripInvitation(invitation: TripInvitationResponse): void {
+    this.tripPlanningService.declineTripInvitation(invitation.id).subscribe({
+      next: () => {
+        this.loadIncomingInvitations();
+        this.refreshTripNotifications();
+      },
+      error: () => {
+        this.invitationError.set('Could not decline this trip invitation.');
+      },
+    });
+  }
+
+  async exportTripSummary(trip: TripResponse): Promise<void> {
+    if (this.isExportingPdf()) {
+      return;
+    }
+
+    this.isExportingPdf.set(true);
+    this.isExportMenuOpen.set(false);
+    this.exportError.set('');
+
+    try {
+      const { exportTripSummaryPdf } = await this.loadPdfExporter();
+      await exportTripSummaryPdf(this.confirmedTripPdfSource(trip));
+    } catch {
+      this.exportError.set('Could not export your trip summary. Please try again.');
+    } finally {
+      this.isExportingPdf.set(false);
+    }
   }
 
   startEditing(): void {
@@ -210,19 +477,17 @@ export class TripComponent implements OnInit {
     const existing = this.matchingTripTemp(trip);
 
     this.tripTempService.clearTripTemp();
-    this.tripTempService.updateTripTemp({
+    const nextTripTemp = this.tripTempService.updateTripTemp({
       draftTripId: trip.id,
-      tripPlanningId: existing?.tripPlanningId,
+      tripPlanningId: trip.tripPlanningId ?? existing?.tripPlanningId,
       tripName: trip.name,
       budget: trip.budget,
-      currency: 'EUR',
-      durationNights: this.nightsFor(trip),
-      travelStyle: existing?.travelStyle || 'Mid-range',
-      origin: existing?.origin || '',
-      destination: existing?.destination || trip.destination,
-      destinationCities: existing?.destinationCities?.length
-        ? existing.destinationCities
-        : [this.cityOnly(trip.destination)].filter(Boolean),
+      currency: trip.currency || existing?.currency || 'EUR',
+      durationNights: trip.durationNights ?? this.nightsFor(trip),
+      travelStyle: trip.travelStyle || existing?.travelStyle || 'Mid-range',
+      origin: trip.origin || existing?.origin || '',
+      destination: trip.destination || existing?.destination || '',
+      destinationCities: this.destinationCitiesFor(trip, existing ?? this.tripTempService.getTripTemp(), Boolean(existing)),
       departureDate: trip.startDate,
       returnDate: trip.endDate,
       travelers: trip.travelers || existing?.travelers || 2,
@@ -231,7 +496,7 @@ export class TripComponent implements OnInit {
       ...this.activitiesTempFromTrip(trip, existing),
     });
 
-    void this.router.navigate(['/trips/create/budget']);
+    void this.router.navigate(['/trips/create/budget'], { queryParams: this.wizardQueryParams(nextTripTemp) });
   }
 
   private flightTempFromTrip(trip: TripResponse, existing: TripTemp | null): Partial<TripTemp> {
@@ -239,10 +504,11 @@ export class TripComponent implements OnInit {
       return {};
     }
 
+    const selectedFlightSegments = this.flightSegmentsFor(trip);
     const title = (trip.flightTitle ?? '').trim();
     const total = Number(trip.flightTotal ?? 0);
 
-    if ((!title || title === 'Flight not selected') && total <= 0) {
+    if ((!title || title === 'Flight not selected') && total <= 0 && !selectedFlightSegments.length) {
       return {};
     }
 
@@ -251,7 +517,7 @@ export class TripComponent implements OnInit {
     const [departureTime, arrivalTime] = (details[0] ?? '').split('→').map((part) => part.trim());
 
     return {
-      selectedFlightId: `restored-${trip.id}`,
+      selectedFlightId: trip.flightId || selectedFlightSegments.map((segment) => segment.flightNumber).filter(Boolean).join('|') || `restored-${trip.id}`,
       selectedFlightAirline: airline || '',
       selectedFlightNumber: flightNumber || '',
       selectedFlightDepartureTime: departureTime || '',
@@ -259,6 +525,7 @@ export class TripComponent implements OnInit {
       selectedFlightDuration: details[1] || '',
       selectedFlightStops: details[2] || '',
       selectedFlightTotal: total,
+      selectedFlightSegments,
     };
   }
 
@@ -267,22 +534,25 @@ export class TripComponent implements OnInit {
       return {};
     }
 
+    const selectedHotels = this.hotelStaysFor(trip);
     const name = (trip.hotelName ?? '').trim();
     const total = Number(trip.hotelTotal ?? 0);
 
-    if ((!name || name === 'Hotel not selected') && total <= 0) {
+    if ((!name || name === 'Hotel not selected') && total <= 0 && !selectedHotels.length) {
       return {};
     }
 
     const details = (trip.hotelDetails ?? '').split('·').map((part) => part.trim());
-    const city = details[0] || this.cityOnly(trip.destination);
+    const firstStay = selectedHotels[0];
+    const city = trip.hotelCity || firstStay?.city || details[0] || this.cityOnly(trip.destination);
     const starsMatch = (trip.hotelDetails ?? '').match(/(\d+(?:\.\d+)?)\s*stars?/i);
 
     return {
-      selectedHotelName: name,
+      selectedHotelName: name || firstStay?.hotelName || '',
       selectedHotelCity: city,
-      selectedHotelStars: starsMatch ? Number(starsMatch[1]) : 0,
+      selectedHotelStars: trip.hotelStars ?? firstStay?.stars ?? (starsMatch ? Number(starsMatch[1]) : 0),
       selectedHotelTotal: total,
+      selectedHotels,
     };
   }
 
@@ -292,13 +562,21 @@ export class TripComponent implements OnInit {
     }
 
     const total = Number(trip.activitiesTotal ?? 0);
+    const savedActivities = this.activitiesFor(trip, this.tripTempService.getTripTemp(), false);
     const names = (trip.activitiesDetails ?? '')
       .split(',')
       .map((part) => part.trim())
       .filter(Boolean);
 
-    if (!names.length && total <= 0) {
+    if (!savedActivities.length && !names.length && total <= 0) {
       return {};
+    }
+
+    if (savedActivities.length) {
+      return {
+        selectedActivities: savedActivities,
+        selectedActivitiesTotal: total,
+      };
     }
 
     const perActivity = names.length ? total / names.length : 0;
@@ -321,6 +599,10 @@ export class TripComponent implements OnInit {
   }
 
   cancelDeleteTrip(): void {
+    if (this.isActionSaving()) {
+      return;
+    }
+
     this.showDeleteConfirm.set(false);
   }
 
@@ -335,6 +617,21 @@ export class TripComponent implements OnInit {
     this.actionError.set('');
     this.showDeleteConfirm.set(false);
 
+    if (trip.accessRole === 'PARTICIPANT') {
+      this.tripPlanningService.leaveTrip(trip.id).subscribe({
+        next: () => {
+          this.trips.update((trips) => trips.filter((savedTrip) => savedTrip.id !== trip.id));
+          this.isActionSaving.set(false);
+          this.closeTripModal();
+        },
+        error: () => {
+          this.actionError.set('Could not leave this trip. Please try again.');
+          this.isActionSaving.set(false);
+        },
+      });
+      return;
+    }
+
     this.tripPlanningService.deleteTrip(trip.id).subscribe({
       next: () => {
         this.trips.update((trips) => trips.filter((savedTrip) => savedTrip.id !== trip.id));
@@ -348,7 +645,7 @@ export class TripComponent implements OnInit {
     });
   }
 
-  formatDateRange(trip: TripResponse): string {
+  formatDateRange(trip: { startDate: string; endDate: string }): string {
     return `${this.formatDisplayDate(trip.startDate)} → ${this.formatDisplayDate(trip.endDate)}`;
   }
 
@@ -356,90 +653,174 @@ export class TripComponent implements OnInit {
     return trip.destination || this.matchingTripTemp(trip)?.destination || 'Destination';
   }
 
+  modalRouteSummary(trip: TripResponse): string {
+    const segments = this.modalFlightSegments(trip);
+
+    if (segments.length > 1) {
+      const routeCities = [
+        this.cityOnly(segments[0].from),
+        ...segments.map((segment) => this.cityOnly(segment.to)),
+      ].filter(Boolean);
+
+      return routeCities.filter((city, index) => city !== routeCities[index - 1]).join(' → ');
+    }
+
+    return this.modalDestinationName(trip);
+  }
+
   modalTravelerLabel(trip: TripResponse): string {
-    const travelers = trip.travelers || this.matchingTripTemp(trip)?.travelers || 1;
+    const travelers = this.travelerCountFor(trip);
     return `${travelers} traveler${travelers === 1 ? '' : 's'}`;
   }
 
-  modalFlightTitle(trip: TripResponse): string {
-    if (trip.flightTitle) {
-      return trip.flightTitle;
-    }
-
-    const tripTemp = this.matchingTripTemp(trip);
-
-    if (!tripTemp?.selectedFlightAirline && !tripTemp?.selectedFlightNumber) {
-      return 'Flight not selected';
-    }
-
-    return [tripTemp.selectedFlightAirline, tripTemp.selectedFlightNumber].filter(Boolean).join(' · ');
+  tripAccessLabel(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT' ? 'Shared with you' : 'Owned by you';
   }
 
-  modalFlightDetails(trip: TripResponse): string {
-    if (trip.flightDetails) {
-      return trip.flightDetails;
-    }
-
-    const tripTemp = this.matchingTripTemp(trip);
-
-    if (!tripTemp?.selectedFlightId) {
-      return 'Departure → Arrival';
-    }
-
-    return [
-      tripTemp.selectedFlightDepartureTime && tripTemp.selectedFlightArrivalTime
-        ? `${tripTemp.selectedFlightDepartureTime} → ${tripTemp.selectedFlightArrivalTime}`
-        : '',
-      tripTemp.selectedFlightDuration,
-      tripTemp.selectedFlightStops,
-    ].filter(Boolean).join(' · ');
+  tripAccessHint(trip: TripResponse): string {
+    return trip.accessRole === 'PARTICIPANT'
+      ? 'Shared trip. You can edit it or leave it.'
+      : 'Owned trip. You can edit it, invite friends, or delete it.';
   }
 
   modalFlightTotal(trip: TripResponse): number {
     return Number(trip.flightTotal ?? this.matchingTripTemp(trip)?.selectedFlightTotal ?? 0);
   }
 
+  modalFlightSegments(trip: TripResponse): TripTempFlightSegment[] {
+    const savedSegments = this.flightSegmentsFor(trip);
+
+    if (savedSegments.length) {
+      return savedSegments;
+    }
+
+    if (!this.modalHasFlightData(trip)) {
+      return [];
+    }
+
+    const tripTemp = this.matchingTripTemp(trip);
+    const details = (trip.flightDetails || [
+      tripTemp?.selectedFlightDepartureTime && tripTemp?.selectedFlightArrivalTime
+        ? `${tripTemp.selectedFlightDepartureTime} → ${tripTemp.selectedFlightArrivalTime}`
+        : '',
+      tripTemp?.selectedFlightDuration,
+      tripTemp?.selectedFlightStops,
+    ].filter(Boolean).join(' · ')).split('·').map((part) => part.trim());
+    const [departureTime, arrivalTime] = (details[0] ?? '').split('→').map((part) => part.trim());
+
+    return [{
+      label: 'Flight',
+      airline: trip.flightAirline || tripTemp?.selectedFlightAirline || trip.flightTitle || 'Airline not selected',
+      flightNumber: trip.flightNumber || trip.flightId || '',
+      from: trip.origin || 'Origin',
+      to: trip.destination || 'Destination',
+      date: trip.startDate,
+      departureTime: departureTime || trip.flightDepartureTime || '',
+      arrivalTime: arrivalTime || trip.flightArrivalTime || '',
+      duration: trip.flightDuration || details[1] || '',
+      stops: trip.flightStops || details[2] || '',
+      price: this.modalFlightTotal(trip),
+    }];
+  }
+
+  modalFlightDetailRows(segment: TripTempFlightSegment): SummaryDetailRow[] {
+    return [
+      { label: 'Airline', value: segment.airline },
+      { label: 'Flight', value: segment.flightNumber },
+      { label: 'Date', value: this.formatDisplayDate(segment.date) },
+      { label: 'Departure', value: segment.departureTime },
+      { label: 'Arrival', value: segment.arrivalTime },
+      { label: 'Duration', value: segment.duration },
+      { label: 'Stops', value: segment.stops },
+      { label: 'Price', value: segment.price ? `€${this.formatNumber(segment.price)}` : '' },
+    ].filter((row) => row.value);
+  }
+
   modalHotelName(trip: TripResponse): string {
     return trip.hotelName || this.matchingTripTemp(trip)?.selectedHotelName || 'Hotel not selected';
   }
 
-  modalHotelDetails(trip: TripResponse): string {
-    if (trip.hotelDetails) {
-      return trip.hotelDetails;
+  modalHotelTotal(trip: TripResponse): number {
+    const stays = this.hotelStaysFor(trip);
+
+    if (stays.length) {
+      return stays.reduce((total, stay) => total + Number(stay.price || 0), 0);
     }
 
-    const tripTemp = this.matchingTripTemp(trip);
-
-    return [
-      tripTemp?.selectedHotelCity || this.modalDestinationName(trip),
-      tripTemp?.selectedHotelStars ? `${tripTemp.selectedHotelStars} stars` : '',
-    ].filter(Boolean).join(' · ');
-  }
-
-  modalHotelTotal(trip: TripResponse): number {
     return Number(trip.hotelTotal ?? this.matchingTripTemp(trip)?.selectedHotelTotal ?? 0);
   }
 
-  modalActivitiesTitle(trip: TripResponse): string {
-    if (trip.activitiesTitle) {
-      return trip.activitiesTitle;
-    }
+  modalHotelGroups(trip: TripResponse): Array<{ city: string; stays: TripTempHotelStay[] }> {
+    const groups = new Map<string, TripTempHotelStay[]>();
 
-    const count = this.matchingTripTemp(trip)?.selectedActivities.length ?? 0;
-    return `${count} selected`;
+    this.hotelStaysFor(trip).forEach((stay) => {
+      groups.set(stay.city, [...(groups.get(stay.city) ?? []), stay]);
+    });
+
+    return Array.from(groups.entries()).map(([city, stays]) => ({ city, stays }));
   }
 
-  modalActivitiesDetails(trip: TripResponse): string {
-    if (trip.activitiesDetails) {
-      return trip.activitiesDetails;
-    }
-
-    const activities = this.matchingTripTemp(trip)?.selectedActivities ?? [];
-    return activities.length ? activities.map((activity) => activity.name).join(', ') : 'No activities selected';
+  modalHotelDetailRows(stay: TripTempHotelStay): SummaryDetailRow[] {
+    return [
+      { label: 'City', value: stay.city },
+      { label: 'Check-in', value: this.formatDisplayDate(stay.checkIn) },
+      { label: 'Check-out', value: this.formatDisplayDate(stay.checkOut) },
+      { label: 'Nights', value: String(stay.nights) },
+      { label: 'Rating', value: stay.stars ? `${stay.stars} stars` : '' },
+    ].filter((row) => row.value);
   }
 
   modalActivitiesTotal(trip: TripResponse): number {
+    const activities = this.modalActivities(trip);
+
+    if (activities.length) {
+      return activities.reduce((total, activity) => total + this.modalActivityTotal(trip, activity), 0);
+    }
+
     return Number(trip.activitiesTotal ?? this.matchingTripTemp(trip)?.selectedActivitiesTotal ?? 0);
+  }
+
+  modalActivities(trip: TripResponse): TripTempActivity[] {
+    const parsedActivities = this.parseJsonArray<TripTempActivity>(trip.activitiesJson);
+
+    if (parsedActivities.length) {
+      return parsedActivities;
+    }
+
+    const tripTempActivities = this.matchingTripTemp(trip)?.selectedActivities ?? [];
+
+    if (tripTempActivities.length) {
+      return tripTempActivities;
+    }
+
+    return this.activitiesTempFromTrip(trip, null).selectedActivities ?? [];
+  }
+
+  modalActivityGroups(trip: TripResponse): Array<{ city: string; activities: TripTempActivity[] }> {
+    const groups = new Map<string, TripTempActivity[]>();
+
+    this.modalActivities(trip).forEach((activity) => {
+      const city = activity.city || this.cityOnly(trip.destination) || 'Destination';
+      groups.set(city, [...(groups.get(city) ?? []), activity]);
+    });
+
+    return Array.from(groups.entries()).map(([city, activities]) => ({ city, activities }));
+  }
+
+  modalActivityTotal(trip: TripResponse, activity: TripTempActivity): number {
+    if (trip.activitiesJson) {
+      return Math.round(Number(activity.price || 0) * this.travelerCountFor(trip));
+    }
+
+    return Math.round(Number(activity.price || 0));
+  }
+
+  modalActivityDetailRows(activity: TripTempActivity): SummaryDetailRow[] {
+    return [
+      { label: 'City', value: activity.city },
+      { label: 'Date', value: activity.date ?? '' },
+      { label: 'Time', value: activity.time ?? '' },
+    ].filter((row) => row.value);
   }
 
   modalTotalUsed(trip: TripResponse): number {
@@ -466,14 +847,14 @@ export class TripComponent implements OnInit {
     const hasDbTitle = Boolean(trip.flightTitle) && trip.flightTitle !== 'Flight not selected';
     const hasDbCost = Number(trip.flightTotal ?? 0) > 0;
     const tripTemp = this.matchingTripTemp(trip);
-    return hasDbTitle || hasDbCost || Boolean(tripTemp?.selectedFlightId);
+    return hasDbTitle || hasDbCost || Boolean(trip.flightSegmentsJson) || Boolean(tripTemp?.selectedFlightId);
   }
 
   modalHasHotelData(trip: TripResponse): boolean {
     const hasDbName = Boolean(trip.hotelName) && trip.hotelName !== 'Hotel not selected';
     const hasDbCost = Number(trip.hotelTotal ?? 0) > 0;
     const tripTemp = this.matchingTripTemp(trip);
-    return hasDbName || hasDbCost || Boolean(tripTemp?.selectedHotelName);
+    return hasDbName || hasDbCost || Boolean(trip.hotelStaysJson) || Boolean(tripTemp?.selectedHotelName);
   }
 
   modalHasActivitiesData(trip: TripResponse): boolean {
@@ -649,11 +1030,13 @@ export class TripComponent implements OnInit {
     this.addIfPresent(request, 'flightStops', trip.flightStops);
     this.addIfPresent(request, 'flightDetails', trip.flightDetails);
     this.addIfPresent(request, 'flightTotal', trip.flightTotal);
+    this.addIfPresent(request, 'flightSegmentsJson', trip.flightSegmentsJson);
     this.addIfPresent(request, 'hotelName', trip.hotelName);
     this.addIfPresent(request, 'hotelCity', trip.hotelCity);
     this.addIfPresent(request, 'hotelStars', trip.hotelStars);
     this.addIfPresent(request, 'hotelDetails', trip.hotelDetails);
     this.addIfPresent(request, 'hotelTotal', trip.hotelTotal);
+    this.addIfPresent(request, 'hotelStaysJson', trip.hotelStaysJson);
     this.addIfPresent(request, 'activitiesTitle', trip.activitiesTitle);
     this.addIfPresent(request, 'activitiesDetails', trip.activitiesDetails);
     this.addIfPresent(request, 'activitiesJson', trip.activitiesJson);
@@ -692,8 +1075,48 @@ export class TripComponent implements OnInit {
     return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
   }
 
-  private cityOnly(value: string): string {
+  cityOnly(value: string): string {
     return value.replace(/\s*\([A-Za-z]{3}\)\s*$/, '').trim();
+  }
+
+  private loadPdfExporter(): Promise<typeof import('../create/overview/trip-summary-pdf.exporter')> {
+    return import('../create/overview/trip-summary-pdf.exporter');
+  }
+
+  private confirmedTripPdfSource(trip: TripResponse): TripSummaryPdfSource {
+    return {
+      tripName: () => trip.name,
+      tripTypeLabel: () => this.tripTypeLabelFor(trip),
+      tripRouteSummary: () => this.modalRouteSummary(trip),
+      dateRange: () => this.formatDateRange(trip),
+      nights: () => this.nightsFor(trip),
+      travelerLabel: () => this.modalTravelerLabel(trip),
+      currencySymbol: () => this.currencySymbolFor(trip),
+      budget: () => Number(trip.budget || 0),
+      flightTotal: () => this.modalFlightTotal(trip),
+      hotelTotal: () => this.modalHotelTotal(trip),
+      activitiesTotal: () => this.modalActivitiesTotal(trip),
+      totalUsed: () => this.modalTotalUsed(trip),
+      remaining: () => this.modalRemaining(trip),
+      flightSegments: () => this.modalFlightSegments(trip),
+      hotelStays: () => this.hotelStaysFor(trip),
+      activityGroups: () => this.modalActivityGroups(trip),
+      activityTotal: (activity) => this.modalActivityTotal(trip, activity as TripTempActivity),
+      cityOnly: (value) => this.cityOnly(value),
+      formatDisplayDate: (value) => this.formatDisplayDate(value),
+    };
+  }
+
+  private tripTypeLabelFor(trip: TripResponse): string {
+    if (this.modalFlightSegments(trip).length > 1) {
+      return 'Multi-City';
+    }
+
+    return trip.startDate !== trip.endDate ? 'Round Trip' : 'One Way';
+  }
+
+  private currencySymbolFor(trip: TripResponse): string {
+    return trip.currency === 'USD' ? '$' : '€';
   }
 
   private matchingTripTemp(trip: TripResponse): TripTemp | null {
@@ -734,6 +1157,150 @@ export class TripComponent implements OnInit {
     }
 
     return canResumeStoredDraft ? tripTemp.selectedActivities : [];
+  }
+
+  private flightSegmentsFor(trip: TripResponse): TripTempFlightSegment[] {
+    const savedSegments = this.parseJsonArray<TripTempFlightSegment>(trip.flightSegmentsJson);
+
+    if (savedSegments.length) {
+      return savedSegments;
+    }
+
+    return this.matchingTripTemp(trip)?.selectedFlightSegments ?? [];
+  }
+
+  private hotelStaysFor(trip: TripResponse): TripTempHotelStay[] {
+    const savedStays = this.parseJsonArray<TripTempHotelStay>(trip.hotelStaysJson);
+
+    if (savedStays.length) {
+      return savedStays;
+    }
+
+    const tripTempStays = this.matchingTripTemp(trip)?.selectedHotels ?? [];
+
+    if (tripTempStays.length) {
+      return tripTempStays;
+    }
+
+    if (!this.modalHasHotelData(trip)) {
+      return [];
+    }
+
+    return [{
+      hotelName: this.modalHotelName(trip),
+      city: trip.hotelCity || this.cityOnly(trip.destination) || 'Destination',
+      checkIn: trip.startDate,
+      checkOut: trip.endDate,
+      nights: this.nightsFor(trip),
+      stars: trip.hotelStars ?? null,
+      price: Number(trip.hotelTotal ?? 0),
+    }];
+  }
+
+  private travelerCountFor(trip: TripResponse): number {
+    return Math.max(Number(trip.travelers ?? this.matchingTripTemp(trip)?.travelers ?? 1) || 1, 1);
+  }
+
+  friendLabel(friend: FriendItem): string {
+    const fullName = `${friend.user.firstName ?? ''} ${friend.user.lastName ?? ''}`.trim();
+    return fullName || friend.user.username;
+  }
+
+  userLabel(user: { username: string; firstName?: string | null; lastName?: string | null }): string {
+    const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+    return fullName || user.username;
+  }
+
+  invitationNights(invitation: TripInvitationResponse): number {
+    const start = new Date(`${invitation.trip.startDate}T00:00:00`);
+    const end = new Date(`${invitation.trip.endDate}T00:00:00`);
+    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+  }
+
+  canInvite(trip: TripResponse | null): boolean {
+    return Boolean(trip && trip.accessRole !== 'PARTICIPANT');
+  }
+
+  isSharedTrip(trip: TripResponse): boolean {
+    return trip.accessRole === 'PARTICIPANT';
+  }
+
+  participantRoleLabel(role: TripParticipantResponse['role']): string {
+    return role === 'OWNER' ? 'Owner' : 'Participant';
+  }
+
+  participantDisplayName(participant: TripParticipantResponse): string {
+    return this.userLabel(participant.user);
+  }
+
+  inviteSummaryLabel(invitation: TripInvitationResponse): string {
+    return this.userLabel(invitation.invitedUser);
+  }
+
+  pendingSentInvitations(trip: TripResponse | null): TripInvitationResponse[] {
+    if (!trip) {
+      return [];
+    }
+
+    return this.tripSentInvitations().filter((invitation) => invitation.trip.id === trip.id && invitation.status === 'PENDING');
+  }
+
+  cancelTripInvitation(invitation: TripInvitationResponse): void {
+    if (this.isActionSaving()) {
+      return;
+    }
+
+    this.isActionSaving.set(true);
+    this.sentInvitationsError.set('');
+
+    this.tripPlanningService.cancelTripInvitation(invitation.id).subscribe({
+      next: () => {
+        const trip = this.selectedTrip();
+        if (trip) {
+          this.loadTripSentInvitations(trip.id);
+        }
+        this.refreshTripNotifications();
+        this.isActionSaving.set(false);
+      },
+      error: () => {
+        this.sentInvitationsError.set('Could not cancel this invitation.');
+        this.isActionSaving.set(false);
+      },
+    });
+  }
+
+  private extractInviteError(error: unknown): string {
+    if (typeof error === 'object' && error && 'error' in error) {
+      const body = (error as { error?: { message?: string } }).error;
+      if (body?.message) {
+        return body.message;
+      }
+    }
+
+    return 'Could not send this invitation.';
+  }
+
+  private wizardQueryParams(tripTemp: TripTemp): Record<string, string | number> | undefined {
+    const queryParams: Record<string, string | number> = {};
+
+    if (tripTemp.tripPlanningId) {
+      queryParams['tripPlanningId'] = tripTemp.tripPlanningId;
+    }
+
+    const segments = tripTemp.selectedFlightSegments ?? [];
+
+    if (segments.length > 1) {
+      queryParams['tripType'] = 'multi-city';
+      queryParams['multiCitySegments'] = JSON.stringify(segments.map((segment) => ({
+        fromText: segment.from,
+        toText: segment.to,
+        date: segment.date,
+      })));
+    } else if (tripTemp.returnDate) {
+      queryParams['tripType'] = 'round-trip';
+    }
+
+    return Object.keys(queryParams).length ? queryParams : undefined;
   }
 
   private parseJsonArray<T>(value: string | null | undefined): T[] {
@@ -856,7 +1423,7 @@ export class TripComponent implements OnInit {
     );
   }
 
-  private formatDisplayDate(value: string): string {
+  formatDisplayDate(value: string): string {
     const date = new Date(`${value}T00:00:00`);
 
     if (Number.isNaN(date.getTime())) {

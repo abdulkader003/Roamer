@@ -3,8 +3,8 @@ import { convertToParamMap, ActivatedRoute, provideRouter } from '@angular/route
 import { of, Subject, throwError } from 'rxjs';
 import { Hotel } from '../../../hotels/models/hotel.model';
 import { HotelService } from '../../../hotels/services/hotel.service';
-import { TripHotelResponse, TripPlanningService } from '../../../../services/trip-planning.service';
-import { TripTempService } from '../trip-temp.service';
+import { TripHotelResponse, TripOverviewResponse, TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripTemp, TripTempService } from '../trip-temp.service';
 import { HotelsStepComponent } from './hotels-step.component';
 
 describe('HotelsStepComponent', () => {
@@ -40,11 +40,16 @@ describe('HotelsStepComponent', () => {
     images: [imageDataUrl('b1'), imageDataUrl('b2'), imageDataUrl('b3')],
   };
 
-  function setup(queryParams: Record<string, string | string[]> = { tripPlanningId: '10' }) {
+  function setup(
+    queryParams: Record<string, string | string[]> = { tripPlanningId: '10' },
+    tripTempOverrides: Partial<TripTemp> = {},
+    overviewOverrides: Partial<TripOverviewResponse> = {},
+  ) {
     TestBed.resetTestingModule();
     hotelService = jasmine.createSpyObj<HotelService>('HotelService', ['searchHotels']);
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', [
       'saveHotelStep',
+      'getOverview',
     ]);
     tripTempService = jasmine.createSpyObj<TripTempService>('TripTempService', ['getTripTemp', 'updateTripTemp']);
     tripTempService.getTripTemp.and.returnValue({
@@ -74,8 +79,21 @@ describe('HotelsStepComponent', () => {
       selectedHotelTotal: null,
       selectedActivities: [],
       selectedActivitiesTotal: 0,
+      ...tripTempOverrides,
     });
     hotelService.searchHotels.and.returnValue(of([hotelFixture]));
+    tripPlanningService.getOverview.and.returnValue(of({
+      id: 10,
+      tripName: 'Summer in Barcelona',
+      budget: 2000,
+      currency: 'EUR',
+      duration: 7,
+      travelStyle: 'Mid-range',
+      selectedHotel: null,
+      selectedActivities: [],
+      totalActivitiesCost: 0,
+      ...overviewOverrides,
+    }));
 
     TestBed.configureTestingModule({
       imports: [HotelsStepComponent],
@@ -88,6 +106,7 @@ describe('HotelsStepComponent', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
+              queryParams,
               queryParamMap: convertToParamMap(queryParams),
             },
           },
@@ -116,12 +135,44 @@ describe('HotelsStepComponent', () => {
     );
   });
 
+  it('uses Destination dates instead of the Budget duration for hotel nights and totals', () => {
+    setup({ tripPlanningId: '10' }, {
+      durationNights: 10,
+      departureDate: '2026-07-01',
+      returnDate: '2026-07-05',
+    });
+
+    expect(component.nights).toBe(4);
+    expect(component.totalPrice(tripHotelFixture)).toBe(880);
+    expect(component.subtitle()).toContain('1 Jul 2026 to 5 Jul 2026 · 4 nights');
+  });
+
   it('highlights the selected hotel', () => {
     component.selectHotel(tripHotelFixture);
     fixture.detectChanges();
 
     const selectedCard = fixture.nativeElement.querySelector('.hotel-card--selected');
     expect(selectedCard).toBeTruthy();
+  });
+
+  it('preselects the saved backend hotel when returning to the Hotels step', () => {
+    setup({ tripPlanningId: '10' }, {}, {
+      selectedHotel: {
+        tripPlanningId: 10,
+        hotelId: 77,
+        hotelName: 'Barcelona Grand',
+        hotelCity: 'Barcelona',
+        pricePerNight: 220,
+        stars: 5,
+        ratingScore: 9.1,
+        ratingLabel: 'Superb',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(component.selectedHotel()?.id).toBe(77);
+    expect(fixture.nativeElement.querySelector('.hotel-card--selected')).toBeTruthy();
+    expect((fixture.nativeElement.querySelector('.continue-button') as HTMLButtonElement).disabled).toBeFalse();
   });
 
   it('deselects the selected hotel when clicked again', () => {
@@ -180,7 +231,14 @@ describe('HotelsStepComponent', () => {
     component.selectHotel(tripHotelFixture);
     component.continueToActivities();
 
-    expect(tripPlanningService.saveHotelStep).toHaveBeenCalledWith(10, { hotelId: 77 });
+    const saveRequest = tripPlanningService.saveHotelStep.calls.mostRecent().args[1];
+    expect(tripPlanningService.saveHotelStep).toHaveBeenCalledWith(10, jasmine.objectContaining({ hotelId: 77 }));
+    expect(JSON.parse(saveRequest.selectedHotelStaysJson ?? '')).toEqual([
+      jasmine.objectContaining({
+        hotelName: 'Barcelona Grand',
+        city: 'Barcelona',
+      }),
+    ]);
 
     saveResult.next(response);
     saveResult.complete();
@@ -204,6 +262,139 @@ describe('HotelsStepComponent', () => {
       0,
     );
     expect(component.cityGroups().map((group) => group.city)).toEqual(['Barcelona', 'Paris']);
+  });
+
+  it('keeps selected hotels for multiple cities instead of overwriting earlier choices', () => {
+    tripPlanningService.saveHotelStep.and.returnValue(of({
+      tripPlanningId: 10,
+      hotelId: 77,
+      hotelName: 'Barcelona Grand',
+      hotelCity: 'Vienna',
+      pricePerNight: 220,
+      stars: 5,
+      ratingScore: 9.1,
+      ratingLabel: 'Superb',
+    }));
+    setup({ tripPlanningId: '10', city: ['Prague', 'Vienna'] }, {
+      selectedFlightSegments: [
+        {
+          label: 'Segment 1',
+          airline: 'Lufthansa',
+          flightNumber: 'LH 1',
+          from: 'Frankfurt (FRA)',
+          to: 'Prague (PRG)',
+          date: '2026-07-01',
+          departureTime: '08:00',
+          arrivalTime: '09:00',
+          duration: '1h',
+          stops: 'Direct',
+          price: 100,
+        },
+        {
+          label: 'Segment 2',
+          airline: 'Austrian',
+          flightNumber: 'OS 2',
+          from: 'Prague (PRG)',
+          to: 'Vienna (VIE)',
+          date: '2026-07-04',
+          departureTime: '10:00',
+          arrivalTime: '11:00',
+          duration: '1h',
+          stops: 'Direct',
+          price: 120,
+        },
+      ],
+      departureDate: '2026-07-01',
+      returnDate: '2026-07-07',
+    });
+    tripPlanningService.saveHotelStep.and.returnValue(of({
+      tripPlanningId: 10,
+      hotelId: 77,
+      hotelName: 'Barcelona Grand',
+      hotelCity: 'Vienna',
+      pricePerNight: 220,
+      stars: 5,
+      ratingScore: 9.1,
+      ratingLabel: 'Superb',
+    }));
+
+    const pragueHotel = component.hotels().find((hotel) => hotel.tripCity === 'Prague')!;
+    const viennaHotel = component.hotels().find((hotel) => hotel.tripCity === 'Vienna')!;
+    component.selectHotel(pragueHotel);
+    component.selectHotel(viennaHotel);
+    component.continueToActivities();
+
+    expect(component.isSelectedHotel(pragueHotel)).toBeTrue();
+    expect(component.isSelectedHotel(viennaHotel)).toBeTrue();
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith(jasmine.objectContaining({
+      selectedHotels: [
+        jasmine.objectContaining({
+          city: 'Prague',
+          checkIn: '2026-07-01',
+          checkOut: '2026-07-04',
+          nights: 3,
+        }),
+        jasmine.objectContaining({
+          city: 'Vienna',
+        }),
+      ],
+    }));
+  });
+
+  it('calculates multi-city hotel nights and totals from each city stay dates', () => {
+    setup({
+      tripPlanningId: '10',
+      city: ['Vienna', 'Prague'],
+      multiCitySegments: JSON.stringify([
+        { fromText: 'Frankfurt (FRA)', toText: 'Vienna (VIE)', date: '2026-07-01' },
+        { fromText: 'Vienna (VIE)', toText: 'Prague (PRG)', date: '2026-07-08' },
+        { fromText: 'Prague (PRG)', toText: 'Frankfurt (FRA)', date: '2026-07-10' },
+      ]),
+    }, {
+      destinationCities: ['Vienna', 'Prague'],
+      departureDate: '2026-07-01',
+      returnDate: '2026-07-10',
+      selectedFlightSegments: [],
+    });
+    tripPlanningService.saveHotelStep.and.returnValue(of({
+      tripPlanningId: 10,
+      hotelId: 77,
+      hotelName: 'Barcelona Grand',
+      hotelCity: 'Prague',
+      pricePerNight: 220,
+      stars: 5,
+      ratingScore: 9.1,
+      ratingLabel: 'Superb',
+    }));
+
+    const viennaHotel = component.hotels().find((hotel) => hotel.tripCity === 'Vienna')!;
+    const pragueHotel = component.hotels().find((hotel) => hotel.tripCity === 'Prague')!;
+    component.selectHotel(viennaHotel);
+    component.selectHotel(pragueHotel);
+    component.continueToActivities();
+
+    const saveRequest = tripPlanningService.saveHotelStep.calls.mostRecent().args[1];
+    const selectedHotels = JSON.parse(saveRequest.selectedHotelStaysJson ?? '');
+
+    expect(selectedHotels).toEqual([
+      jasmine.objectContaining({
+        city: 'Vienna',
+        checkIn: '2026-07-01',
+        checkOut: '2026-07-08',
+        nights: 7,
+        price: 1540,
+      }),
+      jasmine.objectContaining({
+        city: 'Prague',
+        checkIn: '2026-07-08',
+        checkOut: '2026-07-10',
+        nights: 2,
+        price: 440,
+      }),
+    ]);
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith(jasmine.objectContaining({
+      selectedHotelTotal: 1980,
+    }));
   });
 
   it('loads hotels for every multi-city destination city', () => {

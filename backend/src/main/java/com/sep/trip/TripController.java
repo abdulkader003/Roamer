@@ -1,5 +1,6 @@
 package com.sep.trip;
 
+import com.sep.auth.dto.MessageResponse;
 import com.sep.trip.dto.CreateTripRequest;
 import com.sep.trip.dto.TripResponse;
 import jakarta.validation.Valid;
@@ -73,6 +74,11 @@ public class TripController {
     public ResponseEntity<Void> deleteTrip(Authentication authentication, @PathVariable Long tripId) {
         tripService.deleteTrip(authentication.getName(), tripId);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{tripId}/leave")
+    public ResponseEntity<MessageResponse> leaveTrip(Authentication authentication, @PathVariable Long tripId) {
+        return ResponseEntity.ok(tripService.leaveTrip(authentication.getName(), tripId));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
