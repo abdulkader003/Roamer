@@ -644,8 +644,16 @@ export class DashboardComponent implements OnDestroy {
   }
 
   private loadLatestExperienceBatch(refresh = false) {
-    return this.activitiesService.getActivities(undefined, '', 0, 40, refresh ? this.recommendationRefreshSeed : undefined).pipe(
-      map((response) => response.items ?? [])
+    const pageCount = refresh ? 2 : 1;
+    const requests = Array.from({ length: pageCount }, (_, page) =>
+      this.activitiesService.getActivities(undefined, '', page, 40, refresh ? this.recommendationRefreshSeed : undefined).pipe(
+        map((response) => response.items ?? []),
+        catchError(() => of([]))
+      )
+    );
+
+    return forkJoin(requests).pipe(
+      map((results) => results.flat())
     );
   }
 

@@ -355,6 +355,7 @@ describe('DashboardComponent weather rotation', () => {
     expect(activitiesService.getActivities.calls.allArgs().some((args) => args[0] === 'Munich')).toBeTrue();
     expect(activitiesService.getActivities.calls.allArgs().some((args) => args[1] === 'soccer')).toBeTrue();
     expect(activitiesService.getActivities.calls.allArgs().some((args) => args[4] === 1)).toBeTrue();
+    expect(activitiesService.getActivities.calls.allArgs().some((args) => args[0] === undefined && args[2] === 1 && args[3] === 40)).toBeTrue();
     expect(refreshedIds).not.toEqual(initialIds);
     expect(fixture.nativeElement.querySelectorAll('.rec-card')).toHaveSize(8);
   }));
