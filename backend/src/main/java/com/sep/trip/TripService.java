@@ -21,17 +21,20 @@ public class TripService {
     private final TripInvitationRepository tripInvitationRepository;
     private final AppUserRepository appUserRepository;
     private final CalendarEventRepository calendarEventRepository;
+    private final TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
 
     public TripService(
             TripRepository tripRepository,
             TripInvitationRepository tripInvitationRepository,
             AppUserRepository appUserRepository,
-            CalendarEventRepository calendarEventRepository
+            CalendarEventRepository calendarEventRepository,
+            TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher
     ) {
         this.tripRepository = tripRepository;
         this.tripInvitationRepository = tripInvitationRepository;
         this.appUserRepository = appUserRepository;
         this.calendarEventRepository = calendarEventRepository;
+        this.tripRealtimeWebSocketPublisher = tripRealtimeWebSocketPublisher;
     }
 
     /**
@@ -44,6 +47,17 @@ public class TripService {
         return tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(owner.getId()).stream()
                 .map(trip -> toResponse(trip, owner.getId()))
                 .toList();
+    }
+
+    /**
+     * Returns one accessible trip for the authenticated user.
+     */
+    @Transactional(readOnly = true)
+    public TripResponse getTrip(String userEmail, Long tripId) {
+        AppUser user = findOwner(userEmail);
+        Trip trip = findAccessibleTrip(tripId, user);
+
+        return toResponse(trip, user.getId());
     }
 
     /**
@@ -67,12 +81,20 @@ public class TripService {
      */
     @Transactional
     public TripResponse updateTrip(String userEmail, Long tripId, CreateTripRequest request) {
-        AppUser owner = findOwner(userEmail);
-        Trip trip = findAccessibleTrip(tripId, owner);
+        AppUser currentUser = findOwner(userEmail);
+        Trip trip = findAccessibleTrip(tripId, currentUser);
 
         applyEditableFields(trip, request);
 
-        return toResponse(tripRepository.save(trip), owner.getId());
+        Trip savedTrip = tripRepository.save(trip);
+        tripRealtimeWebSocketPublisher.publishTripDetailsUpdated(
+                savedTrip,
+                currentUser,
+                tripUpdateRecipients(savedTrip, currentUser.getId(), !savedTrip.getOwner().getId().equals(currentUser.getId()))
+        );
+        tripRealtimeWebSocketPublisher.publishTripDetailsUpdatedTopic(savedTrip, currentUser);
+
+        return toResponse(savedTrip, currentUser.getId());
     }
 
     /**
@@ -110,6 +132,12 @@ public class TripService {
             throw new IllegalArgumentException("Trip was not found.");
         }
 
+        tripRealtimeWebSocketPublisher.publishTripParticipantLeft(
+                trip,
+                user,
+                tripUpdateRecipients(trip, user.getId(), true)
+        );
+        tripRealtimeWebSocketPublisher.publishTripParticipantLeftTopic(trip, user);
         tripInvitationRepository.deleteAllByTripIdAndInvitedUserIdAndStatus(
                 trip.getId(),
                 user.getId(),
@@ -180,6 +208,22 @@ public class TripService {
         }
 
         return value.trim();
+    }
+
+    private List<AppUser> tripUpdateRecipients(Trip trip, Long actorId, boolean includeOwner) {
+        var recipients = new java.util.LinkedHashMap<Long, AppUser>();
+
+        if (includeOwner && !trip.getOwner().getId().equals(actorId)) {
+            recipients.put(trip.getOwner().getId(), trip.getOwner());
+        }
+
+        tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(trip.getId(), TripInvitationStatus.ACCEPTED)
+                .stream()
+                .map(TripInvitation::getInvitedUser)
+                .filter(user -> user.getId() != null && !user.getId().equals(actorId))
+                .forEach(user -> recipients.putIfAbsent(user.getId(), user));
+
+        return new java.util.ArrayList<>(recipients.values());
     }
 
     private TripResponse toResponse(Trip trip, Long currentUserId) {

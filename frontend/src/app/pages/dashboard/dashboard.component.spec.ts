@@ -66,6 +66,16 @@ describe('DashboardComponent weather rotation', () => {
   let budgetApiService: jasmine.SpyObj<BudgetApiService>;
   let weatherService: jasmine.SpyObj<WeatherService>;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let tripUpdateEvents: Subject<{
+    eventType: string;
+    notificationType: 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+    notificationId: number;
+    tripId: number;
+    title: string;
+    description: string;
+    details?: string | null;
+    createdAt: string;
+  }>;
   let activitiesService: jasmine.SpyObj<ActivitiesService>;
   let calendarService: jasmine.SpyObj<CalendarService>;
 
@@ -80,7 +90,17 @@ describe('DashboardComponent weather rotation', () => {
     budgetApiService.getCategoryBudgets.and.returnValue(of([]));
     weatherService = jasmine.createSpyObj<WeatherService>('WeatherService', ['getWeather']);
     weatherService.getWeather.and.callFake((cities: readonly string[]) => of(weatherFor(cities)));
-    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips']);
+    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', ['listSavedTrips', 'getTrip', 'observeTripUpdates']);
+    tripUpdateEvents = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE';
+      notificationId: number;
+      tripId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+    }>();
     tripPlanningService.listSavedTrips.and.returnValue(of([]));
     activitiesService = jasmine.createSpyObj<ActivitiesService>('ActivitiesService', ['getActivities']);
     activitiesService.getActivities.and.callFake((city?: string, keyword?: string) => {
@@ -164,6 +184,8 @@ describe('DashboardComponent weather rotation', () => {
       endDateTime: '2026-06-12T23:59:00',
       category: 'Activity'
     } as never);
+    tripPlanningService.getTrip.and.returnValue(of(tripResponse({ id: 1 })));
+    tripPlanningService.observeTripUpdates.and.returnValue(tripUpdateEvents.asObservable());
     spyOn(window, 'fetch').and.resolveTo(new Response('[]', { status: 200 }));
 
     await TestBed.configureTestingModule({
@@ -469,6 +491,29 @@ describe('DashboardComponent weather rotation', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Recommended experiences are unavailable right now.');
+  }));
+
+  it('refreshes the budget overview when a shared trip budget update arrives', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+
+    budgetApiService.getSummary.calls.reset();
+    budgetApiService.getCategoryBudgets.calls.reset();
+
+    tripUpdateEvents.next({
+      eventType: 'TRIP_EXPENSE_CREATED',
+      notificationType: 'TRIP_BUDGET_UPDATE',
+      notificationId: 77,
+      tripId: 1,
+      title: 'Trip budget updated',
+      description: 'Ada Lovelace added an expense to Paris Summer.',
+      details: 'Paris · 15 Jun 2026 → 22 Jun 2026 · €120 · flights',
+      createdAt: '2026-07-01T12:00:00Z'
+    });
+    tick();
+
+    expect(budgetApiService.getSummary).toHaveBeenCalledTimes(1);
+    expect(budgetApiService.getCategoryBudgets).toHaveBeenCalledTimes(1);
   }));
 
   it('rotates after 20 seconds and requests weather for the next 3 cities', fakeAsync(() => {

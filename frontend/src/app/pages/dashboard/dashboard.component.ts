@@ -221,6 +221,22 @@ export class DashboardComponent implements OnDestroy {
   };
 
   private readonly budgetCategoryOrder = ['FLIGHTS', 'HOTELS', 'FOOD', 'ACTIVITIES', 'OTHERS'];
+  private readonly tripUpdateSubscription = this.tripPlanningService.observeTripUpdates().subscribe((event) => {
+    this.refreshTripById(event.tripId);
+
+    if (
+      event.notificationType === 'TRIP_PARTICIPANT_JOINED' ||
+      event.notificationType === 'TRIP_PARTICIPANT_LEFT'
+    ) {
+      this.loadUpcomingTrips();
+      this.loadBudgetOverview();
+      return;
+    }
+
+    if (event.notificationType === 'TRIP_UPDATE' || event.notificationType === 'TRIP_BUDGET_UPDATE') {
+      this.loadBudgetOverview();
+    }
+  });
 
   ngOnInit(): void {
     this.loadUpcomingTrips();
@@ -381,6 +397,7 @@ export class DashboardComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.tripUpdateSubscription.unsubscribe();
     if (this.weatherRotationIntervalId !== null) {
       clearInterval(this.weatherRotationIntervalId);
       this.weatherRotationIntervalId = null;
@@ -1077,6 +1094,34 @@ export class DashboardComponent implements OnDestroy {
       image: this.tripImageFor(trip),
       shared: trip.accessRole === 'PARTICIPANT'
     };
+  }
+
+  private refreshTripById(tripId: number): void {
+    this.tripPlanningService.getTrip(tripId).subscribe({
+      next: (updatedTrip) => {
+        let updatedVisibleTrip = false;
+
+        this.trips.update((trips) => {
+          const index = trips.findIndex((trip) => trip.id === updatedTrip.id);
+
+          if (index === -1) {
+            return trips;
+          }
+
+          const nextTrips = [...trips];
+          nextTrips[index] = this.toDashboardTrip(updatedTrip);
+          updatedVisibleTrip = true;
+          return nextTrips;
+        });
+
+        if (updatedVisibleTrip) {
+          this.cdr.detectChanges();
+        }
+      },
+      error: () => {
+        this.loadUpcomingTrips();
+      }
+    });
   }
 
   private formatTripBudget(trip: TripResponse): string {

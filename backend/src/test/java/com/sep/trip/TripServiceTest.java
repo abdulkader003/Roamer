@@ -19,6 +19,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,12 +39,21 @@ class TripServiceTest {
     @Mock
     private CalendarEventRepository calendarEventRepository;
 
+    @Mock
+    private TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
+
     private TripService tripService;
     private AppUser owner;
 
     @BeforeEach
     void setUp() {
-        tripService = new TripService(tripRepository, tripInvitationRepository, appUserRepository, calendarEventRepository);
+        tripService = new TripService(
+                tripRepository,
+                tripInvitationRepository,
+                appUserRepository,
+                calendarEventRepository,
+                tripRealtimeWebSocketPublisher
+        );
         owner = new AppUser();
         owner.setId(7L);
         owner.setEmail("traveler@example.com");
@@ -61,6 +71,19 @@ class TripServiceTest {
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().name()).isEqualTo("Summer Getaway");
         verify(tripRepository).findAllAccessibleByUserIdOrderByStartDateAsc(7L);
+    }
+
+    @Test
+    void getTripReturnsAccessibleTripForAuthenticatedUser() {
+        Trip trip = trip("Summer Getaway");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+
+        TripResponse response = tripService.getTrip("traveler@example.com", 11L);
+
+        assertThat(response.id()).isEqualTo(11L);
+        assertThat(response.name()).isEqualTo("Summer Getaway");
     }
 
     @Test
@@ -143,6 +166,8 @@ class TripServiceTest {
         assertThat(response.status()).isEqualTo(TripStatus.PLANNING);
         assertThat(response.accessRole()).isEqualTo(TripAccessRole.OWNER);
         verify(tripRepository).findAccessibleByIdAndUserId(11L, 7L);
+        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection());
+        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdatedTopic(any(Trip.class), any(AppUser.class));
     }
 
     @Test
@@ -196,6 +221,8 @@ class TripServiceTest {
         tripService.leaveTrip("traveler@example.com", 11L);
 
         verify(tripInvitationRepository).deleteAllByTripIdAndInvitedUserIdAndStatus(11L, 7L, TripInvitationStatus.ACCEPTED);
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantLeft(any(Trip.class), any(AppUser.class), anyCollection());
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantLeftTopic(any(Trip.class), any(AppUser.class));
     }
 
     @Test
@@ -228,6 +255,7 @@ class TripServiceTest {
         TripResponse response = tripService.updateTrip("traveler@example.com", 11L, request);
 
         assertThat(response.accessRole()).isEqualTo(TripAccessRole.PARTICIPANT);
+        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection());
     }
 
     @Test

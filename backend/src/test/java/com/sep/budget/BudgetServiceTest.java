@@ -10,6 +10,9 @@ import com.sep.budget.dto.SpendingDataPointResponse;
 import com.sep.budget.dto.SpendingDistributionResponse;
 import com.sep.budget.dto.TripBudgetRowResponse;
 import com.sep.trip.Trip;
+import com.sep.trip.TripInvitation;
+import com.sep.trip.TripInvitationRepository;
+import com.sep.trip.TripInvitationStatus;
 import com.sep.trip.TripRepository;
 import com.sep.trip.TripStatus;
 import com.sep.user.AppUser;
@@ -42,6 +45,9 @@ class BudgetServiceTest {
     private TripRepository tripRepository;
 
     @Mock
+    private TripInvitationRepository tripInvitationRepository;
+
+    @Mock
     private ExpenseRepository expenseRepository;
 
     @Mock
@@ -50,13 +56,24 @@ class BudgetServiceTest {
     @Mock
     private AppUserRepository appUserRepository;
 
+    @Mock
+    private BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher;
+
     private BudgetService budgetService;
     private AppUser owner;
     private final Clock testClock = Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC);
 
     @BeforeEach
     void setUp() {
-        budgetService = new BudgetService(tripRepository, expenseRepository, categoryBudgetLimitRepository, appUserRepository, testClock);
+        budgetService = new BudgetService(
+                tripRepository,
+                tripInvitationRepository,
+                expenseRepository,
+                categoryBudgetLimitRepository,
+                appUserRepository,
+                budgetRealtimeWebSocketPublisher,
+                testClock
+        );
         owner = new AppUser();
         owner.setId(7L);
         owner.setEmail("traveler@example.com");
@@ -292,6 +309,8 @@ class BudgetServiceTest {
             expense.setId(99L);
             return expense;
         });
+        when(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(11L, TripInvitationStatus.ACCEPTED))
+                .thenReturn(List.of(acceptedInvitation(trip, invitedUser(8L, "friend@example.com"))));
 
         ExpenseResponse response = budgetService.createExpense("traveler@example.com", request);
 
@@ -302,6 +321,7 @@ class BudgetServiceTest {
         assertThat(response.description()).isEqualTo("Lunch");
         assertThat(response.date()).isEqualTo(LocalDate.of(2026, 7, 16));
         verify(expenseRepository).save(any(Expense.class));
+        verify(budgetRealtimeWebSocketPublisher).publishExpenseCreated(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
     }
 
     @Test
@@ -345,6 +365,10 @@ class BudgetServiceTest {
         when(expenseRepository.findByIdAndTripOwnerId(44L, 7L)).thenReturn(Optional.of(expense));
         when(tripRepository.findById(12L)).thenReturn(Optional.of(newTrip));
         when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(11L, TripInvitationStatus.ACCEPTED))
+                .thenReturn(List.of(acceptedInvitation(oldTrip, invitedUser(8L, "old-friend@example.com"))));
+        when(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(12L, TripInvitationStatus.ACCEPTED))
+                .thenReturn(List.of(acceptedInvitation(newTrip, invitedUser(8L, "friend@example.com"))));
 
         ExpenseResponse response = budgetService.updateExpense("traveler@example.com", 44L, request);
 
@@ -354,6 +378,41 @@ class BudgetServiceTest {
         assertThat(response.description()).isEqualTo("Updated hotel");
         assertThat(response.date()).isEqualTo(LocalDate.of(2026, 7, 20));
         verify(expenseRepository).save(any(Expense.class));
+        verify(budgetRealtimeWebSocketPublisher).publishExpenseDeleted(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
+        verify(budgetRealtimeWebSocketPublisher).publishExpenseCreated(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
+    }
+
+    @Test
+    void updatesOwnedExpenseWithinTheSameTrip() {
+        Trip trip = trip(11L, "Rome", "1000.00");
+        trip.setHotelTotal(new BigDecimal("80.00"));
+        Expense expense = expense(trip, ExpenseCategory.FOOD, "20.00", LocalDate.of(2026, 7, 18));
+        expense.setId(44L);
+
+        CreateExpenseRequest request = new CreateExpenseRequest(
+                11L,
+                ExpenseCategory.HOTELS,
+                new BigDecimal("65.00"),
+                "Updated hotel",
+                LocalDate.of(2026, 7, 20)
+        );
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(expenseRepository.findByIdAndTripOwnerId(44L, 7L)).thenReturn(Optional.of(expense));
+        when(tripRepository.findById(11L)).thenReturn(Optional.of(trip));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(11L, TripInvitationStatus.ACCEPTED))
+                .thenReturn(List.of(acceptedInvitation(trip, invitedUser(8L, "friend@example.com"))));
+
+        ExpenseResponse response = budgetService.updateExpense("traveler@example.com", 44L, request);
+
+        assertThat(response.tripId()).isEqualTo(11L);
+        assertThat(response.category()).isEqualTo(ExpenseCategory.HOTELS);
+        assertThat(response.amount()).isEqualByComparingTo("65.00");
+        assertThat(response.description()).isEqualTo("Updated hotel");
+        assertThat(response.date()).isEqualTo(LocalDate.of(2026, 7, 20));
+        verify(expenseRepository).save(any(Expense.class));
+        verify(budgetRealtimeWebSocketPublisher).publishExpenseUpdated(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
     }
 
     @Test
@@ -432,10 +491,13 @@ class BudgetServiceTest {
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
         when(expenseRepository.findByIdAndTripOwnerId(44L, 7L)).thenReturn(Optional.of(expense));
+        when(tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(11L, TripInvitationStatus.ACCEPTED))
+                .thenReturn(List.of(acceptedInvitation(trip, invitedUser(8L, "friend@example.com"))));
 
         budgetService.deleteExpense("traveler@example.com", 44L);
 
         verify(expenseRepository).delete(expense);
+        verify(budgetRealtimeWebSocketPublisher).publishExpenseDeleted(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
     }
 
     @Test
@@ -589,6 +651,23 @@ class BudgetServiceTest {
                 .filter(row -> row.category() == category)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private TripInvitation acceptedInvitation(Trip trip, AppUser invitedUser) {
+        TripInvitation invitation = new TripInvitation();
+        invitation.setTrip(trip);
+        invitation.setInvitedBy(owner);
+        invitation.setInvitedUser(invitedUser);
+        invitation.setStatus(TripInvitationStatus.ACCEPTED);
+        return invitation;
+    }
+
+    private AppUser invitedUser(Long id, String email) {
+        AppUser user = new AppUser();
+        user.setId(id);
+        user.setEmail(email);
+        user.setUsername("friend");
+        return user;
     }
 
     private SpendingDistributionResponse distribution(List<SpendingDistributionResponse> rows, ExpenseCategory category) {
