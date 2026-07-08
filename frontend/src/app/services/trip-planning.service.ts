@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, Subject, map } from 'rxjs';
+import { EMPTY, Observable, Subject, filter, map } from 'rxjs';
 import { AuthService } from './auth';
 import { RealtimeWebSocketService } from './realtime-websocket.service';
 import { FriendUserSummary } from './friend-community.service';
@@ -300,6 +300,17 @@ export class TripPlanningService {
     return this.tripRealtimeEvents.asObservable();
   }
 
+  observeTripTopicUpdates(tripId: number): Observable<TripRealtimeEvent> {
+    if (!this.realtimeWebSocketService) {
+      return EMPTY;
+    }
+
+    return this.realtimeWebSocketService.observe<TripRealtimeNotificationMessage>(`/topic/trips/${tripId}/updates`).pipe(
+      map((message) => this.toTripRealtimeEvent(message)),
+      filter((event): event is TripRealtimeEvent => event !== null)
+    );
+  }
+
   acceptTripInvitation(invitationId: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.tripsUrl}/invitations/${invitationId}/accept`, null, {
       headers: this.authService.authHeader(),
@@ -338,8 +349,17 @@ export class TripPlanningService {
   }
 
   private ingestTripRealtimeMessage(message: TripRealtimeNotificationMessage): void {
-    if (!message?.notificationId || !message.notificationType || !message.relatedEntityId) {
+    const event = this.toTripRealtimeEvent(message);
+    if (!event) {
       return;
+    }
+
+    this.tripRealtimeEvents.next(event);
+  }
+
+  private toTripRealtimeEvent(message: TripRealtimeNotificationMessage | null | undefined): TripRealtimeEvent | null {
+    if (!message?.notificationId || !message.notificationType || !message.relatedEntityId) {
+      return null;
     }
 
     if (
@@ -349,10 +369,10 @@ export class TripPlanningService {
       message.notificationType !== 'TRIP_PARTICIPANT_JOINED' &&
       message.notificationType !== 'TRIP_PARTICIPANT_LEFT'
     ) {
-      return;
+      return null;
     }
 
-    this.tripRealtimeEvents.next({
+    return {
       eventType: message.eventType,
       notificationType: message.notificationType,
       notificationId: message.notificationId,
@@ -361,6 +381,6 @@ export class TripPlanningService {
       description: message.description,
       details: message.details ?? null,
       createdAt: message.createdAt,
-    });
+    };
   }
 }

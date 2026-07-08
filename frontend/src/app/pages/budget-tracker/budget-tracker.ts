@@ -85,7 +85,7 @@ type BudgetReport = {
 export class BudgetTracker implements OnInit, OnDestroy {
   private readonly apiBase = '/api/budget';
   private readonly tripPlanningService = inject(TripPlanningService);
-  private readonly tripUpdateSubscription = new Subscription();
+  private readonly tripTopicSubscriptions = new Map<number, Subscription>();
 
   isLoading = true;
   loadError = '';
@@ -837,16 +837,15 @@ export class BudgetTracker implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.tripUpdateSubscription.add(
-      this.tripPlanningService.observeTripUpdates().subscribe(() => {
-        this.loadAllData();
-      })
-    );
     this.loadAllData();
   }
 
   ngOnDestroy(): void {
-    this.tripUpdateSubscription.unsubscribe();
+    for (const subscription of this.tripTopicSubscriptions.values()) {
+      subscription.unsubscribe();
+    }
+
+    this.tripTopicSubscriptions.clear();
   }
 
   private getHeaders(): HttpHeaders {
@@ -876,6 +875,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
         this.categories = this.mapDistribution(data.distribution);
         this.categoryBudgets = this.mapCategoryBudgets(data.categories);
         this.trips = this.mapTrips(data.trips);
+        this.syncTripTopicSubscriptions(this.trips.map((trip) => trip.tripId));
         this.manualExpenses = this.mapExpenses(data.expenses, tripLookup);
         this.expenseDraft.tripId = this.trips.some(trip => trip.tripId === this.expenseDraft.tripId)
           ? this.expenseDraft.tripId
@@ -889,6 +889,31 @@ export class BudgetTracker implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  private syncTripTopicSubscriptions(tripIds: number[]): void {
+    const nextTripIds = new Set(tripIds);
+
+    for (const [tripId, subscription] of this.tripTopicSubscriptions.entries()) {
+      if (nextTripIds.has(tripId)) {
+        continue;
+      }
+
+      subscription.unsubscribe();
+      this.tripTopicSubscriptions.delete(tripId);
+    }
+
+    for (const tripId of nextTripIds) {
+      if (this.tripTopicSubscriptions.has(tripId)) {
+        continue;
+      }
+
+      const subscription = this.tripPlanningService.observeTripTopicUpdates(tripId).subscribe(() => {
+        this.loadAllData();
+      });
+
+      this.tripTopicSubscriptions.set(tripId, subscription);
+    }
   }
 
   private loadSpendingChart(view: 'monthly' | 'yearly'): void {

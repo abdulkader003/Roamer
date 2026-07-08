@@ -267,6 +267,25 @@ describe('TripPlanningService', () => {
     });
   });
 
+  it('subscribes to trip topic updates for a specific trip', (done) => {
+    service.observeTripTopicUpdates(20).subscribe((event) => {
+      expect(event.notificationType).toBe('TRIP_UPDATE');
+      expect(event.tripId).toBe(20);
+      done();
+    });
+
+    realtimeMessages.next({
+      eventType: 'TRIP_DETAILS_UPDATED',
+      notificationType: 'TRIP_UPDATE',
+      notificationId: 79,
+      title: 'Trip updated',
+      description: 'Ada Lovelace updated Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · Ada Lovelace',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
+  });
+
   it('invites an accepted friend to a trip with the existing JWT header', () => {
     service.inviteFriendToTrip(20, { invitedUserId: 9 }).subscribe((response) => {
       expect(response.trip.id).toBe(20);
