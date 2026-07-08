@@ -192,7 +192,7 @@
     <div class="section-card recommendations-card">
       <div class="section-header">
         <span class="section-title">Recommended Experiences</span>
-        <button type="button" class="view-all" (click)="loadRecommendedExperiences()">Refresh</button>
+        <button type="button" class="view-all" (click)="loadRecommendedExperiences(true)">Refresh</button>
       </div>
       @if (isExperiencesLoading()) {
         <div class="rec-state">Loading recommended experiences...</div>
@@ -258,13 +258,22 @@
               @if (experience.description) {
                 <p class="experience-description">{{ experience.description }}</p>
               }
-              <button
-                type="button"
-                class="experience-calendar-btn"
-                [disabled]="isAddingExperienceToCalendar()"
-                (click)="addSelectedExperienceToCalendar()">
-                {{ isAddingExperienceToCalendar() ? 'Adding...' : 'Add to Calendar' }}
-              </button>
+              <div class="experience-modal-actions">
+                <button
+                  type="button"
+                  class="experience-calendar-btn"
+                  [disabled]="isAddingExperienceToCalendar()"
+                  (click)="addSelectedExperienceToCalendar()">
+                  {{ isAddingExperienceToCalendar() ? 'Adding...' : 'Add to Calendar' }}
+                </button>
+                <button
+                  type="button"
+                  class="experience-ticket-btn"
+                  [disabled]="!experience.ticketUrl"
+                  (click)="buyExperienceTickets(experience)">
+                  {{ experience.ticketUrl ? 'Buy Tickets' : 'Tickets unavailable' }}
+                </button>
+              </div>
               @if (experienceCalendarMessage()) {
                 <p class="experience-calendar-message" [class.experience-calendar-message--error]="experienceCalendarMessageType() === 'error'">
                   {{ experienceCalendarMessage() }}

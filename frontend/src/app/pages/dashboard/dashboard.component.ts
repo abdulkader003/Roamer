@@ -41,19 +41,56 @@ export const DESTINATION_WEATHER_CITIES = [
 
 const WEATHER_ROTATION_INTERVAL_MS = 20000;
 const VISIBLE_WEATHER_CITY_COUNT = 3;
+const RECOMMENDED_EXPERIENCE_LIMIT = 8;
 const RECOMMENDED_EXPERIENCE_CITIES = [
-  'Barcelona',
   'Berlin',
-  'Madrid',
-  'London',
+  'Munich',
   'Paris',
+  'Madrid',
   'Rome',
+  'Amsterdam',
+  'Tokyo',
+  'Dubai',
+  'Singapore',
+  'Sydney',
+  'Hamburg',
+  'Barcelona',
+  'Valencia',
+  'Lyon',
+  'Milan',
+  'Vienna',
+  'Prague',
+  'Lisbon',
+  'Copenhagen',
+  'London',
   'New York',
   'Los Angeles',
   'Toronto',
+  'Vancouver',
   'Mexico City',
+  'Seoul',
 ] as const;
 const WORLD_CUP_EXPERIENCE_KEYWORDS = ['football', 'soccer', 'FIFA', 'World Cup', 'fan festival', 'sports'] as const;
+const REFRESH_EXPERIENCE_KEYWORDS = ['festival', 'concert', 'theatre', 'comedy', 'family', 'sports', 'museum', 'food', 'culture'] as const;
+const RECOMMENDED_CATEGORY_TARGETS = [
+  { bucket: 'sports', target: 2 },
+  { bucket: 'music', target: 2 },
+  { bucket: 'theatre', target: 1 },
+  { bucket: 'arts', target: 1 },
+  { bucket: 'festival', target: 1 },
+  { bucket: 'family', target: 1 },
+] as const;
+const WORLD_CUP_RECOMMENDATION_LIMIT = 2;
+
+type RecommendationCategoryBucket =
+  | 'world-cup'
+  | 'sports'
+  | 'music'
+  | 'theatre'
+  | 'arts'
+  | 'festival'
+  | 'family'
+  | 'other';
 
 interface Trip {
   id: number;
@@ -80,6 +117,7 @@ interface Experience {
   category: string;
   description: string;
   source: string;
+  ticketUrl: string;
   image: string;
   activity: Activity;
 }
@@ -126,6 +164,7 @@ export class DashboardComponent implements OnDestroy {
   private readonly weatherCache = new Map<string, WeatherDto>();
   private weatherRotationIntervalId: ReturnType<typeof setInterval> | null = null;
   private weatherRequestSequence = 0;
+  private recommendationRefreshSeed = 0;
   readonly isPlanningTrip = signal(false);
 
   visibleCalendarMonth = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
@@ -241,30 +280,49 @@ export class DashboardComponent implements OnDestroy {
     });
   }
 
-  loadRecommendedExperiences(): void {
+  loadRecommendedExperiences(refresh = false): void {
+    if (refresh) {
+      this.recommendationRefreshSeed += 1;
+    }
+
+    const previousExperienceIds = new Set(this.experiences().map((experience) => experience.id));
     this.isExperiencesLoading.set(true);
     this.experiencesError.set('');
 
-    this.loadExperienceBatch('football').subscribe({
-      next: (worldCupActivities) => {
-        const worldCupExperiences = this.toRecommendedExperiences(worldCupActivities);
-
-        if (worldCupExperiences.length >= 4) {
-          this.experiences.set(worldCupExperiences.slice(0, 4));
-          this.isExperiencesLoading.set(false);
-          this.cdr.detectChanges();
+    // Blends priority World Cup results with general events for a more diverse recommendation set.
+    forkJoin({
+      worldCupActivities: this.loadExperienceBatch('football', refresh).pipe(catchError(() => of(null))),
+      generalActivities: this.loadExperienceBatch('', refresh).pipe(catchError(() => of(null))),
+      latestActivities: this.loadLatestExperienceBatch(refresh).pipe(catchError(() => of(null))),
+    }).subscribe({
+      next: ({ worldCupActivities, generalActivities, latestActivities }) => {
+        if (worldCupActivities === null && generalActivities === null && latestActivities === null) {
+          this.handleRecommendedExperiencesError(new Error('Recommended experience requests failed.'));
           return;
         }
 
-        this.loadExperienceBatch().subscribe({
-          next: (generalActivities) => {
-            const merged = this.toRecommendedExperiences([...worldCupActivities, ...generalActivities]);
-            this.experiences.set(merged.slice(0, 4));
-            this.isExperiencesLoading.set(false);
-            this.cdr.detectChanges();
-          },
-          error: (error) => this.handleRecommendedExperiencesError(error)
+        const received = [
+          ...(worldCupActivities ?? []),
+          ...(generalActivities ?? []),
+          ...(latestActivities ?? []),
+        ];
+        const merged = this.toRecommendedExperiences([
+          ...received,
+        ], refresh, previousExperienceIds);
+        const nextExperiences = this.ensureRefreshedExperienceOrder(
+          merged.slice(0, RECOMMENDED_EXPERIENCE_LIMIT),
+          refresh,
+          previousExperienceIds
+        );
+
+        console.debug('Recommended experiences:', {
+          received: received.length,
+          usable: received.filter((activity) => this.hasUsableRecommendedExperience(activity)).length,
+          returned: nextExperiences.length,
         });
+        this.experiences.set(nextExperiences);
+        this.isExperiencesLoading.set(false);
+        this.cdr.detectChanges();
       },
       error: (error) => this.handleRecommendedExperiencesError(error)
     });
@@ -312,6 +370,14 @@ export class DashboardComponent implements OnDestroy {
       this.isAddingExperienceToCalendar.set(false);
       this.cdr.detectChanges();
     }
+  }
+
+  buyExperienceTickets(experience: Experience): void {
+    if (!experience.ticketUrl) {
+      return;
+    }
+
+    window.open(experience.ticketUrl, '_blank', 'noopener,noreferrer');
   }
 
   ngOnDestroy(): void {
@@ -551,9 +617,16 @@ export class DashboardComponent implements OnDestroy {
     }
   }
 
-  private loadExperienceBatch(keyword = '') {
-    const requests = RECOMMENDED_EXPERIENCE_CITIES.map((city) =>
-      this.activitiesService.getActivities(city, keyword, 0, 6).pipe(
+  private loadExperienceBatch(keyword = '', refresh = false) {
+    const cities = this.recommendedExperienceCities(refresh);
+    const requests = cities.map((city, index) =>
+      this.activitiesService.getActivities(
+        city,
+        this.recommendedExperienceKeyword(keyword, refresh, index),
+        0,
+        6,
+        refresh ? this.recommendationRefreshSeed : undefined
+      ).pipe(
         map((response) => response.items ?? []),
         catchError(() => of(null))
       )
@@ -570,6 +643,12 @@ export class DashboardComponent implements OnDestroy {
     );
   }
 
+  private loadLatestExperienceBatch(refresh = false) {
+    return this.activitiesService.getActivities(undefined, '', 0, 40, refresh ? this.recommendationRefreshSeed : undefined).pipe(
+      map((response) => response.items ?? [])
+    );
+  }
+
   private handleRecommendedExperiencesError(error: unknown): void {
     console.error('Failed to load recommended experiences:', error);
     this.experiences.set([]);
@@ -578,50 +657,131 @@ export class DashboardComponent implements OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private toRecommendedExperiences(activities: Activity[]): Experience[] {
+  private toRecommendedExperiences(activities: Activity[], refresh = false, previousExperienceIds = new Set<string>()): Experience[] {
     const unique = new Map<string, Activity>();
 
     activities
-      .filter((activity) => this.hasRecommendedExperienceQuality(activity))
+      .filter((activity) => this.hasUsableRecommendedExperience(activity))
       .forEach((activity) => {
-        if (!unique.has(activity.id)) {
-          unique.set(activity.id, activity);
+        const duplicateKey = this.recommendedExperienceDuplicateKey(activity);
+
+        if (!unique.has(duplicateKey)) {
+          unique.set(duplicateKey, activity);
         }
       });
 
-    return [...unique.values()]
-      .sort((first, second) => this.experienceScore(second) - this.experienceScore(first))
+    return this.selectDiverseRecommendedActivities([...unique.values()], refresh, previousExperienceIds)
       .map((activity) => this.toDashboardExperience(activity));
   }
 
-  private hasRecommendedExperienceQuality(activity: Activity): boolean {
+  private selectDiverseRecommendedActivities(activities: Activity[], refresh = false, previousExperienceIds = new Set<string>()): Activity[] {
+    const ranked = [...activities].sort((first, second) =>
+      this.experienceRank(second, refresh, previousExperienceIds) - this.experienceRank(first, refresh, previousExperienceIds)
+    );
+    const selected: Activity[] = [];
+    const selectedIds = new Set<string>();
+    const cityCounts = new Map<string, number>();
+    const countryCounts = new Map<string, number>();
+    const categoryCounts = new Map<string, number>();
+    const addActivity = (activity: Activity, limits: { city: number; country: number; category: number }) => {
+      if (selected.length >= RECOMMENDED_EXPERIENCE_LIMIT || selectedIds.has(activity.id)) {
+        return false;
+      }
+
+      const city = this.normalizeRecommendationKey(activity.city);
+      const country = this.normalizeRecommendationKey(activity.country || activity.city);
+      const category = this.selectionCategoryBucket(activity);
+
+      if (
+        (cityCounts.get(city) ?? 0) >= limits.city ||
+        (countryCounts.get(country) ?? 0) >= limits.country ||
+        (categoryCounts.get(category) ?? 0) >= limits.category
+      ) {
+        return false;
+      }
+
+      selected.push(activity);
+      selectedIds.add(activity.id);
+      cityCounts.set(city, (cityCounts.get(city) ?? 0) + 1);
+      countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
+      categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+      return true;
+    };
+    const strictLimits = { city: 1, country: 2, category: 2 };
+
+    // Official World Cup-style events stay first, but they cannot consume the whole feed.
+    for (const activity of ranked.filter((candidate) => this.isWorldCupRelated(candidate))) {
+      if ((categoryCounts.get('sports') ?? 0) >= WORLD_CUP_RECOMMENDATION_LIMIT) {
+        break;
+      }
+
+      addActivity(activity, strictLimits);
+    }
+
+    for (const { bucket, target } of RECOMMENDED_CATEGORY_TARGETS) {
+      if (selected.length >= RECOMMENDED_EXPERIENCE_LIMIT) {
+        return selected;
+      }
+
+      for (const activity of ranked) {
+        if ((categoryCounts.get(bucket) ?? 0) >= target) {
+          break;
+        }
+
+        if (this.selectionCategoryBucket(activity) === bucket) {
+          addActivity(activity, strictLimits);
+        }
+      }
+    }
+
+    const fallbackPasses = [
+      { city: 1, country: 2, category: 2 },
+      { city: 1, country: 3, category: 3 },
+      { city: 2, country: 3, category: 3 },
+      {
+        city: Number.POSITIVE_INFINITY,
+        country: Number.POSITIVE_INFINITY,
+        category: Number.POSITIVE_INFINITY,
+      },
+    ];
+
+    for (const pass of fallbackPasses) {
+      for (const activity of ranked) {
+        if (selected.length >= RECOMMENDED_EXPERIENCE_LIMIT) {
+          return selected;
+        }
+
+        addActivity(activity, pass);
+      }
+    }
+
+    return selected;
+  }
+
+  private hasUsableRecommendedExperience(activity: Activity): boolean {
     return Boolean(
       activity?.id &&
-      activity.title?.trim() &&
-      activity.city?.trim() &&
-      activity.image?.trim() &&
-      this.activityDate(activity)
+      activity.title?.trim()
     );
   }
 
   private experienceScore(activity: Activity): number {
     let score = 0;
-    const searchable = [
-      activity.title,
-      activity.category,
-      activity.segment,
-      activity.genre,
-      activity.subGenre,
-      activity.description,
-      activity.venue,
-    ].join(' ').toLowerCase();
 
-    if (WORLD_CUP_EXPERIENCE_KEYWORDS.some((keyword) => searchable.includes(keyword.toLowerCase()))) {
+    if (this.isWorldCupRelated(activity)) {
       score += 1000;
     }
 
     if (activity.image) {
       score += 120;
+    }
+
+    if (activity.city) {
+      score += 80;
+    }
+
+    if (this.activityDate(activity)) {
+      score += 80;
     }
 
     if (activity.venue) {
@@ -634,6 +794,147 @@ export class DashboardComponent implements OnDestroy {
 
     score += Number(activity.rating ?? 0);
     return score;
+  }
+
+  private experienceRank(activity: Activity, refresh: boolean, previousExperienceIds: Set<string>): number {
+    let rank = this.experienceScore(activity);
+
+    if (refresh && previousExperienceIds.has(activity.id)) {
+      rank -= 10000;
+    }
+
+    if (refresh) {
+      rank += this.seededExperienceWeight(activity.id);
+    }
+
+    return rank;
+  }
+
+  private seededExperienceWeight(value: string): number {
+    let hash = this.recommendationRefreshSeed || 1;
+
+    for (let index = 0; index < value.length; index++) {
+      hash = (hash * 31 + value.charCodeAt(index)) % 9973;
+    }
+
+    return hash % 100;
+  }
+
+  private recommendedExperienceCities(refresh: boolean): readonly string[] {
+    if (!refresh) {
+      return RECOMMENDED_EXPERIENCE_CITIES.slice(0, 10);
+    }
+
+    return this.rotateValues([...RECOMMENDED_EXPERIENCE_CITIES], this.recommendationRefreshSeed).slice(0, 10);
+  }
+
+  private recommendedExperienceKeyword(keyword: string, refresh: boolean, index: number): string {
+    if (keyword) {
+      return refresh
+        ? WORLD_CUP_EXPERIENCE_KEYWORDS[(this.recommendationRefreshSeed + index) % WORLD_CUP_EXPERIENCE_KEYWORDS.length]
+        : keyword;
+    }
+
+    return refresh
+      ? REFRESH_EXPERIENCE_KEYWORDS[(this.recommendationRefreshSeed + index) % REFRESH_EXPERIENCE_KEYWORDS.length]
+      : '';
+  }
+
+  private rotateValues<T>(values: T[], offset: number): T[] {
+    if (values.length === 0) {
+      return values;
+    }
+
+    const normalizedOffset = offset % values.length;
+    return [...values.slice(normalizedOffset), ...values.slice(0, normalizedOffset)];
+  }
+
+  private selectionCategoryBucket(activity: Activity): Exclude<RecommendationCategoryBucket, 'world-cup'> {
+    const bucket = this.recommendationCategoryBucket(activity);
+    return bucket === 'world-cup' ? 'sports' : bucket;
+  }
+
+  private recommendationCategoryBucket(activity: Activity): RecommendationCategoryBucket {
+    if (this.isWorldCupRelated(activity)) {
+      return 'world-cup';
+    }
+
+    const category = [
+      activity.genre,
+      activity.category,
+      activity.segment,
+      activity.subGenre,
+      activity.type,
+      activity.description,
+    ].join(' ').toLowerCase();
+
+    if (/(concert|music|live music|pop|rock|jazz|classical)/.test(category)) {
+      return 'music';
+    }
+
+    if (/(theatre|theater|musical|opera|ballet|performing arts)/.test(category)) {
+      return 'theatre';
+    }
+
+    if (/(museum|exhibition|exhibit|art|gallery)/.test(category)) {
+      return 'arts';
+    }
+
+    if (/(festival|food|drink|culinary|market)/.test(category)) {
+      return 'festival';
+    }
+
+    if (/(family|comedy|culture|cultural|community)/.test(category)) {
+      return 'family';
+    }
+
+    if (/(sport|football|soccer|baseball|basketball|hockey|tennis|rugby|racing)/.test(category)) {
+      return 'sports';
+    }
+
+    return 'other';
+  }
+
+  private isWorldCupRelated(activity: Activity): boolean {
+    const searchable = [
+      activity.title,
+      activity.category,
+      activity.segment,
+      activity.genre,
+      activity.subGenre,
+      activity.description,
+      activity.venue,
+    ].join(' ').toLowerCase();
+
+    return WORLD_CUP_EXPERIENCE_KEYWORDS.some((keyword) => searchable.includes(keyword.toLowerCase()));
+  }
+
+  private normalizeRecommendationKey(value: string | undefined): string {
+    return value?.trim().toLowerCase() || 'unknown';
+  }
+
+  private recommendedExperienceDuplicateKey(activity: Activity): string {
+    return [
+      activity.title,
+      activity.city,
+      activity.country,
+      activity.venue,
+      activity.startDate,
+    ].map((value) => this.normalizeRecommendationKey(value ?? '')).join('|');
+  }
+
+  private ensureRefreshedExperienceOrder(experiences: Experience[], refresh: boolean, previousExperienceIds: Set<string>): Experience[] {
+    if (!refresh || experiences.length <= 1) {
+      return experiences;
+    }
+
+    const allStillPrevious = experiences.every((experience) => previousExperienceIds.has(experience.id));
+
+    if (!allStillPrevious) {
+      return experiences;
+    }
+
+    return this.rotateValues([...experiences], this.recommendationRefreshSeed);
   }
 
   private toDashboardExperience(activity: Activity): Experience {
@@ -652,6 +953,7 @@ export class DashboardComponent implements OnDestroy {
       category: activity.genre || activity.category || activity.segment || activity.type || 'Experience',
       description: activity.description || activity.info || activity.pleaseNote || '',
       source: activity.source || 'Ticketmaster',
+      ticketUrl: activity.url || '',
       image: activity.image || this.fallbackExperienceImage(),
       activity,
     };

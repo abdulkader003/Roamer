@@ -602,11 +602,15 @@
 .rec-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 14px;
 }
 
 .rec-card {
   min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -654,6 +658,9 @@
 }
 
 .rec-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 12px;
 }
 
@@ -683,7 +690,7 @@
 }
 
 .rec-price {
-  margin: 0;
+  margin: auto 0 0;
   color: var(--price-color);
   font-size: 13px;
   font-weight: 850;
@@ -827,22 +834,43 @@
   line-height: 1.55;
 }
 
-.experience-calendar-btn {
+.experience-modal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.experience-calendar-btn,
+.experience-ticket-btn {
   min-height: 44px;
-  border: 0;
   border-radius: 13px;
-  background: var(--accent);
-  color: #ffffff;
   cursor: pointer;
   font: inherit;
   font-size: 13px;
   font-weight: 900;
+}
+
+.experience-calendar-btn {
+  border: 0;
+  background: var(--accent);
+  color: #ffffff;
   box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
 }
 
-.experience-calendar-btn:disabled {
+.experience-ticket-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.experience-calendar-btn:disabled,
+.experience-ticket-btn:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+.experience-ticket-btn:disabled {
+  cursor: not-allowed;
 }
 
 .experience-calendar-message {
@@ -1056,8 +1084,7 @@
 
   .stats-grid,
   .rec-grid,
-  .bottom-grid,
-  .actions-grid {
+  .bottom-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1078,6 +1105,10 @@
   }
 
   .experience-detail-list {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-modal-actions {
     grid-template-columns: 1fr;
   }
 
