@@ -1,4 +1,6 @@
-import { Component, ElementRef, HostListener, OnDestroy } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, OnDestroy } from '@angular/core';
+
+type AvatarMood = 'idle' | 'password-hidden' | 'password-visible';
 
 @Component({
   selector: 'app-roamer-avatar',
@@ -9,6 +11,7 @@ import { Component, ElementRef, HostListener, OnDestroy } from '@angular/core';
 export class RoamerAvatarComponent implements OnDestroy {
   pupilOffsetX = 0;
   pupilOffsetY = 0;
+  private currentMood: AvatarMood = 'idle';
 
   private readonly maxPupilOffsetX = 6;
   private readonly maxPupilOffsetY = 4.5;
@@ -17,8 +20,26 @@ export class RoamerAvatarComponent implements OnDestroy {
 
   constructor(private readonly elementRef: ElementRef<HTMLElement>) {}
 
+  @Input()
+  set mood(value: AvatarMood) {
+    this.currentMood = value;
+
+    if (value === 'password-hidden') {
+      this.resetPupilOffset();
+    }
+  }
+
+  get mood(): AvatarMood {
+    return this.currentMood;
+  }
+
   @HostListener('window:pointermove', ['$event'])
   onPointerMove(event: PointerEvent): void {
+    if (this.currentMood === 'password-hidden') {
+      this.resetPupilOffset();
+      return;
+    }
+
     this.pendingPointer = event;
 
     if (this.animationFrameId !== null) {

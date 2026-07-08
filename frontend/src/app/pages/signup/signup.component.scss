@@ -81,6 +81,39 @@ form {
   }
 }
 
+.password-control {
+  position: relative;
+
+  input {
+    padding-right: 74px;
+  }
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  min-width: 56px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent-bg) 74%, var(--surface-primary));
+  color: var(--accent);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface-primary));
+    outline: none;
+  }
+}
+
 .error-message {
   background-color: rgba(220, 38, 38, 0.15);
   color: #f87171;

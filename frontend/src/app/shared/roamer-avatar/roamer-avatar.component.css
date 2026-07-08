@@ -188,6 +188,35 @@
   fill: color-mix(in srgb, #38bdf8 26%, transparent);
 }
 
+.roamer-avatar--password-hidden .avatar-eye {
+  animation: none;
+}
+
+.roamer-avatar--password-hidden .eye-white {
+  opacity: 0.12;
+}
+
+.roamer-avatar--password-hidden .eye-pupil,
+.roamer-avatar--password-hidden .eye-spark {
+  opacity: 0;
+  transform: translate(0, 0) scaleY(0.1);
+}
+
+.roamer-avatar--password-hidden .eye-lid--top {
+  transform: translateY(17px);
+}
+
+.roamer-avatar--password-hidden .eye-lid--bottom {
+  opacity: 0.85;
+  transform: translateY(-9px);
+}
+
+.roamer-avatar--password-visible .eye-white,
+.roamer-avatar--password-visible .eye-pupil,
+.roamer-avatar--password-visible .eye-spark {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .avatar-hand--right {
     animation: avatar-wave 5.6s ease-in-out infinite;
