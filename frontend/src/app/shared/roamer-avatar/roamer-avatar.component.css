@@ -5,6 +5,8 @@
 }
 
 .roamer-avatar {
+  --pupil-x: 0px;
+  --pupil-y: 0px;
   margin: 0;
   transform-origin: 50% 58%;
   animation: avatar-float 6s ease-in-out infinite;
@@ -143,11 +145,14 @@
 .eye-pupil {
   fill: #14213d;
   transform-origin: center;
-  transition: transform 0.18s ease;
+  transform: translate(var(--pupil-x), var(--pupil-y));
+  transition: transform 0.16s ease-out;
 }
 
 .eye-spark {
   fill: #ffffff;
+  transform: translate(var(--pupil-x), var(--pupil-y));
+  transition: transform 0.16s ease-out;
 }
 
 .eye-lid {
