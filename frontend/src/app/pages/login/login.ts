@@ -22,7 +22,17 @@ export class Login implements OnInit {
   message = '';
   isSuccess = false;
   isSubmitting = false;
+  showPassword = false;
+  isPasswordFocused = false;
   returnUrl = '/dashboard';
+
+  get avatarMood(): 'idle' | 'password-hidden' | 'password-visible' {
+    if (!this.isPasswordFocused) {
+      return 'idle';
+    }
+
+    return this.showPassword ? 'password-visible' : 'password-hidden';
+  }
 
   ngOnInit(): void {
     this.returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
@@ -85,6 +95,15 @@ export class Login implements OnInit {
         });
       }
     });
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+    this.isPasswordFocused = true;
+  }
+
+  setPasswordFocused(isFocused: boolean): void {
+    this.isPasswordFocused = isFocused;
   }
 
   private refreshView(): void {

@@ -22,6 +22,8 @@ export class ResetPasswordComponent implements OnInit {
   confirmPassword = '';
   message = '';
   isSubmitting = false;
+  showPassword = false;
+  showConfirmPassword = false;
 
   ngOnInit(): void {
     const resetState = this.authService.getPasswordResetState();
@@ -92,6 +94,15 @@ export class ResetPasswordComponent implements OnInit {
         });
       }
     });
+  }
+
+  togglePasswordVisibility(field: 'password' | 'confirmPassword'): void {
+    if (field === 'password') {
+      this.showPassword = !this.showPassword;
+      return;
+    }
+
+    this.showConfirmPassword = !this.showConfirmPassword;
   }
 
   private refreshView(): void {

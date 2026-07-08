@@ -1,5 +1,5 @@
 <section class="auth-page">
-  <app-roamer-avatar class="auth-avatar"></app-roamer-avatar>
+  <app-roamer-avatar class="auth-avatar" [mood]="avatarMood"></app-roamer-avatar>
 
   <div class="auth-card">
     <div class="auth-header">
@@ -22,16 +22,30 @@
           [(ngModel)]="identifier" />
       </label>
 
-      <label class="auth-field">
-        <span>Password</span>
-        <input
-          type="password"
-          name="password"
-          autocomplete="current-password"
-          placeholder="Enter password"
-          required
-          [(ngModel)]="password" />
-      </label>
+      <div class="auth-field">
+        <label for="password">Password</label>
+        <span class="password-control">
+          <input
+            id="password"
+            [type]="showPassword ? 'text' : 'password'"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Enter password"
+            required
+            [(ngModel)]="password"
+            (focus)="setPasswordFocused(true)"
+            (blur)="setPasswordFocused(false)" />
+          <button
+            class="password-toggle"
+            type="button"
+            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+            [attr.aria-pressed]="showPassword"
+            (mousedown)="$event.preventDefault()"
+            (click)="togglePasswordVisibility()">
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </span>
+      </div>
 
       <div class="auth-meta">
         <a [routerLink]="['/forgot-password']" [queryParams]="{ returnUrl: returnUrl }">Forgot password?</a>
