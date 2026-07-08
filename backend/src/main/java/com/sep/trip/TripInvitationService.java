@@ -116,6 +116,10 @@ public class TripInvitationService {
                 savedInvitation.getInvitedUser(),
                 tripUpdateRecipients(savedInvitation.getTrip(), savedInvitation.getInvitedUser().getId(), true)
         );
+        tripRealtimeWebSocketPublisher.publishTripParticipantJoinedTopic(
+                savedInvitation.getTrip(),
+                savedInvitation.getInvitedUser()
+        );
         return new MessageResponse("Trip invitation accepted.");
     }
 

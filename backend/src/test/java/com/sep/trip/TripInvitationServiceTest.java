@@ -201,6 +201,7 @@ class TripInvitationServiceTest {
         ArgumentCaptor<Collection<AppUser>> recipientsCaptor = ArgumentCaptor.forClass(Collection.class);
         verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoined(eq(trip), eq(invitedUser), recipientsCaptor.capture());
         assertThat(recipientsCaptor.getValue()).extracting(AppUser::getEmail).containsExactly("owner@example.com");
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoinedTopic(eq(trip), eq(invitedUser));
     }
 
     @Test

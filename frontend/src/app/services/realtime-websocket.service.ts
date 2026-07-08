@@ -1,16 +1,12 @@
-import { computed, effect, inject, Injectable, OnDestroy, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import { Observable, Subject } from 'rxjs';
 import { AuthService } from './auth';
 
 export type RealtimeConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 /**
- * Owns the application's STOMP/SockJS connection lifecycle.
- *
- * <p>No feature events are wired yet. The service only keeps the transport
- * connection ready for future real-time updates.</p>
+ * Owns the application's STOMP/WebSocket connection lifecycle.
  */
 @Injectable({
   providedIn: 'root',
@@ -42,10 +38,6 @@ export class RealtimeWebSocketService {
     );
   }
 
-  ngOnDestroy(): void {
-    this.disconnect();
-  }
-
   observe<T>(destination: string): Observable<T> {
     const stream = this.getOrCreateStream<T>(destination);
     this.ensureSubscription(destination);
@@ -60,7 +52,7 @@ export class RealtimeWebSocketService {
       return;
     }
 
-    if (this.currentToken === nextToken && this.stompClient?.active) {
+    if (this.currentToken === nextToken && this.stompClient && (this.state() === 'connecting' || this.state() === 'connected')) {
       return;
     }
 
@@ -73,7 +65,7 @@ export class RealtimeWebSocketService {
     this.state.set('connecting');
 
     const client = new Client({
-      webSocketFactory: () => new SockJS('/ws') as unknown as WebSocket,
+      brokerURL: 'ws://localhost:8080/ws-native',
       connectHeaders: {
         Authorization: `Bearer ${nextToken}`,
       },

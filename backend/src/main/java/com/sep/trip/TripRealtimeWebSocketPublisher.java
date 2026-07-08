@@ -28,10 +28,25 @@ public class TripRealtimeWebSocketPublisher {
     }
 
     public void publishTripDetailsUpdated(Trip trip, AppUser actor, Collection<AppUser> recipients) {
-        publish(
+        publishToUsers(
                 recipients,
                 notification(
                         "TRIP_DETAILS_UPDATED",
+                        "TRIP_UPDATE",
+                        trip.getId(),
+                        "Trip updated",
+                        displayName(actor) + " updated " + trip.getName() + ".",
+                        tripDetails(trip, actor)
+                )
+        );
+    }
+
+    public void publishTripDetailsUpdatedTopic(Trip trip, AppUser actor) {
+        publishToTopic(
+                trip.getId(),
+                notification(
+                        "TRIP_DETAILS_UPDATED",
+                        "TRIP_UPDATE",
                         trip.getId(),
                         "Trip updated",
                         displayName(actor) + " updated " + trip.getName() + ".",
@@ -41,9 +56,24 @@ public class TripRealtimeWebSocketPublisher {
     }
 
     public void publishTripParticipantJoined(Trip trip, AppUser actor, Collection<AppUser> recipients) {
-        publish(
+        publishToUsers(
                 recipients,
                 notification(
+                        "TRIP_PARTICIPANT_JOINED",
+                        "TRIP_PARTICIPANT_JOINED",
+                        trip.getId(),
+                        "Trip participants updated",
+                        displayName(actor) + " joined " + trip.getName() + ".",
+                        tripDetails(trip, actor)
+                )
+        );
+    }
+
+    public void publishTripParticipantJoinedTopic(Trip trip, AppUser actor) {
+        publishToTopic(
+                trip.getId(),
+                notification(
+                        "TRIP_PARTICIPANT_JOINED",
                         "TRIP_PARTICIPANT_JOINED",
                         trip.getId(),
                         "Trip participants updated",
@@ -54,9 +84,10 @@ public class TripRealtimeWebSocketPublisher {
     }
 
     public void publishTripParticipantLeft(Trip trip, AppUser actor, Collection<AppUser> recipients) {
-        publish(
+        publishToUsers(
                 recipients,
                 notification(
+                        "TRIP_PARTICIPANT_LEFT",
                         "TRIP_PARTICIPANT_LEFT",
                         trip.getId(),
                         "Trip participants updated",
@@ -66,7 +97,21 @@ public class TripRealtimeWebSocketPublisher {
         );
     }
 
-    private void publish(Collection<AppUser> recipients, RealtimeNotificationMessage message) {
+    public void publishTripParticipantLeftTopic(Trip trip, AppUser actor) {
+        publishToTopic(
+                trip.getId(),
+                notification(
+                        "TRIP_PARTICIPANT_LEFT",
+                        "TRIP_PARTICIPANT_LEFT",
+                        trip.getId(),
+                        "Trip participants updated",
+                        displayName(actor) + " left " + trip.getName() + ".",
+                        tripDetails(trip, actor)
+                )
+        );
+    }
+
+    private void publishToUsers(Collection<AppUser> recipients, RealtimeNotificationMessage message) {
         Map<Long, AppUser> recipientsById = new LinkedHashMap<>();
 
         if (recipients != null) {
@@ -88,8 +133,13 @@ public class TripRealtimeWebSocketPublisher {
         }
     }
 
+    private void publishToTopic(Long tripId, RealtimeNotificationMessage message) {
+        messagingTemplate.convertAndSend("/topic/trips/" + tripId + "/updates", message);
+    }
+
     private RealtimeNotificationMessage notification(
             String eventType,
+            String notificationType,
             Long tripId,
             String title,
             String description,
@@ -97,7 +147,7 @@ public class TripRealtimeWebSocketPublisher {
     ) {
         return new RealtimeNotificationMessage(
                 eventType,
-                "TRIP_UPDATE",
+                notificationType,
                 nextEventId(),
                 title,
                 description,

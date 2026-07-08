@@ -167,6 +167,7 @@ class TripServiceTest {
         assertThat(response.accessRole()).isEqualTo(TripAccessRole.OWNER);
         verify(tripRepository).findAccessibleByIdAndUserId(11L, 7L);
         verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection());
+        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdatedTopic(any(Trip.class), any(AppUser.class));
     }
 
     @Test
@@ -221,6 +222,7 @@ class TripServiceTest {
 
         verify(tripInvitationRepository).deleteAllByTripIdAndInvitedUserIdAndStatus(11L, 7L, TripInvitationStatus.ACCEPTED);
         verify(tripRealtimeWebSocketPublisher).publishTripParticipantLeft(any(Trip.class), any(AppUser.class), anyCollection());
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantLeftTopic(any(Trip.class), any(AppUser.class));
     }
 
     @Test

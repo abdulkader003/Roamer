@@ -92,6 +92,7 @@ public class TripService {
                 currentUser,
                 tripUpdateRecipients(savedTrip, currentUser.getId(), !savedTrip.getOwner().getId().equals(currentUser.getId()))
         );
+        tripRealtimeWebSocketPublisher.publishTripDetailsUpdatedTopic(savedTrip, currentUser);
 
         return toResponse(savedTrip, currentUser.getId());
     }
@@ -136,6 +137,7 @@ public class TripService {
                 user,
                 tripUpdateRecipients(trip, user.getId(), true)
         );
+        tripRealtimeWebSocketPublisher.publishTripParticipantLeftTopic(trip, user);
         tripInvitationRepository.deleteAllByTripIdAndInvitedUserIdAndStatus(
                 trip.getId(),
                 user.getId(),

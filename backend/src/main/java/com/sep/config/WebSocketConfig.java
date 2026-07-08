@@ -9,10 +9,7 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 /**
- * Registers the STOMP broker and the SockJS endpoint used by the Angular client.
- *
- * <p>The application currently uses REST for business events, so this config only
- * establishes the transport layer and leaves room for future messaging topics.</p>
+ * Registers the STOMP broker and the native browser websocket endpoint used by the Angular client.
  */
 @Configuration
 @EnableWebSocketMessageBroker
@@ -26,9 +23,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("http://localhost:4200", "http://127.0.0.1:4200")
-                .withSockJS();
+        registry.addEndpoint("/ws-native")
+                .setAllowedOriginPatterns("http://localhost:4200", "http://127.0.0.1:4200");
     }
 
     @Override

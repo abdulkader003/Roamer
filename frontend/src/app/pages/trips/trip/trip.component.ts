@@ -10,9 +10,11 @@ import {
   CreateTripRequest,
   TripInvitationResponse,
   TripParticipantResponse,
+  TripRealtimeEvent,
   TripPlanningService,
   TripResponse,
 } from '../../../services/trip-planning.service';
+import { RealtimeWebSocketService } from '../../../services/realtime-websocket.service';
 import { TripTemp, TripTempActivity, TripTempFlightSegment, TripTempHotelStay, TripTempService } from '../create/trip-temp.service';
 import type { TripSummaryPdfSource } from '../create/overview/trip-summary-pdf.exporter';
 
@@ -47,11 +49,12 @@ interface SummaryDetailRow {
 })
 export class TripComponent implements OnInit, OnDestroy {
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly realtimeWebSocketService = inject(RealtimeWebSocketService);
   private readonly friendCommunityService = inject(FriendCommunityService);
   private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly tripTempService = inject(TripTempService);
   private readonly router = inject(Router);
-  private readonly tripRealtimeSubscription = new Subscription();
+  private readonly tripTopicSubscriptions = new Map<number, Subscription>();
 
   readonly trips = signal<TripResponse[]>([]);
   readonly incomingInvitations = signal<TripInvitationResponse[]>([]);
@@ -90,19 +93,14 @@ export class TripComponent implements OnInit, OnDestroy {
     this.loadTrips();
     this.loadIncomingInvitations();
     this.loadAcceptedFriends();
-    this.tripRealtimeSubscription.add(
-      this.tripPlanningService.observeTripUpdates().subscribe((event) => {
-        this.refreshTripById(event.tripId);
-
-        if (event.notificationType === 'TRIP_PARTICIPANT_JOINED' || event.notificationType === 'TRIP_PARTICIPANT_LEFT') {
-          this.loadTrips();
-        }
-      })
-    );
   }
 
   ngOnDestroy(): void {
-    this.tripRealtimeSubscription.unsubscribe();
+    for (const subscription of this.tripTopicSubscriptions.values()) {
+      subscription.unsubscribe();
+    }
+
+    this.tripTopicSubscriptions.clear();
   }
 
   loadTrips(): void {
@@ -112,6 +110,7 @@ export class TripComponent implements OnInit, OnDestroy {
     this.tripPlanningService.listSavedTrips().subscribe({
       next: (trips) => {
         this.trips.set(trips);
+        this.syncTripTopicSubscriptions(trips.map((trip) => trip.id));
         this.isLoading.set(false);
       },
       error: () => {
@@ -158,6 +157,33 @@ export class TripComponent implements OnInit, OnDestroy {
         this.loadTrips();
       },
     });
+  }
+
+  private syncTripTopicSubscriptions(tripIds: number[]): void {
+    const nextIds = new Set(tripIds);
+
+    for (const [tripId, subscription] of this.tripTopicSubscriptions.entries()) {
+      if (nextIds.has(tripId)) {
+        continue;
+      }
+
+      subscription.unsubscribe();
+      this.tripTopicSubscriptions.delete(tripId);
+    }
+
+    for (const tripId of nextIds) {
+      if (this.tripTopicSubscriptions.has(tripId)) {
+        continue;
+      }
+
+      const subscription = this.realtimeWebSocketService
+        .observe<TripRealtimeEvent>(`/topic/trips/${tripId}/updates`)
+        .subscribe((event) => {
+          this.refreshTripById(event.tripId);
+        });
+
+      this.tripTopicSubscriptions.set(tripId, subscription);
+    }
   }
 
   loadIncomingInvitations(): void {
@@ -277,6 +303,7 @@ export class TripComponent implements OnInit, OnDestroy {
     this.isInviteDialogOpen.set(false);
     this.inviteError.set('');
     this.inviteSuccess.set('');
+    this.syncTripTopicSubscriptions([...this.trips().map((entry) => entry.id), trip.id]);
     this.loadTripParticipants(trip.id);
     this.loadTripSentInvitations(trip.id);
     this.editTripForm = this.toEditForm(trip);

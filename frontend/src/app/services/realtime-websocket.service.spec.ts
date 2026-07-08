@@ -9,7 +9,7 @@ describe('RealtimeWebSocketService', () => {
     localStorage.clear();
   });
 
-  it('activates a websocket connection when a token exists', () => {
+  it('uses the native broker URL and avoids duplicate activation for the same token', () => {
     const authToken = signal('test-token');
 
     const authService = {
@@ -29,6 +29,11 @@ describe('RealtimeWebSocketService', () => {
     const service = TestBed.inject(RealtimeWebSocketService);
 
     expect(service.connectionState()).toBe('connecting');
-    expect(Client.prototype.activate).toHaveBeenCalled();
+    expect(Client.prototype.activate).toHaveBeenCalledTimes(1);
+    expect((service as any).stompClient?.brokerURL).toBe('ws://localhost:8080/ws-native');
+
+    service.connect('test-token');
+
+    expect(Client.prototype.activate).toHaveBeenCalledTimes(1);
   });
 });
