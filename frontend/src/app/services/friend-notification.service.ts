@@ -1,9 +1,9 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { catchError, forkJoin, of } from 'rxjs';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService, FriendRequestItem } from './friend-community.service';
 import { RealtimeWebSocketService } from './realtime-websocket.service';
-import { TripPlanningService, TripInvitationResponse } from './trip-planning.service';
+import { TripPlanningService, TripInvitationResponse, TripRealtimeEvent, TripResponse } from './trip-planning.service';
 
 export interface FriendNotificationItem {
   id: number;
@@ -25,6 +25,7 @@ export interface RealtimeNotificationMessage {
   details?: string | null;
   createdAt: string;
   relatedEntityId?: number | null;
+  actorEmail?: string | null;
 }
 
 @Injectable({
@@ -41,6 +42,7 @@ export class FriendNotificationService {
   private readonly dismissedNotificationKeys = signal<string[]>(this.loadDismissedNotificationKeys());
   private readNotificationKeysStorageKey = this.buildReadNotificationsStorageKey();
   private readonly readNotificationKeys = signal<string[]>(this.loadReadNotificationKeys());
+  private readonly tripTopicSubscriptions = new Map<number, Subscription>();
 
   readonly items = this.notifications.asReadonly();
   readonly unreadCount = computed(() => this.notifications().filter((notification) => !notification.read && !this.isRead(notification.type, notification.requestId) && !this.isDismissed(notification.type, notification.requestId)).length);
@@ -50,6 +52,20 @@ export class FriendNotificationService {
     this.realtimeWebSocketService?.observe<RealtimeNotificationMessage>('/user/queue/notifications').subscribe((message) => {
       this.ingestRealtimeNotification(message);
     });
+
+    effect(
+      () => {
+        const token = (this.authService.token?.() ?? '').trim();
+
+        if (!token) {
+          this.clearTripTopicSubscriptions();
+          return;
+        }
+
+        this.refreshTripTopicSubscriptions();
+      },
+      { allowSignalWrites: true }
+    );
   }
 
   refresh(): void {
@@ -64,6 +80,7 @@ export class FriendNotificationService {
       next: ({ requests, invitations, sentInvitations }) => {
         if (requests && invitations && sentInvitations) {
           this.syncNotifications(requests, invitations, sentInvitations);
+          this.refreshTripTopicSubscriptions();
           return;
         }
 
@@ -78,6 +95,8 @@ export class FriendNotificationService {
         if (sentInvitations) {
           this.syncSentTripInvitationResponses(sentInvitations);
         }
+
+        this.refreshTripTopicSubscriptions();
       },
       error: () => {
         // Keep the last known notifications if the refresh fails.
@@ -245,6 +264,7 @@ export class FriendNotificationService {
 
   clear(): void {
     this.notifications.set([]);
+    this.clearTripTopicSubscriptions();
   }
 
   private displayName(username: string, firstName?: string | null, lastName?: string | null): string {
@@ -493,6 +513,10 @@ export class FriendNotificationService {
       return;
     }
 
+    if (this.isSelfAuthoredTripNotification(message.actorEmail, message.notificationType)) {
+      return;
+    }
+
     this.mergeNotifications([
       {
         id: message.notificationId,
@@ -505,6 +529,79 @@ export class FriendNotificationService {
         read: false,
       },
     ]);
+  }
+
+  private refreshTripTopicSubscriptions(): void {
+    if (!(this.authService.token?.() ?? '').trim()) {
+      return;
+    }
+
+    this.tripPlanningService.listSavedTrips().subscribe({
+      next: (trips) => this.syncTripTopicSubscriptions(trips),
+      error: () => {
+        // Keep the last known trip subscriptions if the trip list cannot be loaded.
+      },
+    });
+  }
+
+  private syncTripTopicSubscriptions(trips: TripResponse[]): void {
+    const nextTripIds = new Set(trips.map((trip) => trip.id));
+
+    for (const [tripId, subscription] of this.tripTopicSubscriptions.entries()) {
+      if (nextTripIds.has(tripId)) {
+        continue;
+      }
+
+      subscription.unsubscribe();
+      this.tripTopicSubscriptions.delete(tripId);
+    }
+
+    for (const tripId of nextTripIds) {
+      if (this.tripTopicSubscriptions.has(tripId)) {
+        continue;
+      }
+
+      const subscription = this.tripPlanningService.observeTripTopicUpdates(tripId).subscribe((event) => {
+        this.ingestTripRealtimeNotification(event);
+      });
+
+      this.tripTopicSubscriptions.set(tripId, subscription);
+    }
+  }
+
+  private ingestTripRealtimeNotification(event: TripRealtimeEvent): void {
+    if (
+      !event?.notificationId ||
+      !event.notificationType ||
+      !['TRIP_UPDATE', 'TRIP_BUDGET_UPDATE', 'TRIP_PARTICIPANT_JOINED', 'TRIP_PARTICIPANT_LEFT'].includes(event.notificationType)
+    ) {
+      return;
+    }
+
+    if (this.isSelfAuthoredTripNotification(event.actorEmail, event.notificationType)) {
+      return;
+    }
+
+    this.mergeNotifications([
+      {
+        id: event.notificationId,
+        type: event.notificationType,
+        requestId: event.notificationId,
+        title: event.title,
+        description: event.description,
+        details: event.details ?? undefined,
+        createdAt: event.createdAt,
+        read: false,
+      },
+    ]);
+  }
+
+  private clearTripTopicSubscriptions(): void {
+    for (const subscription of this.tripTopicSubscriptions.values()) {
+      subscription.unsubscribe();
+    }
+
+    this.tripTopicSubscriptions.clear();
   }
 
   private ensureNotificationsLoaded(): void {
@@ -524,5 +621,24 @@ export class FriendNotificationService {
     } catch {
       return null;
     }
+  }
+
+  private isSelfAuthoredTripNotification(
+    actorEmail: string | null | undefined,
+    notificationType: FriendNotificationItem['type']
+  ): boolean {
+    if (
+      notificationType !== 'TRIP_UPDATE' &&
+      notificationType !== 'TRIP_BUDGET_UPDATE' &&
+      notificationType !== 'TRIP_PARTICIPANT_JOINED' &&
+      notificationType !== 'TRIP_PARTICIPANT_LEFT'
+    ) {
+      return false;
+    }
+
+    const currentEmail = this.authService.email()?.trim().toLowerCase();
+    const normalizedActorEmail = actorEmail?.trim().toLowerCase();
+
+    return Boolean(currentEmail && normalizedActorEmail && currentEmail === normalizedActorEmail);
   }
 }

@@ -36,7 +36,8 @@ public class BudgetRealtimeWebSocketPublisher {
                         trip,
                         "Trip budget updated",
                         displayName(actor) + " added an expense to " + trip.getName() + ".",
-                        expenseDetails(expense, actor)
+                        expenseDetails(expense, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -49,7 +50,8 @@ public class BudgetRealtimeWebSocketPublisher {
                         trip,
                         "Trip budget updated",
                         displayName(actor) + " updated an expense on " + trip.getName() + ".",
-                        expenseDetails(expense, actor)
+                        expenseDetails(expense, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -62,7 +64,8 @@ public class BudgetRealtimeWebSocketPublisher {
                         trip,
                         "Trip budget updated",
                         displayName(actor) + " deleted an expense from " + trip.getName() + ".",
-                        expenseDetails(expense, actor)
+                        expenseDetails(expense, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -94,7 +97,8 @@ public class BudgetRealtimeWebSocketPublisher {
             Trip trip,
             String title,
             String description,
-            String details
+            String details,
+            String actorEmail
     ) {
         return new RealtimeNotificationMessage(
                 eventType,
@@ -104,7 +108,8 @@ public class BudgetRealtimeWebSocketPublisher {
                 description,
                 details,
                 Instant.now().toString(),
-                trip.getId()
+                trip.getId(),
+                actorEmail
         );
     }
 

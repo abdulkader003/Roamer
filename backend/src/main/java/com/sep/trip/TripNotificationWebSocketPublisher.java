@@ -76,7 +76,8 @@ public class TripNotificationWebSocketPublisher {
                 description,
                 details,
                 Instant.now().toString(),
-                relatedEntityId
+                relatedEntityId,
+                null
         );
     }
 

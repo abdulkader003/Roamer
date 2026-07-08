@@ -190,6 +190,7 @@ export interface TripRealtimeEvent {
   description: string;
   details?: string | null;
   createdAt: string;
+  actorEmail?: string | null;
 }
 
 interface TripRealtimeNotificationMessage {
@@ -201,6 +202,7 @@ interface TripRealtimeNotificationMessage {
   details?: string | null;
   createdAt: string;
   relatedEntityId?: number | null;
+  actorEmail?: string | null;
 }
 
 @Injectable({
@@ -381,6 +383,7 @@ export class TripPlanningService {
       description: message.description,
       details: message.details ?? null,
       createdAt: message.createdAt,
+      actorEmail: message.actorEmail ?? null,
     };
   }
 }

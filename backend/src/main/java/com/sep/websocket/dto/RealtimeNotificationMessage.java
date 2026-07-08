@@ -11,6 +11,7 @@ public record RealtimeNotificationMessage(
         String description,
         String details,
         String createdAt,
-        Long relatedEntityId
+        Long relatedEntityId,
+        String actorEmail
 ) {
 }

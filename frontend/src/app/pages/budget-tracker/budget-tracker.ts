@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { Subscription } from 'rxjs';
-import { TripPlanningService } from '../../services/trip-planning.service';
+import { TripPlanningService, TripRealtimeEvent } from '../../services/trip-planning.service';
 
 type SpendingPoint = { label: string; amount: number };
 type DistributionCategory = { name: string; amount: number; color: string };
@@ -908,7 +908,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
         continue;
       }
 
-      const subscription = this.tripPlanningService.observeTripTopicUpdates(tripId).subscribe(() => {
+      const subscription = this.tripPlanningService.observeTripTopicUpdates(tripId).subscribe((event: TripRealtimeEvent) => {
         this.loadAllData();
       });
 

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Subject, of } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService } from './friend-community.service';
@@ -400,6 +401,144 @@ describe('FriendNotificationService', () => {
     expect(service.items()[0].details).toContain('€2,000');
   });
 
+  it('ingests trip topic updates into the notification bell for the current user', () => {
+    const topicUpdates = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+      notificationId: number;
+      tripId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+      actorEmail?: string | null;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+      listSavedTrips: () => of([
+        {
+          id: 20,
+          name: 'Shared Rome',
+          destination: 'Rome',
+          startDate: '2026-07-14',
+          endDate: '2026-07-21',
+          budget: 2000,
+          status: 'UPCOMING',
+          createdAt: '2026-07-01T10:15:30Z',
+        },
+      ]),
+      observeTripTopicUpdates: () => topicUpdates.asObservable(),
+    };
+
+    const authWithToken = {
+      email: () => 'traveler@example.com',
+      token: signal('test-token'),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithToken },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    topicUpdates.next({
+      eventType: 'TRIP_DETAILS_UPDATED',
+      notificationType: 'TRIP_UPDATE',
+      notificationId: 99,
+      tripId: 20,
+      title: 'Trip updated',
+      description: 'Ali updated Summer Trip.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €2,000 · Ali',
+      createdAt: '2026-07-03T08:15:30Z',
+      actorEmail: 'ali@example.com',
+    });
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].title).toBe('Trip updated');
+    expect(service.items()[0].description).toBe('Ali updated Summer Trip.');
+    expect(service.unreadCount()).toBe(1);
+  });
+
+  it('ignores trip topic updates authored by the current user', () => {
+    const topicUpdates = new Subject<{
+      eventType: string;
+      notificationType: 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+      notificationId: number;
+      tripId: number;
+      title: string;
+      description: string;
+      details?: string | null;
+      createdAt: string;
+      actorEmail?: string | null;
+    }>();
+
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+      listSavedTrips: () => of([
+        {
+          id: 20,
+          name: 'Shared Rome',
+          destination: 'Rome',
+          startDate: '2026-07-14',
+          endDate: '2026-07-21',
+          budget: 2000,
+          status: 'UPCOMING',
+          createdAt: '2026-07-01T10:15:30Z',
+        },
+      ]),
+      observeTripTopicUpdates: () => topicUpdates.asObservable(),
+    };
+
+    const authWithToken = {
+      email: () => 'traveler@example.com',
+      token: signal('test-token'),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithToken },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    topicUpdates.next({
+      eventType: 'TRIP_DETAILS_UPDATED',
+      notificationType: 'TRIP_UPDATE',
+      notificationId: 100,
+      tripId: 20,
+      title: 'Trip updated',
+      description: 'Traveler updated Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €2,000 · Traveler',
+      createdAt: '2026-07-03T08:15:30Z',
+      actorEmail: 'traveler@example.com',
+    });
+
+    expect(service.items().length).toBe(0);
+    expect(service.unreadCount()).toBe(0);
+  });
+
   it('ingests realtime trip budget update notifications', () => {
     const realtimeMessages = new Subject<{
       eventType: string;
@@ -410,6 +549,7 @@ describe('FriendNotificationService', () => {
       details?: string | null;
       createdAt: string;
       relatedEntityId?: number | null;
+      actorEmail?: string | null;
     }>();
 
     const friendCommunityService = {
@@ -447,6 +587,7 @@ describe('FriendNotificationService', () => {
       details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · food',
       createdAt: '2026-07-03T08:15:30Z',
       relatedEntityId: 20,
+      actorEmail: 'ada@example.com',
     });
 
     expect(service.items().length).toBe(1);
@@ -464,6 +605,7 @@ describe('FriendNotificationService', () => {
       details?: string | null;
       createdAt: string;
       relatedEntityId?: number | null;
+      actorEmail?: string | null;
     }>();
 
     const friendCommunityService = {
@@ -501,6 +643,7 @@ describe('FriendNotificationService', () => {
       details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · Grace Hopper',
       createdAt: '2026-07-03T08:15:30Z',
       relatedEntityId: 20,
+      actorEmail: 'grace@example.com',
     });
 
     expect(service.items().length).toBe(1);

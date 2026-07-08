@@ -36,7 +36,8 @@ public class TripRealtimeWebSocketPublisher {
                         trip.getId(),
                         "Trip updated",
                         displayName(actor) + " updated " + trip.getName() + ".",
-                        tripDetails(trip, actor)
+                        tripDetails(trip, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -50,7 +51,8 @@ public class TripRealtimeWebSocketPublisher {
                         trip.getId(),
                         "Trip updated",
                         displayName(actor) + " updated " + trip.getName() + ".",
-                        tripDetails(trip, actor)
+                        tripDetails(trip, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -64,7 +66,8 @@ public class TripRealtimeWebSocketPublisher {
                         trip.getId(),
                         "Trip participants updated",
                         displayName(actor) + " joined " + trip.getName() + ".",
-                        tripDetails(trip, actor)
+                        tripDetails(trip, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -78,7 +81,8 @@ public class TripRealtimeWebSocketPublisher {
                         trip.getId(),
                         "Trip participants updated",
                         displayName(actor) + " joined " + trip.getName() + ".",
-                        tripDetails(trip, actor)
+                        tripDetails(trip, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -92,7 +96,8 @@ public class TripRealtimeWebSocketPublisher {
                         trip.getId(),
                         "Trip participants updated",
                         displayName(actor) + " left " + trip.getName() + ".",
-                        tripDetails(trip, actor)
+                        tripDetails(trip, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -106,7 +111,8 @@ public class TripRealtimeWebSocketPublisher {
                         trip.getId(),
                         "Trip participants updated",
                         displayName(actor) + " left " + trip.getName() + ".",
-                        tripDetails(trip, actor)
+                        tripDetails(trip, actor),
+                        actor == null ? null : actor.getEmail()
                 )
         );
     }
@@ -143,7 +149,8 @@ public class TripRealtimeWebSocketPublisher {
             Long tripId,
             String title,
             String description,
-            String details
+            String details,
+            String actorEmail
     ) {
         return new RealtimeNotificationMessage(
                 eventType,
@@ -153,7 +160,8 @@ public class TripRealtimeWebSocketPublisher {
                 description,
                 details,
                 Instant.now().toString(),
-                tripId
+                tripId,
+                actorEmail
         );
     }
 
