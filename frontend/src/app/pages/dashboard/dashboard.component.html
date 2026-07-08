@@ -192,17 +192,21 @@
     <div class="section-card recommendations-card">
       <div class="section-header">
         <span class="section-title">Recommended Experiences</span>
-        <div class="rec-arrows">
-          <button class="cal-nav-btn">&#8249;</button>
-          <button class="cal-nav-btn">&#8250;</button>
-        </div>
+        <button type="button" class="view-all" (click)="loadRecommendedExperiences(true)">Refresh</button>
       </div>
-      <div class="rec-grid">
-        @for (exp of experiences(); track exp.name) {
-          <div class="rec-card">
+      @if (isExperiencesLoading()) {
+        <div class="rec-state">Loading recommended experiences...</div>
+      } @else if (experiencesError()) {
+        <div class="rec-state rec-state--error">{{ experiencesError() }}</div>
+      } @else if (experiences().length === 0) {
+        <div class="rec-state">No recommended experiences found right now.</div>
+      } @else {
+        <div class="rec-grid">
+          @for (exp of experiences(); track trackByExperienceId($index, exp)) {
+          <button type="button" class="rec-card" (click)="openExperienceDetails(exp)">
             <div class="rec-img-wrap">
-              <img [src]="exp.image" [alt]="exp.name" class="rec-img" />
-              <button class="rec-heart">&#9825;</button>
+              <img [src]="exp.image" [alt]="exp.name" class="rec-img" (error)="useFallbackExperienceImage($event)" />
+              <span class="rec-category">{{ exp.category }}</span>
             </div>
             <div class="rec-body">
               <p class="rec-name">{{ exp.name }}</p>
@@ -212,12 +216,74 @@
                 </svg>
                 {{ exp.location }}
               </p>
+              <p class="rec-meta">
+                <span>{{ exp.dateLabel }}</span>
+                @if (exp.time) {
+                  <span>{{ exp.time }}</span>
+                }
+              </p>
               <p class="rec-price">{{ exp.price }}</p>
             </div>
-          </div>
-        }
-      </div>
+          </button>
+          }
+        </div>
+      }
     </div>
+
+    @if (selectedExperience(); as experience) {
+      <div class="experience-modal-overlay" role="presentation" (click)="closeExperienceDetails()">
+        <section class="experience-modal" role="dialog" aria-modal="true" aria-labelledby="experience-modal-title" (click)="$event.stopPropagation()">
+          <div class="experience-modal-header">
+            <div>
+              <span class="experience-modal-kicker">{{ experience.category }}</span>
+              <h2 id="experience-modal-title">{{ experience.name }}</h2>
+            </div>
+            <button type="button" class="close-button" aria-label="Close experience details" (click)="closeExperienceDetails()">×</button>
+          </div>
+          <div class="experience-modal-grid">
+            <img [src]="experience.image" [alt]="experience.name" class="experience-modal-image" (error)="useFallbackExperienceImage($event)" />
+            <div class="experience-modal-content">
+              <div class="experience-detail-list">
+                <div><span>Location</span><strong>{{ experience.location }}</strong></div>
+                @if (experience.venue) {
+                  <div><span>Venue</span><strong>{{ experience.venue }}</strong></div>
+                }
+                <div><span>Date</span><strong>{{ experience.dateLabel }}</strong></div>
+                @if (experience.time) {
+                  <div><span>Time</span><strong>{{ experience.time }}</strong></div>
+                }
+                <div><span>Price</span><strong>{{ experience.price }}</strong></div>
+                <div><span>Source</span><strong>{{ experience.source }}</strong></div>
+              </div>
+              @if (experience.description) {
+                <p class="experience-description">{{ experience.description }}</p>
+              }
+              <div class="experience-modal-actions">
+                <button
+                  type="button"
+                  class="experience-calendar-btn"
+                  [disabled]="isAddingExperienceToCalendar()"
+                  (click)="addSelectedExperienceToCalendar()">
+                  {{ isAddingExperienceToCalendar() ? 'Adding...' : 'Add to Calendar' }}
+                </button>
+                <button
+                  type="button"
+                  class="experience-ticket-btn"
+                  [disabled]="!experience.ticketUrl"
+                  (click)="buyExperienceTickets(experience)">
+                  {{ experience.ticketUrl ? 'Buy Tickets' : 'Tickets unavailable' }}
+                </button>
+              </div>
+              @if (experienceCalendarMessage()) {
+                <p class="experience-calendar-message" [class.experience-calendar-message--error]="experienceCalendarMessageType() === 'error'">
+                  {{ experienceCalendarMessage() }}
+                </p>
+              }
+            </div>
+          </div>
+        </section>
+      </div>
+    }
 
     <!-- Bottom grid -->
     <div class="bottom-grid">
