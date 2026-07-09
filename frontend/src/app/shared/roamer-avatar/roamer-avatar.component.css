@@ -1,0 +1,274 @@
+:host {
+  display: block;
+  width: clamp(350px, 35vw, 510px);
+  pointer-events: none;
+}
+
+.roamer-avatar {
+  --pupil-x: 0px;
+  --pupil-y: 0px;
+  margin: 0;
+  transform-origin: 50% 58%;
+  animation: avatar-float 6s ease-in-out infinite;
+}
+
+.avatar-art {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.avatar-shadow {
+  fill: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.avatar-body,
+.avatar-arm,
+.avatar-hand,
+.avatar-leg,
+.avatar-eye,
+.eye-pupil,
+.eye-lid,
+.avatar-mouth {
+  transform-box: fill-box;
+}
+
+.avatar-body {
+  transform-origin: 50% 54%;
+}
+
+.globe-body {
+  fill: url(#globeSkin);
+  stroke: #7fb8ff;
+  stroke-width: 7;
+}
+
+.globe-highlight {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.84);
+  stroke-linecap: round;
+  stroke-width: 10;
+  opacity: 0.72;
+}
+
+.land {
+  fill: url(#landWash);
+  opacity: 0.88;
+}
+
+.land--right {
+  opacity: 0.7;
+}
+
+.land--bottom {
+  fill: #c5efff;
+  opacity: 0.62;
+}
+
+.globe-grid {
+  fill: none;
+  stroke: #123f9e;
+  stroke-linecap: round;
+  stroke-width: 2.5;
+  opacity: 0.2;
+}
+
+.arm-sleeve,
+.leg-stroke {
+  fill: none;
+  stroke: #2767df;
+  stroke-linecap: round;
+  stroke-width: 22;
+}
+
+.avatar-arm--left {
+  transform-origin: 84% 28%;
+}
+
+.avatar-arm--right {
+  transform-origin: 15% 24%;
+}
+
+.avatar-hand {
+  transform-origin: center;
+}
+
+.hand-palm,
+.avatar-shoe {
+  fill: url(#shoeShine);
+  stroke: #82b5ff;
+  stroke-linejoin: round;
+  stroke-width: 5.5;
+}
+
+.hand-finger,
+.hand-crease,
+.shoe-sole,
+.cuff {
+  fill: none;
+  stroke: #82b5ff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.cuff {
+  stroke: #ffffff;
+  stroke-width: 9;
+  opacity: 0.82;
+}
+
+.avatar-leg--left {
+  transform-origin: 75% 0;
+}
+
+.avatar-leg--right {
+  transform-origin: 25% 0;
+}
+
+.avatar-shoe {
+  stroke-width: 5;
+}
+
+.shoe-sole {
+  stroke: #5e9df4;
+  stroke-width: 4.5;
+  opacity: 0.58;
+}
+
+.eye-white {
+  fill: #ffffff;
+  stroke: #14213d;
+  stroke-width: 3.5;
+}
+
+.eye-pupil {
+  fill: #14213d;
+  transform-origin: center;
+  transform: translate(var(--pupil-x), var(--pupil-y));
+  transition: transform 0.16s ease-out;
+}
+
+.eye-spark {
+  fill: #ffffff;
+  transform: translate(var(--pupil-x), var(--pupil-y));
+  transition: transform 0.16s ease-out;
+}
+
+.eye-lid {
+  fill: none;
+  stroke: #14213d;
+  stroke-linecap: round;
+  stroke-width: 4;
+  transform-origin: center;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.eye-lid--bottom {
+  opacity: 0.55;
+}
+
+.avatar-mouth,
+.mouth-corner {
+  fill: none;
+  stroke: #14213d;
+  stroke-linecap: round;
+}
+
+.avatar-mouth {
+  stroke-width: 7;
+}
+
+.mouth-corner {
+  stroke-width: 4;
+  opacity: 0.7;
+}
+
+.cheek {
+  fill: color-mix(in srgb, #38bdf8 26%, transparent);
+}
+
+.roamer-avatar--password-hidden .avatar-eye {
+  animation: none;
+}
+
+.roamer-avatar--password-hidden .eye-white {
+  opacity: 0.12;
+}
+
+.roamer-avatar--password-hidden .eye-pupil,
+.roamer-avatar--password-hidden .eye-spark {
+  opacity: 0;
+  transform: translate(0, 0) scaleY(0.1);
+}
+
+.roamer-avatar--password-hidden .eye-lid--top {
+  transform: translateY(17px);
+}
+
+.roamer-avatar--password-hidden .eye-lid--bottom {
+  opacity: 0.85;
+  transform: translateY(-9px);
+}
+
+.roamer-avatar--password-visible .eye-white,
+.roamer-avatar--password-visible .eye-pupil,
+.roamer-avatar--password-visible .eye-spark {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .avatar-hand--right {
+    animation: avatar-wave 5.6s ease-in-out infinite;
+  }
+
+  .avatar-eye {
+    animation: avatar-blink 6.8s ease-in-out infinite;
+  }
+}
+
+@media (max-width: 900px) {
+  :host {
+    width: clamp(230px, 31vw, 320px);
+  }
+}
+
+@keyframes avatar-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes avatar-wave {
+  0%,
+  82%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  87% {
+    transform: rotate(5deg) translateY(-3px);
+  }
+
+  92% {
+    transform: rotate(-4deg) translateY(2px);
+  }
+}
+
+@keyframes avatar-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  95%,
+  96% {
+    transform: scaleY(0.08);
+  }
+}

@@ -3,11 +3,12 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { RoamerAvatarComponent } from '../../shared/roamer-avatar/roamer-avatar.component';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, RoamerAvatarComponent],
   templateUrl: './signup.component.html',
   styleUrl: './signup.component.scss'
 })
@@ -26,7 +27,22 @@ export class SignupComponent {
   errorMessage = '';
   successMessage = '';
   isSubmitting = false;
+  showPassword = false;
+  showConfirmPassword = false;
+  focusedPasswordField: 'password' | 'confirmPassword' | null = null;
   returnUrl = '/dashboard';
+
+  get avatarMood(): 'idle' | 'password-hidden' | 'password-visible' {
+    if (!this.focusedPasswordField) {
+      return 'idle';
+    }
+
+    const isVisible = this.focusedPasswordField === 'password'
+      ? this.showPassword
+      : this.showConfirmPassword;
+
+    return isVisible ? 'password-visible' : 'password-hidden';
+  }
 
   ngOnInit(): void {
     this.returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
@@ -109,6 +125,20 @@ export class SignupComponent {
         });
       }
     });
+  }
+
+  togglePasswordVisibility(field: 'password' | 'confirmPassword'): void {
+    if (field === 'password') {
+      this.showPassword = !this.showPassword;
+    } else {
+      this.showConfirmPassword = !this.showConfirmPassword;
+    }
+
+    this.focusedPasswordField = field;
+  }
+
+  setFocusedPasswordField(field: 'password' | 'confirmPassword' | null): void {
+    this.focusedPasswordField = field;
   }
 
   private refreshView(): void {
