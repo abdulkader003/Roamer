@@ -1,8 +1,9 @@
 <figure
   class="roamer-avatar"
   aria-hidden="true"
-  [class.roamer-avatar--password-hidden]="mood === 'password-hidden'"
-  [class.roamer-avatar--password-visible]="mood === 'password-visible'"
+  [class.roamer-avatar--password-hidden]="mood === 'password-hidden' && !eyelidsClosed"
+  [class.roamer-avatar--password-visible]="eyelidsClosed"
+  [class.roamer-avatar--auto-blinking]="isBlinking"
   [style.--pupil-x.px]="pupilOffsetX"
   [style.--pupil-y.px]="pupilOffsetY">
   <svg class="avatar-art" viewBox="0 0 440 470" focusable="false" role="img">
