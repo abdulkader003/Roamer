@@ -188,32 +188,32 @@
   fill: color-mix(in srgb, #38bdf8 26%, transparent);
 }
 
-.roamer-avatar--password-hidden .avatar-eye {
+.roamer-avatar--password-visible .avatar-eye {
   animation: none;
 }
 
-.roamer-avatar--password-hidden .eye-white {
+.roamer-avatar--password-visible .eye-white {
   opacity: 0.12;
 }
 
-.roamer-avatar--password-hidden .eye-pupil,
-.roamer-avatar--password-hidden .eye-spark {
+.roamer-avatar--password-visible .eye-pupil,
+.roamer-avatar--password-visible .eye-spark {
   opacity: 0;
   transform: translate(0, 0) scaleY(0.1);
 }
 
-.roamer-avatar--password-hidden .eye-lid--top {
+.roamer-avatar--password-visible .eye-lid--top {
   transform: translateY(17px);
 }
 
-.roamer-avatar--password-hidden .eye-lid--bottom {
+.roamer-avatar--password-visible .eye-lid--bottom {
   opacity: 0.85;
   transform: translateY(-9px);
 }
 
-.roamer-avatar--password-visible .eye-white,
-.roamer-avatar--password-visible .eye-pupil,
-.roamer-avatar--password-visible .eye-spark {
+.roamer-avatar--password-hidden .eye-white,
+.roamer-avatar--password-hidden .eye-pupil,
+.roamer-avatar--password-hidden .eye-spark {
   opacity: 1;
 }
 

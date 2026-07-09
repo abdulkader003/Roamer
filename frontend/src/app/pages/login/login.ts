@@ -27,10 +27,6 @@ export class Login implements OnInit {
   returnUrl = '/dashboard';
 
   get avatarMood(): 'idle' | 'password-hidden' | 'password-visible' {
-    if (!this.isPasswordFocused) {
-      return 'idle';
-    }
-
     return this.showPassword ? 'password-visible' : 'password-hidden';
   }
 

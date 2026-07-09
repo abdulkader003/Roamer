@@ -24,7 +24,7 @@ export class RoamerAvatarComponent implements OnDestroy {
   set mood(value: AvatarMood) {
     this.currentMood = value;
 
-    if (value === 'password-hidden') {
+    if (value === 'password-visible') {
       this.resetPupilOffset();
     }
   }
@@ -35,7 +35,7 @@ export class RoamerAvatarComponent implements OnDestroy {
 
   @HostListener('window:pointermove', ['$event'])
   onPointerMove(event: PointerEvent): void {
-    if (this.currentMood === 'password-hidden') {
+    if (this.currentMood === 'password-visible') {
       this.resetPupilOffset();
       return;
     }
