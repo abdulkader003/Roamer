@@ -1,6 +1,6 @@
 import { NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/sidebar/sidebar.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { RealtimeWebSocketService } from './services/realtime-websocket.service';
@@ -14,6 +14,7 @@ import { RealtimeWebSocketService } from './services/realtime-websocket.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
+  private readonly router = inject(Router);
   private readonly realtimeWebSocketService = inject(RealtimeWebSocketService);
   private readonly mobileBreakpoint = 900;
   private touchStartX = 0;
@@ -21,10 +22,19 @@ export class AppComponent {
 
   readonly isMobile = signal(false);
   readonly isSidebarOpen = signal(true);
+  readonly isLandingRoute = signal(false);
   readonly isSidebarVisible = computed(() => !this.isMobile() || this.isSidebarOpen());
 
   constructor() {
     this.updateViewportState();
+    this.updateShellVisibility(this.router.url);
+
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.updateShellVisibility(event.urlAfterRedirects);
+        this.resetRouteScrollPosition();
+      }
+    });
   }
 
   @HostListener('window:resize')
@@ -86,5 +96,20 @@ export class AppComponent {
     if (previousIsMobile !== isMobile) {
       this.isSidebarOpen.set(false);
     }
+  }
+
+  private updateShellVisibility(url: string): void {
+    const path = url.split('?')[0].split('#')[0];
+    this.isLandingRoute.set(path === '/' || path === '');
+  }
+
+  private resetRouteScrollPosition(): void {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      document.querySelector<HTMLElement>('.app-main')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.querySelector<HTMLElement>('.main-content')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
   }
 }

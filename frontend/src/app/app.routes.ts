@@ -24,7 +24,11 @@ import { ProfileComponent } from './pages/profile/profile.component';
 import { SettingsComponent } from './pages/settings/settings.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  {
+    path: '',
+    loadComponent: () => import('./pages/landing-page/landing-page.component')
+      .then((component) => component.LandingPageComponent)
+  },
 
   { path: 'dashboard', component: DashboardComponent },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },

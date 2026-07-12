@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, computed, signal, inject } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  OnDestroy,
+  OnInit,
+  computed,
+  signal,
+  inject
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 import { ThemeService } from '../../services/theme.service';
@@ -148,7 +158,7 @@ interface BackendCalendarEvent {
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashboardComponent implements OnDestroy {
+export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   // ThemeService is injected so the effect() in the service runs and sets data-theme on <html>
   private themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
@@ -245,6 +255,15 @@ export class DashboardComponent implements OnDestroy {
     this.loadWeather();
     this.loadRecommendedExperiences();
     this.weatherRotationIntervalId = setInterval(() => this.rotateWeatherCities(), WEATHER_ROTATION_INTERVAL_MS);
+  }
+
+  ngAfterViewInit(): void {
+    this.resetDashboardViewport();
+
+    window.requestAnimationFrame(() => {
+      this.resetDashboardViewport();
+      this.cdr.detectChanges();
+    });
   }
 
   loadUpcomingTrips(): void {
@@ -1247,6 +1266,14 @@ export class DashboardComponent implements OnDestroy {
     }
 
     return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=200&q=80';
+  }
+
+  private resetDashboardViewport(): void {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    document.querySelector<HTMLElement>('.app-main')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.querySelector<HTMLElement>('.main-content')?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }
 
 }

@@ -1,0 +1,203 @@
+<section
+  class="roamer-landing"
+  [class.roamer-landing--ready]="isVideoReady"
+  [class.roamer-landing--photo]="isPhotoVisible"
+  [class.roamer-landing--leaving]="isLeaving"
+  aria-label="ROAMER landing experience">
+  <header class="landing-topbar">
+    <a class="landing-brand" routerLink="/" aria-label="ROAMER home">
+      <span class="landing-brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="6.4"></circle>
+          <path d="M5.8 12h12.4"></path>
+          <path d="M12 5.6c1.7 1.7 2.5 3.8 2.5 6.4s-.8 4.7-2.5 6.4"></path>
+          <path d="M12 5.6C10.3 7.3 9.5 9.4 9.5 12s.8 4.7 2.5 6.4"></path>
+          <path d="M3.7 15.2c3.1 3.6 9.8 4.1 14.9 1.1 2.3-1.4 3.1-3 2.2-4.1"></path>
+        </svg>
+      </span>
+      <span class="landing-brand__text">
+        <strong>R<span aria-label="o">🌐</span>amer</strong>
+        <small>Plan easier. Go further.</small>
+      </span>
+    </a>
+
+    <nav class="landing-actions" aria-label="Account navigation">
+      <button
+        type="button"
+        class="landing-theme-toggle"
+        (click)="toggleTheme()"
+        [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+        @if (isDark()) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        }
+      </button>
+
+      @if (isAuthenticated()) {
+        <a class="landing-actions__profile" routerLink="/profile">Profile</a>
+      } @else {
+        <a routerLink="/login">Log in</a>
+        <a class="landing-actions__primary" routerLink="/signup">Sign up</a>
+      }
+    </nav>
+  </header>
+
+  <div class="landing-stage">
+    <div class="landing-video-layer" aria-hidden="true">
+      <video
+        #heroVideo
+        class="landing-video"
+        autoplay
+        muted
+        playsinline
+        preload="auto"
+        poster="/landing/roamer-travel-wallpaper.png"
+        (loadeddata)="onVideoLoaded()"
+        (canplay)="onVideoLoaded()"
+        (ended)="onVideoEnded()"
+        (error)="onVideoError()">
+        <source src="/landing/roamer-intro.mp4" type="video/mp4" />
+      </video>
+    </div>
+
+    <div class="landing-photo-layer" aria-hidden="true">
+      <img src="/landing/roamer-travel-wallpaper.png" alt="" />
+      <span class="atmosphere atmosphere--one"></span>
+      <span class="atmosphere atmosphere--two"></span>
+      <span class="atmosphere atmosphere--three"></span>
+      <span class="flight-line"></span>
+    </div>
+
+    <div class="landing-grade" aria-hidden="true"></div>
+
+    <main class="landing-content">
+      <span class="landing-eyebrow">Smart Travel Management</span>
+      <h1>Plan easier. Go further.</h1>
+      <p>Build trips with flights, stays, activities, and personal travel progress in one calm place.</p>
+    </main>
+
+    <button type="button" class="begin-trip-button" (click)="scrollTowardRoamer()">
+      Begin your trip now
+    </button>
+
+    <div class="scroll-cue" aria-hidden="true">
+      <span></span>
+      <strong>Scroll</strong>
+    </div>
+  </div>
+
+  <section class="landing-story" aria-label="Why ROAMER">
+    <div class="story-copy">
+      <span class="section-eyebrow">Why ROAMER</span>
+      <h2>Travel planning should feel connected, not scattered.</h2>
+      <p>
+        ROAMER brings the pieces of a trip into one calm workspace: destinations, flights, stays,
+        activities, budget tracking, calendar planning, and your personal travel progress.
+      </p>
+    </div>
+
+    <div class="story-metrics" aria-label="ROAMER highlights">
+      <article>
+        <strong>01</strong>
+        <div>
+          <span>One place for trip decisions</span>
+          <p>Keep routes, stays, activities, costs, and notes together instead of rebuilding context across tabs.</p>
+        </div>
+      </article>
+      <article>
+        <strong>02</strong>
+        <div>
+          <span>Plans that stay readable</span>
+          <p>ROAMER keeps the page calm and structured so your next step is always easy to spot.</p>
+        </div>
+      </article>
+      <article>
+        <strong>03</strong>
+        <div>
+          <span>Progress that grows with you</span>
+          <p>Your profile, visited countries, upcoming trips, and travel interests become part of the journey.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="landing-feature-band" aria-label="ROAMER benefits">
+    <div class="feature-heading">
+      <span class="section-eyebrow">Built for real planning</span>
+      <h2>Everything important stays close.</h2>
+    </div>
+
+    <div class="feature-grid">
+      <article>
+        <span>Flights</span>
+        <h3>Start with the route.</h3>
+        <p>Compare flight options around the trip you are actually building, not in a separate tab you forget later.</p>
+      </article>
+      <article>
+        <span>Hotels</span>
+        <h3>Keep stays in context.</h3>
+        <p>Match accommodation choices with destination, dates, and the rest of the plan.</p>
+      </article>
+      <article>
+        <span>Activities</span>
+        <h3>Find things worth doing.</h3>
+        <p>Explore events and activities that fit the place and timing of your trip.</p>
+      </article>
+      <article>
+        <span>Progress</span>
+        <h3>Make travel visible.</h3>
+        <p>Track visited countries, upcoming destinations, and the story your profile tells over time.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="landing-flow" aria-label="How ROAMER works">
+    <span class="section-eyebrow">From idea to itinerary</span>
+    <h2>A smoother way to move from maybe to booked.</h2>
+
+    <div class="flow-steps">
+      <article>
+        <strong>Choose</strong>
+        <p>Pick where you want to go and keep your travel preferences attached to your profile.</p>
+      </article>
+      <article>
+        <strong>Compare</strong>
+        <p>Bring flights, hotels, activities, dates, and costs into the same planning view.</p>
+      </article>
+      <article>
+        <strong>Continue</strong>
+        <p>Return later without rebuilding the whole picture from memory.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="landing-final" aria-label="Start using ROAMER">
+    <div>
+      <span class="section-eyebrow">Ready when you are</span>
+      <h2>Your dashboard is next.</h2>
+      <p>Scroll once more to enter ROAMER, or jump directly into the dashboard now.</p>
+    </div>
+
+    <div class="final-actions">
+      <button type="button" class="enter-dashboard-button enter-dashboard-button--primary" (click)="enterRoamer()">
+        Open dashboard
+      </button>
+      @if (!isAuthenticated()) {
+        <a class="enter-dashboard-button" routerLink="/login">Log in</a>
+      }
+    </div>
+  </section>
+</section>

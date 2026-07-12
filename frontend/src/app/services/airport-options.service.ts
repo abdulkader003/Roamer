@@ -161,8 +161,9 @@ export class AirportOptionsService {
       return null;
     }
 
-    const codeFromText = rawValue.match(/\(([A-Za-z]{3})\)\s*$/)?.[1]
+    const codeFromText = rawValue.match(/\(([A-Za-z]{3})\)/)?.[1]
       ?? rawValue.match(/^[A-Za-z]{3}$/)?.[0]
+      ?? rawValue.match(/(?:^|[\s·,/-])([A-Za-z]{3})\s*$/)?.[1]
       ?? '';
 
     return this.airports.find((airport) =>
