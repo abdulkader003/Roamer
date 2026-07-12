@@ -218,7 +218,7 @@ export class ActivitiesService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getActivities(city?: string, keyword?: string, page = 0, size = 12): Observable<ActivitySearchResponse> {
+  getActivities(city?: string, keyword?: string, page = 0, size = 12, seed?: number): Observable<ActivitySearchResponse> {
     let params = new HttpParams();
 
     if (city && city !== 'All Cities') {
@@ -232,6 +232,10 @@ export class ActivitiesService {
     params = params
       .set('page', page)
       .set('size', size);
+
+    if (seed !== undefined) {
+      params = params.set('seed', seed);
+    }
 
     return this.http.get<ActivitySearchResponse>(this.apiUrl, { params }).pipe(
       tap((response) => {

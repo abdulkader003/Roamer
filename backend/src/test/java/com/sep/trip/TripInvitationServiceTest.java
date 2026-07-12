@@ -11,17 +11,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +44,12 @@ class TripInvitationServiceTest {
     @Mock
     private FriendRequestRepository friendRequestRepository;
 
+    @Mock
+    private TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher;
+
+    @Mock
+    private TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
+
     private TripInvitationService tripInvitationService;
     private AppUser owner;
     private AppUser invitedUser;
@@ -52,7 +61,9 @@ class TripInvitationServiceTest {
                 tripRepository,
                 tripInvitationRepository,
                 appUserRepository,
-                friendRequestRepository
+                friendRequestRepository,
+                tripNotificationWebSocketPublisher,
+                tripRealtimeWebSocketPublisher
         );
 
         owner = user(7L, "owner@example.com", "owner");
@@ -89,6 +100,7 @@ class TripInvitationServiceTest {
         assertThat(response.trip().id()).isEqualTo(11L);
         assertThat(response.status()).isEqualTo(TripInvitationStatus.PENDING);
         verify(tripInvitationRepository).save(any(TripInvitation.class));
+        verify(tripNotificationWebSocketPublisher).publishTripInvitationCreated(any(TripInvitation.class));
     }
 
     @Test
@@ -185,6 +197,11 @@ class TripInvitationServiceTest {
 
         assertThat(response.message()).isEqualTo("Trip invitation accepted.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.ACCEPTED);
+        verify(tripNotificationWebSocketPublisher).publishTripInvitationAccepted(invitation);
+        ArgumentCaptor<Collection<AppUser>> recipientsCaptor = ArgumentCaptor.forClass(Collection.class);
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoined(eq(trip), eq(invitedUser), recipientsCaptor.capture());
+        assertThat(recipientsCaptor.getValue()).extracting(AppUser::getEmail).containsExactly("owner@example.com");
+        verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoinedTopic(eq(trip), eq(invitedUser));
     }
 
     @Test
@@ -211,6 +228,7 @@ class TripInvitationServiceTest {
 
         assertThat(response.message()).isEqualTo("Trip invitation declined.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.DECLINED);
+        verify(tripNotificationWebSocketPublisher).publishTripInvitationDeclined(invitation);
     }
 
     private AppUser user(Long id, String email, String username) {

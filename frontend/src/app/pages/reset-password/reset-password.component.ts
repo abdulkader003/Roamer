@@ -3,11 +3,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { RoamerAvatarComponent } from '../../shared/roamer-avatar/roamer-avatar.component';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, RoamerAvatarComponent],
   templateUrl: './reset-password.component.html',
   styleUrl: './reset-password.component.css'
 })
@@ -22,6 +23,12 @@ export class ResetPasswordComponent implements OnInit {
   confirmPassword = '';
   message = '';
   isSubmitting = false;
+  showPassword = false;
+  showConfirmPassword = false;
+
+  get avatarMood(): 'idle' | 'password-hidden' | 'password-visible' {
+    return this.showPassword || this.showConfirmPassword ? 'password-visible' : 'password-hidden';
+  }
 
   ngOnInit(): void {
     const resetState = this.authService.getPasswordResetState();
@@ -92,6 +99,15 @@ export class ResetPasswordComponent implements OnInit {
         });
       }
     });
+  }
+
+  togglePasswordVisibility(field: 'password' | 'confirmPassword'): void {
+    if (field === 'password') {
+      this.showPassword = !this.showPassword;
+      return;
+    }
+
+    this.showConfirmPassword = !this.showConfirmPassword;
   }
 
   private refreshView(): void {

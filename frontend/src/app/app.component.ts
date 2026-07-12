@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, HostListener, computed, inject, sig
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/sidebar/sidebar.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
+import { RealtimeWebSocketService } from './services/realtime-websocket.service';
 
 @Component({
   selector: 'app-root',
@@ -14,6 +15,7 @@ import { NavbarComponent } from './shared/navbar/navbar.component';
 })
 export class AppComponent {
   private readonly router = inject(Router);
+  private readonly realtimeWebSocketService = inject(RealtimeWebSocketService);
   private readonly mobileBreakpoint = 900;
   private touchStartX = 0;
   private touchStartY = 0;

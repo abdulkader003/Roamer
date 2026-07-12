@@ -1,20 +1,18 @@
 .signup-container {
   display: grid;
-  place-items: center;
+  align-items: center;
+  justify-items: end;
   min-height: 100vh;
-  padding: 32px 24px;
-  background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 12%, transparent), transparent 28%),
-    linear-gradient(180deg, var(--page-bg), var(--surface-secondary));
+  padding: 32px clamp(48px, 10vw, 132px) 32px clamp(220px, 24vw, 360px);
 }
 
 .signup-card {
   background: var(--surface-primary);
-  padding: 2rem;
+  padding: 2.25rem;
   border-radius: 24px;
   border: 1px solid var(--border);
   width: 100%;
-  max-width: 460px;
+  max-width: 500px;
   box-shadow: 0 24px 64px var(--card-shadow);
 }
 
@@ -83,6 +81,39 @@ form {
   }
 }
 
+.password-control {
+  position: relative;
+
+  input {
+    padding-right: 74px;
+  }
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  min-width: 56px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent-bg) 74%, var(--surface-primary));
+  color: var(--accent);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface-primary));
+    outline: none;
+  }
+}
+
 .error-message {
   background-color: rgba(220, 38, 38, 0.15);
   color: #f87171;
@@ -140,5 +171,23 @@ form {
     &:hover {
       text-decoration: underline;
     }
+  }
+}
+
+@media (max-width: 900px) {
+  .signup-container {
+    justify-items: center;
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .signup-container {
+    align-items: start;
+    padding: 24px 16px;
+  }
+
+  .signup-card {
+    padding: 1.5rem 1.25rem;
   }
 }
