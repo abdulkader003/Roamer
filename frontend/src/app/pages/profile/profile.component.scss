@@ -471,12 +471,19 @@ app-world-travel-map {
   gap: 16px;
 }
 
-.profile-form label {
+.profile-form label,
+.profile-form .field-group {
   display: grid;
   gap: 7px;
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 800;
+}
+
+.profile-form .field-group > label {
+  display: block;
+  color: inherit;
+  font: inherit;
 }
 
 .profile-form input {
@@ -596,7 +603,7 @@ app-world-travel-map {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: 80;
   display: grid;
   gap: 5px;
   max-height: 280px;

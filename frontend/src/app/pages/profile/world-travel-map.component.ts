@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnInit, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, OnDestroy, OnInit, Output, inject } from '@angular/core';
 
 import {
   CountryMapShape,
@@ -16,7 +16,7 @@ type CountryMapState = 'neutral' | 'visited' | 'upcoming' | 'both';
   templateUrl: './world-travel-map.component.html',
   styleUrl: './world-travel-map.component.scss'
 })
-export class WorldTravelMapComponent implements OnInit {
+export class WorldTravelMapComponent implements OnInit, OnDestroy {
   private readonly zone = inject(NgZone);
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -52,6 +52,10 @@ export class WorldTravelMapComponent implements OnInit {
         this.isLoadingMap = false;
         this.cdr.detectChanges();
       }));
+  }
+
+  ngOnDestroy(): void {
+    this.setExpandedBodyState(false);
   }
 
   get visitedCountrySet(): Set<string> {
@@ -125,26 +129,6 @@ export class WorldTravelMapComponent implements OnInit {
     return `country-shape country-shape--${state}${isHovered}`;
   }
 
-  markerClass(country: string): string {
-    const visited = this.visitedCountrySet.has(country);
-    const upcoming = this.upcomingCountrySet.has(country);
-
-    if (visited && upcoming) {
-      return 'country-marker country-marker--both';
-    }
-
-    return upcoming ? 'country-marker country-marker--upcoming' : 'country-marker country-marker--visited';
-  }
-
-  markerShapes(): CountryMapShape[] {
-    const selectedCountries = new Set([...this.visitedCountries, ...this.upcomingCountries]);
-    return this.countryShapes.filter((shape) => selectedCountries.has(shape.name));
-  }
-
-  markerTransform(shape: CountryMapShape, scale: number): string {
-    return `translate(${shape.labelX} ${shape.labelY}) scale(${scale})`;
-  }
-
   longitudeX(longitude: number): number {
     return (longitude + 180) * 1000 / 360;
   }
@@ -201,13 +185,23 @@ export class WorldTravelMapComponent implements OnInit {
 
   openExpandedMap(): void {
     this.isMapExpanded = true;
+    this.setExpandedBodyState(true);
   }
 
   closeExpandedMap(): void {
     this.isMapExpanded = false;
+    this.setExpandedBodyState(false);
   }
 
   private resolveSelectedCountry(): string | null {
     return resolveCountryName(this.selectedCountry, this.visitedCountries);
+  }
+
+  private setExpandedBodyState(isExpanded: boolean): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.body.classList.toggle('profile-map-expanded', isExpanded);
   }
 }
