@@ -296,7 +296,7 @@ app-signup .signup-card {
   z-index: 1;
 }
 
-:is(app-login, app-verify-email, app-signup) .auth-avatar {
+:is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
   position: absolute;
   left: clamp(72px, 11vw, 176px);
   top: 18%;
@@ -309,14 +309,14 @@ app-signup .signup-card {
     opacity: 0.45;
   }
 
-  :is(app-login, app-verify-email, app-signup) .auth-avatar {
+  :is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
     left: 24px;
     width: clamp(210px, 30vw, 300px);
   }
 }
 
 @media (max-width: 700px) {
-  :is(app-login, app-verify-email, app-signup) .auth-avatar {
+  :is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
     display: none;
   }
 }

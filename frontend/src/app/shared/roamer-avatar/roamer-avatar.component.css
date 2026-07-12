@@ -168,6 +168,10 @@
   opacity: 0.55;
 }
 
+.roamer-avatar--auto-blinking .eye-lid {
+  transition-duration: 0.05s;
+}
+
 .avatar-mouth,
 .mouth-corner {
   fill: none;
@@ -188,42 +192,38 @@
   fill: color-mix(in srgb, #38bdf8 26%, transparent);
 }
 
-.roamer-avatar--password-hidden .avatar-eye {
+.roamer-avatar--password-visible .avatar-eye {
   animation: none;
 }
 
-.roamer-avatar--password-hidden .eye-white {
+.roamer-avatar--password-visible .eye-white {
   opacity: 0.12;
 }
 
-.roamer-avatar--password-hidden .eye-pupil,
-.roamer-avatar--password-hidden .eye-spark {
+.roamer-avatar--password-visible .eye-pupil,
+.roamer-avatar--password-visible .eye-spark {
   opacity: 0;
   transform: translate(0, 0) scaleY(0.1);
 }
 
-.roamer-avatar--password-hidden .eye-lid--top {
+.roamer-avatar--password-visible .eye-lid--top {
   transform: translateY(17px);
 }
 
-.roamer-avatar--password-hidden .eye-lid--bottom {
+.roamer-avatar--password-visible .eye-lid--bottom {
   opacity: 0.85;
   transform: translateY(-9px);
 }
 
-.roamer-avatar--password-visible .eye-white,
-.roamer-avatar--password-visible .eye-pupil,
-.roamer-avatar--password-visible .eye-spark {
+.roamer-avatar--password-hidden .eye-white,
+.roamer-avatar--password-hidden .eye-pupil,
+.roamer-avatar--password-hidden .eye-spark {
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .avatar-hand--right {
     animation: avatar-wave 5.6s ease-in-out infinite;
-  }
-
-  .avatar-eye {
-    animation: avatar-blink 6.8s ease-in-out infinite;
   }
 }
 
@@ -257,18 +257,5 @@
 
   92% {
     transform: rotate(-4deg) translateY(2px);
-  }
-}
-
-@keyframes avatar-blink {
-  0%,
-  92%,
-  100% {
-    transform: scaleY(1);
-  }
-
-  95%,
-  96% {
-    transform: scaleY(0.08);
   }
 }

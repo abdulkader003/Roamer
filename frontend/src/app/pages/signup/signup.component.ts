@@ -33,15 +33,7 @@ export class SignupComponent {
   returnUrl = '/dashboard';
 
   get avatarMood(): 'idle' | 'password-hidden' | 'password-visible' {
-    if (!this.focusedPasswordField) {
-      return 'idle';
-    }
-
-    const isVisible = this.focusedPasswordField === 'password'
-      ? this.showPassword
-      : this.showConfirmPassword;
-
-    return isVisible ? 'password-visible' : 'password-hidden';
+    return this.showPassword || this.showConfirmPassword ? 'password-visible' : 'password-hidden';
   }
 
   ngOnInit(): void {
