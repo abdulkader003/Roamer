@@ -150,6 +150,7 @@
   --z-toast: 1700;
 }
 
+
 /* ── DARK THEME ── */
 [data-theme='dark'] {
   /* Core surfaces */
@@ -204,6 +205,7 @@
   /* Stat / icon */
   --icon-bg:     rgba(201,150,42,0.10);
   --icon-border: rgba(201,150,42,0.25);
+
 
   /* Badges */
   --badge-confirmed-bg:     rgba(16,185,129,0.12);
@@ -285,6 +287,7 @@
   --modal-shadow: 0 20px 46px rgba(0, 0, 0, 0.42);
   --modal-backdrop-bg: rgba(0, 0, 0, 0.66);
 }
+
 
 /* ── Base reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
