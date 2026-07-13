@@ -126,11 +126,10 @@
   margin-bottom: 40px;
   overflow: visible;
   transition: margin-bottom 180ms ease;
-  isolation: isolate;
 }
 
 .search-stage--city-open {
-  z-index: 5000;
+  z-index: var(--z-popover, 1100);
 }
 
 .search-stage--date-open {
@@ -152,7 +151,7 @@
 }
 
 .search-card--popover-open {
-  z-index: 5200;
+  z-index: var(--z-popover, 1100);
 }
 
 .search-card::before {
@@ -209,7 +208,7 @@
 }
 
 .destination-field--open {
-  z-index: 5600;
+  z-index: var(--z-popover, 1100);
 }
 
 .field-label {
@@ -255,7 +254,7 @@
 
 .date-field.open,
 .guest-field.open {
-  z-index: 5600;
+  z-index: var(--z-popover, 1100);
   background: var(--surface-soft);
 }
 
@@ -291,7 +290,7 @@
 .guest-popover-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20000;
+  z-index: var(--z-popover, 1100);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -302,7 +301,7 @@
 
 .guest-popover {
   position: relative;
-  z-index: 20001;
+  z-index: 1;
   display: grid;
   gap: 0;
   width: min(420px, calc(100vw - 32px));
@@ -495,7 +494,7 @@
 .city-popover-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20000;
+  z-index: var(--z-popover, 1100);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -506,7 +505,7 @@
 
 .city-popover {
   position: relative;
-  z-index: 20001;
+  z-index: 1;
   display: grid;
   gap: 16px;
   width: min(460px, calc(100vw - 32px));
@@ -645,17 +644,19 @@
 
 .date-popover {
   position: relative;
-  z-index: 20001;
+  z-index: 1;
   width: min(430px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 48px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: auto;
   padding: 18px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--modal-border);
   border-radius: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  background: var(--modal-bg);
+  box-shadow: var(--modal-shadow);
+  filter: none;
+  outline: none;
   margin: 0;
   transform: none;
   animation: datePopoverIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -664,7 +665,7 @@
 .date-popover-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20000;
+  z-index: var(--z-popover, 1100);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -765,8 +766,13 @@
 }
 
 .date-manual input:focus {
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.date-manual input:focus-visible {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
 .date-manual input.invalid {
@@ -868,13 +874,23 @@
   color: var(--primary);
 }
 
+.date-days button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.date-days button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 58%, #ffffff);
+  outline-offset: 2px;
+}
+
 .date-days button.muted {
   color: var(--text-dim);
   background: transparent;
 }
 
 .date-days button.today {
-  border-color: var(--primary);
+  border-color: var(--line);
 }
 
 .date-days button.in-range {
@@ -893,12 +909,10 @@
 
 .results {
   position: relative;
-  z-index: 0;
   width: 100%;
   max-width: var(--page-shell-width);
   margin: 0 auto;
   padding: 0 clamp(20px, 3vw, 40px) 72px;
-  isolation: isolate;
 }
 
 .filters-trigger {
@@ -1433,7 +1447,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 8000;
+  z-index: var(--z-modal, 1300);
   display: grid;
   place-items: center;
   padding: 22px;
@@ -1724,7 +1738,7 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1800;
+    z-index: var(--z-popover, 1100);
     width: min(360px, calc(100vw - 32px));
     height: 100vh;
     max-height: none;
@@ -1744,7 +1758,7 @@
   .filters-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 1750;
+    z-index: calc(var(--z-popover, 1100) - 1);
     display: block;
     background: rgba(15, 23, 42, 0.18);
     opacity: 0;
@@ -1821,7 +1835,7 @@
   .date-popover-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 20000;
+    z-index: var(--z-popover, 1100);
     display: grid;
     place-items: center;
     width: auto;

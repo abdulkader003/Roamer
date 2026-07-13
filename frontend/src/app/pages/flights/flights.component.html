@@ -335,101 +335,28 @@
       </section>
     </div>
 
-    <div
-      *ngIf="activeDatePicker() || activeMultiCityDatePicker() !== null"
-      class="date-popover-backdrop"
-      role="presentation"
-      (click)="closeDatePicker()">
-      <section
-        class="date-popover"
-        role="dialog"
-        aria-modal="true"
-        [attr.aria-label]="activeDatePickerTitle()"
-        (click)="$event.stopPropagation()">
-        <header class="date-popover__head">
-          <div>
-            <span class="date-popover__eyebrow">Flight dates</span>
-            <h3>{{ activeDatePickerTitle() }}</h3>
-          </div>
-          <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </header>
-
-        <div class="date-popover__body">
-          <aside class="date-manual">
-            <label>
-              <span>Manual date</span>
-              <input
-                type="text"
-                [value]="activeDatePickerInputValue()"
-                (input)="updateActiveDatePickerInput($any($event.target).value)"
-                placeholder="YYYY-MM-DD"
-                inputmode="numeric"
-                [class.invalid]="manualDateError()"
-                [attr.aria-invalid]="manualDateError() ? 'true' : 'false'"
-                aria-describedby="manual-date-hint"
-                [attr.aria-label]="activeDatePickerTitle()"/>
-            </label>
-            <p
-              id="manual-date-hint"
-              class="date-hint"
-              [class.error]="manualDateError()">
-              {{ activeDatePickerHint() }}
-            </p>
-            <p class="date-range-summary" *ngIf="tripType() === 'round-trip' && activeMultiCityDatePicker() === null">
-              {{ departureDate() ? formatDate(departureDate()) : 'Departure' }}
-              →
-              {{ returnDate() ? formatDate(returnDate()) : 'Return' }}
-            </p>
-            <button
-              *ngIf="activeDatePicker() === 'return'"
-              type="button"
-              class="date-clear"
-              (click)="clearReturnDate()">
-              Clear return
-            </button>
-          </aside>
-
-          <div class="date-calendar">
-            <div class="date-calendar__toolbar">
-              <button type="button" aria-label="Previous month" (click)="moveDatePickerMonth(-1)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="15 18 9 12 15 6"/>
-                </svg>
-              </button>
-              <strong>{{ datePickerMonthLabel() }}</strong>
-              <button type="button" aria-label="Next month" (click)="moveDatePickerMonth(1)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </button>
-            </div>
-
-            <div class="date-weekdays">
-              <span *ngFor="let day of weekDays">{{ day }}</span>
-            </div>
-
-            <div class="date-days">
-              <button
-                *ngFor="let day of calendarDays()"
-                type="button"
-                [class.muted]="!day.inCurrentMonth"
-                [class.selected]="day.isSelected"
-                [class.range-start]="day.isRangeStart"
-                [class.range-end]="day.isRangeEnd"
-                [class.in-range]="day.isInRange"
-                [class.today]="day.isToday"
-                (click)="selectCalendarDate(day.date)">
-                {{ day.dayNumber }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+    <app-shared-date-picker
+      [open]="!!activeDatePicker() || activeMultiCityDatePicker() !== null"
+      eyebrow="Flight dates"
+      [title]="activeDatePickerTitle()"
+      [manualValue]="activeDatePickerInputValue()"
+      [hint]="activeDatePickerHint()"
+      [hasError]="!!manualDateError()"
+      hintId="flight-manual-date-hint"
+      [rangeSummary]="tripType() === 'round-trip' && activeMultiCityDatePicker() === null
+        ? ((departureDate() ? formatDate(departureDate()) : 'Departure') + ' → ' + (returnDate() ? formatDate(returnDate()) : 'Return'))
+        : ''"
+      [clearLabel]="activeDatePicker() === 'return' ? 'Clear return' : ''"
+      [monthLabel]="datePickerMonthLabel()"
+      [weekDays]="weekDays"
+      [days]="calendarDays()"
+      (closed)="closeDatePicker()"
+      (manualInput)="updateActiveDatePickerInput($event)"
+      (clearRequested)="clearReturnDate()"
+      (previousMonth)="moveDatePickerMonth(-1)"
+      (nextMonth)="moveDatePickerMonth(1)"
+      (daySelected)="selectCalendarDate($event.date)">
+    </app-shared-date-picker>
   </section>
 
   <!-- Mobile filter trigger -->

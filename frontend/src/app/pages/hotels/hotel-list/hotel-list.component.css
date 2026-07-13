@@ -327,7 +327,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal, 1300);
   display: grid;
   place-items: center;
   padding: 22px;

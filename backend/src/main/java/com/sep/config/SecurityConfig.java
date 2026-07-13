@@ -62,6 +62,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/trips/**").authenticated()
                         .requestMatchers("/api/budget/**").authenticated()
                         .requestMatchers("/api/calendar-events/**").authenticated()
+                        .requestMatchers("/api/settings", "/api/settings/**").authenticated()
+                        .requestMatchers("/api/feedback", "/api/feedback/**").authenticated()
                         //.requestMatchers("/api/weather/**").authenticated()
                         .requestMatchers("/api/travel-documents/**").authenticated()
                         .requestMatchers("/api/trip-planning/**").authenticated()

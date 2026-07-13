@@ -498,81 +498,22 @@
   </section>
 </div>
 
-<div
-  *ngIf="activeDatePicker"
-  class="date-popover-backdrop"
-  role="presentation"
-  (click)="closeDatePicker()">
-  <section
-    class="date-popover"
-    role="dialog"
-    aria-modal="true"
-    [attr.aria-label]="activeDatePickerTitle()"
-    (click)="$event.stopPropagation()">
-    <header class="date-popover__head">
-      <div>
-        <span class="date-popover__eyebrow">Hotel dates</span>
-        <h3>{{ activeDatePickerTitle() }}</h3>
-      </div>
-      <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </header>
-
-    <div class="date-popover__body">
-      <aside class="date-manual">
-        <label>
-          <span>Manual date</span>
-          <input
-            type="text"
-            [value]="activeDatePickerInputValue()"
-            (input)="updateActiveDatePickerInput($any($event.target).value)"
-            [class.invalid]="manualDateError"
-            placeholder="YYYY-MM-DD"
-          />
-        </label>
-        <p class="date-hint" [class.error]="manualDateError">{{ activeDatePickerHint() }}</p>
-      </aside>
-
-      <div class="date-calendar">
-        <div class="date-calendar__toolbar">
-          <button type="button" aria-label="Previous month" (click)="shiftDatePickerMonth(-1)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-          <strong>{{ datePickerMonthLabel() }}</strong>
-          <button type="button" aria-label="Next month" (click)="shiftDatePickerMonth(1)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-
-        <div class="date-weekdays">
-          <span *ngFor="let day of weekDays">{{ day }}</span>
-        </div>
-
-        <div class="date-days">
-          <button
-            type="button"
-            *ngFor="let day of calendarDays()"
-            [class.muted]="!day.inCurrentMonth"
-            [class.today]="day.isToday"
-            [class.selected]="day.isSelected"
-            [class.range-start]="day.isRangeStart"
-            [class.range-end]="day.isRangeEnd"
-            [class.in-range]="day.isInRange"
-            (click)="onCalendarDaySelect(day)">
-            {{ day.dayNumber }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </section>
-</div>
+<app-shared-date-picker
+  [open]="!!activeDatePicker"
+  eyebrow="Hotel dates"
+  [title]="activeDatePickerTitle()"
+  [manualValue]="activeDatePickerInputValue()"
+  [hint]="activeDatePickerHint()"
+  [hasError]="!!manualDateError"
+  hintId="hotel-manual-date-hint"
+  [monthLabel]="datePickerMonthLabel()"
+  [weekDays]="weekDays"
+  [days]="calendarDays()"
+  (closed)="closeDatePicker()"
+  (manualInput)="updateActiveDatePickerInput($event)"
+  (previousMonth)="shiftDatePickerMonth(-1)"
+  (nextMonth)="shiftDatePickerMonth(1)"
+  (daySelected)="onCalendarDaySelect($any($event))">
+</app-shared-date-picker>
 
 <app-status-toast [message]="toastMessage" [type]="toastType"></app-status-toast>

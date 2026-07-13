@@ -4,6 +4,8 @@ import com.sep.profile.dto.ChangePasswordRequest;
 import com.sep.profile.dto.DeleteAccountRequest;
 import com.sep.profile.dto.ProfileResponse;
 import com.sep.profile.dto.UpdateProfileRequest;
+import com.sep.settings.UserFeedbackRepository;
+import com.sep.settings.UserSettingsRepository;
 import com.sep.trip.TripRepository;
 import com.sep.tripplanning.TripPlanningRepository;
 import com.sep.user.AppUser;
@@ -50,17 +52,23 @@ public class ProfileService {
     private final PasswordEncoder passwordEncoder;
     private final TripRepository tripRepository;
     private final TripPlanningRepository tripPlanningRepository;
+    private final UserSettingsRepository userSettingsRepository;
+    private final UserFeedbackRepository userFeedbackRepository;
 
     public ProfileService(
             AppUserRepository userRepository,
             PasswordEncoder passwordEncoder,
             TripRepository tripRepository,
-            TripPlanningRepository tripPlanningRepository
+            TripPlanningRepository tripPlanningRepository,
+            UserSettingsRepository userSettingsRepository,
+            UserFeedbackRepository userFeedbackRepository
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tripRepository = tripRepository;
         this.tripPlanningRepository = tripPlanningRepository;
+        this.userSettingsRepository = userSettingsRepository;
+        this.userFeedbackRepository = userFeedbackRepository;
     }
 
     @Transactional(readOnly = true)
@@ -158,6 +166,8 @@ public class ProfileService {
         assertCurrentPassword(user, request.currentPassword());
 
         // Remove rows that reference the user before deleting the account itself.
+        userFeedbackRepository.deleteAllByOwnerId(user.getId());
+        userSettingsRepository.deleteByOwnerId(user.getId());
         tripPlanningRepository.deleteAllByUserId(user.getId());
         tripRepository.deleteAllByOwnerId(user.getId());
         userRepository.delete(user);

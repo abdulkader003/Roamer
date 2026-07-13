@@ -4,6 +4,8 @@ import com.sep.profile.dto.ChangePasswordRequest;
 import com.sep.profile.dto.DeleteAccountRequest;
 import com.sep.profile.dto.ProfileResponse;
 import com.sep.profile.dto.UpdateProfileRequest;
+import com.sep.settings.UserFeedbackRepository;
+import com.sep.settings.UserSettingsRepository;
 import com.sep.trip.TripRepository;
 import com.sep.tripplanning.TripPlanningRepository;
 import com.sep.user.AppUser;
@@ -42,6 +44,12 @@ class ProfileServiceTest {
     @Mock
     private TripPlanningRepository tripPlanningRepository;
 
+    @Mock
+    private UserSettingsRepository userSettingsRepository;
+
+    @Mock
+    private UserFeedbackRepository userFeedbackRepository;
+
     private ProfileService profileService;
     private AppUser user;
 
@@ -51,7 +59,9 @@ class ProfileServiceTest {
                 userRepository,
                 passwordEncoder,
                 tripRepository,
-                tripPlanningRepository
+                tripPlanningRepository,
+                userSettingsRepository,
+                userFeedbackRepository
         );
 
         user = new AppUser();
@@ -218,6 +228,8 @@ class ProfileServiceTest {
 
         profileService.deleteCurrentAccount("traveler@example.com", request);
 
+        verify(userFeedbackRepository).deleteAllByOwnerId(7L);
+        verify(userSettingsRepository).deleteByOwnerId(7L);
         verify(tripPlanningRepository).deleteAllByUserId(7L);
         verify(tripRepository).deleteAllByOwnerId(7L);
         verify(userRepository).delete(user);

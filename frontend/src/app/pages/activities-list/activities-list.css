@@ -1,8 +1,8 @@
 :host {
   display: block;
   width: 100%;
-  --bg-elevated: var(--surface-primary, #ffffff);
-  --surface: var(--surface-primary, #ffffff);
+  --bg-elevated: var(--translucent-surface-strong, var(--surface-primary, #ffffff));
+  --surface: var(--translucent-surface, var(--surface-primary, #ffffff));
   --surface-soft: var(--surface-secondary, #f4f6fb);
   --surface-glass: color-mix(in srgb, var(--surface-primary) 92%, transparent);
   --border-strong: color-mix(in srgb, var(--border, #e5e7eb) 72%, var(--text-primary, #1a1d2e));
@@ -19,10 +19,7 @@
   --shadow-md: 0 14px 34px var(--card-shadow, rgba(0, 0, 0, 0.1));
   --shadow-lg: 0 24px 52px var(--card-shadow, rgba(0, 0, 0, 0.14));
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top right, var(--gold-bg) 0%, transparent 28%),
-    radial-gradient(circle at top left, var(--accent-bg) 0%, transparent 22%),
-    linear-gradient(180deg, var(--page-bg) 0%, var(--surface-secondary) 100%);
+  background: transparent;
   color: var(--text);
 }
 
@@ -116,7 +113,9 @@
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: var(--surface);
+  background: var(--translucent-surface-strong, var(--surface));
+  backdrop-filter: blur(16px) saturate(128%);
+  -webkit-backdrop-filter: blur(16px) saturate(128%);
   box-shadow: 0 12px 28px var(--card-shadow);
 }
 
@@ -149,6 +148,8 @@
   padding: 8px;
   margin-bottom: 24px;
   overflow: visible;
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
 }
 
 .search-card::before {
@@ -251,6 +252,21 @@
   box-shadow: var(--shadow-lg);
 }
 
+.city-suggestions--floating {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  z-index: var(--z-popover, 1500);
+  max-height: min(360px, calc(100vh - 32px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-color: var(--modal-border);
+  background: var(--modal-bg);
+  color: var(--text);
+  box-shadow: var(--modal-shadow);
+}
+
 .city-option {
   display: grid;
   gap: 2px;
@@ -342,251 +358,6 @@
   color: var(--danger);
   font-size: 12px;
   font-weight: 700;
-}
-
-.date-popover-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.22);
-  backdrop-filter: blur(2px);
-}
-
-.date-popover {
-  width: min(430px, calc(100vw - 32px));
-  max-height: min(620px, calc(100vh - 48px));
-  overflow: auto;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-lg);
-}
-
-.date-popover__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border);
-}
-
-.date-popover__head h3 {
-  margin: 4px 0 0;
-  font-size: 20px;
-  line-height: 1.15;
-  color: var(--text);
-}
-
-.date-popover__eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.date-close {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-soft);
-  color: var(--text);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-
-.date-close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.date-close:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.date-popover__body {
-  display: grid;
-  gap: 14px;
-  padding-top: 16px;
-}
-
-.date-manual {
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-soft);
-}
-
-.date-manual label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.date-manual label span {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.date-manual input {
-  width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  color: var(--text);
-  font: inherit;
-  font-weight: 600;
-  outline: none;
-}
-
-.date-manual input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
-}
-
-.date-manual input.invalid {
-  border-color: var(--danger);
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
-}
-
-.date-hint {
-  margin: 8px 0 0;
-  font-size: 11px;
-  line-height: 1.25;
-  color: var(--text-muted);
-}
-
-.date-hint.error {
-  color: var(--danger);
-  font-weight: 600;
-}
-
-.date-clear {
-  width: 100%;
-  min-height: 36px;
-  margin-top: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.date-clear:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.date-calendar__toolbar {
-  display: grid;
-  grid-template-columns: 38px 1fr 38px;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.date-calendar__toolbar strong {
-  text-align: center;
-  font-size: 16px;
-  color: var(--text);
-}
-
-.date-calendar__toolbar button {
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  color: var(--text);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-
-.date-calendar__toolbar button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.date-calendar__toolbar button:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.date-weekdays,
-.date-days {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.date-weekdays {
-  margin-bottom: 8px;
-}
-
-.date-weekdays span {
-  min-height: 30px;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-
-.date-days button {
-  aspect-ratio: 1;
-  min-height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--bg-elevated);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.date-days button:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.date-days button.muted {
-  color: var(--text-subtle);
-  background: transparent;
-}
-
-.date-days button.today {
-  border-color: var(--primary);
-}
-
-.date-days button.selected {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-text);
-}
-
-.date-days button.past {
-  color: var(--danger);
-  border-color: rgba(220, 38, 38, 0.24);
-  background: rgba(220, 38, 38, 0.04);
 }
 
 .filters-trigger {
@@ -1255,7 +1026,7 @@
 .activity-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal, 1300);
   display: grid;
   place-items: center;
   padding: 22px;
@@ -1489,7 +1260,7 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1250;
+    z-index: var(--z-popover, 1100);
     width: min(360px, calc(100vw - 32px));
     height: 100vh;
     max-height: none;
@@ -1510,7 +1281,7 @@
   .filters-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 1240;
+    z-index: calc(var(--z-popover, 1100) - 1);
     display: block;
     background: rgba(15, 23, 42, 0.34);
     opacity: 0;

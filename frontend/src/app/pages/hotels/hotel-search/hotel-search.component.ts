@@ -6,6 +6,7 @@ import { CalendarEvent, Hotel, HotelSort } from '../models/hotel.model';
 import { HotelService } from '../services/hotel.service';
 import { CalendarService } from '../services/calendar.service';
 import { finalize, timeout } from 'rxjs';
+import { SharedDatePickerComponent } from '../../../shared/date-picker/shared-date-picker.component';
 import { StatusToastComponent, StatusToastType } from '../../../shared/status-toast/status-toast.component';
 import { HOTEL_DESTINATION_NAMES, getHotelDestinationSuggestions } from './hotel-destinations';
 
@@ -23,7 +24,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-hotel-search',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, StatusToastComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SharedDatePickerComponent, StatusToastComponent],
   templateUrl: './hotel-search.component.html',
   styleUrls: ['./hotel-search.component.css'],
 })

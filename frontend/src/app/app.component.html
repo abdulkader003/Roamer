@@ -1,5 +1,6 @@
 <div
   class="app-shell"
+  [class.app-shell--wallpaper]="wallpaperService.hasWallpaper()"
   (touchstart)="handleTouchStart($event)"
   (touchend)="handleTouchEnd($event)">
   <app-navbar (menuRequested)="toggleSidebar()" />
@@ -18,6 +19,32 @@
       (click)="closeSidebar()"></button>
 
     <main class="app-main" [class.app-main--with-sidebar]="!isMobile()">
+      @if (wallpaperService.currentHero(); as hero) {
+        <section class="app-page-hero" aria-labelledby="app-page-hero-title">
+          <div class="app-page-hero__wallpaper" aria-hidden="true">
+            @for (layer of wallpaperService.visibleLayers(); track layer.id) {
+              <div
+                class="app-page-hero__layer"
+                [class.app-page-hero__layer--active]="layer.active"
+                [style.background-image]="'url(' + layer.url + ')'"
+                [style.background-position]="heroLayerPosition(layer)"
+                [style.background-size]="heroLayerSize(layer)"
+                [style.--hero-wallpaper-scale-start]="heroLayerStartScale(layer)"
+                [style.--hero-wallpaper-scale-end]="heroLayerEndScale(layer)"
+                [style.--hero-wallpaper-pan-x]="layer.panX"
+                [style.--hero-wallpaper-pan-y]="layer.panY">
+              </div>
+            }
+            <div class="app-page-hero__shade"></div>
+          </div>
+
+          <div class="app-page-hero__content">
+            <p>{{ hero.kicker }}</p>
+            <h1 id="app-page-hero-title">{{ hero.title }}</h1>
+            <span>{{ hero.description }}</span>
+          </div>
+        </section>
+      }
       <router-outlet />
     </main>
   </div>

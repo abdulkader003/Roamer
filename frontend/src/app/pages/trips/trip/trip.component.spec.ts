@@ -290,7 +290,13 @@ describe('TripComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Lufthansa');
     expect(fixture.nativeElement.textContent).toContain('Barcelona Grand');
     expect(fixture.nativeElement.textContent).toContain('Picasso Museum');
-    expect(fixture.nativeElement.textContent).toContain('€1,984');
+    expect(fixture.componentInstance.modalFlightTotal(trip)).toBe(756);
+    expect(fixture.componentInstance.modalHotelTotal(trip)).toBe(1200);
+    expect(fixture.componentInstance.modalActivitiesTotal(trip)).toBe(56);
+    expect(fixture.componentInstance.modalTotalUsed(trip)).toBe(2012);
+    expect(fixture.componentInstance.modalRemaining(trip)).toBe(388);
+    expect(fixture.nativeElement.textContent).toContain('€2,012');
+    expect(fixture.nativeElement.textContent).toContain('€388');
   });
 
   it('renders confirmed trip snapshots and hydrates them for Edit All Details', () => {
