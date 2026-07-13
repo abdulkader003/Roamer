@@ -22,6 +22,7 @@ import { TripComponent } from './pages/trips/trip/trip.component';
 import { BudgetTracker } from './pages/budget-tracker/budget-tracker';
 import { ProfileComponent } from './pages/profile/profile.component';
 import { SettingsComponent } from './pages/settings/settings.component';
+import { TravelDealsComponent } from './pages/travel-deals/travel-deals.component';
 
 export const routes: Routes = [
   {
@@ -43,6 +44,7 @@ export const routes: Routes = [
   { path: 'trips/create/flights', component: TripFlightsComponent, canActivate: [authGuard] },
   { path: 'budget-tracker', component: BudgetTracker, canActivate: [authGuard] },
   { path: 'settings', component: SettingsComponent, canActivate: [authGuard] },
+  { path: 'travel-deals', component: TravelDealsComponent, canActivate: [authGuard] },
 
   { path: 'flights', component: FlightsComponent },
   { path: 'activities', component: ActivitiesListComponent },

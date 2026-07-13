@@ -572,6 +572,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => void this.router.navigate(['/trips/create/budget']), 260);
   }
 
+
   goToPreviousCalendarMonth(): void {
     this.changeCalendarMonth(-1);
   }

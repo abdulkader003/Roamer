@@ -10,7 +10,7 @@ import {
   ValidatorFn,
   Validators
 } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AirportOption, AirportOptionsService } from '../../services/airport-options.service';
 import { AuthService } from '../../services/auth';
@@ -104,6 +104,7 @@ export class ProfileComponent implements OnInit {
   private readonly tripPlanningService = inject(TripPlanningService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -189,6 +190,9 @@ export class ProfileComponent implements OnInit {
     this.loadProfile();
     this.loadUpcomingTripCountries();
     this.loadFriendCommunity();
+    this.route.fragment
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((fragment) => this.focusFriendSearchFromFragment(fragment));
   }
 
   get profileImageUrl(): string {
@@ -289,6 +293,7 @@ export class ProfileComponent implements OnInit {
         next: (profile) => this.renderNow(() => {
           this.applyProfile(profile);
           this.isLoading = false;
+          this.focusFriendSearchFromFragment(this.route.snapshot.fragment);
         }),
         error: (error) => this.renderNow(() => {
           this.profileError = this.extractErrorMessage(error, 'Could not load your profile.');
@@ -846,6 +851,18 @@ export class ProfileComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((value) => this.loadFriendSearchResults(value));
+  }
+
+  private focusFriendSearchFromFragment(fragment: string | null): void {
+    if (fragment !== 'friend-search') {
+      return;
+    }
+
+    setTimeout(() => {
+      const input = document.getElementById('friend-search-input') as HTMLInputElement | null;
+      input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input?.focus();
+    });
   }
 
   private updateAirportSuggestions(value: string): void {

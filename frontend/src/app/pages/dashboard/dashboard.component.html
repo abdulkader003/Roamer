@@ -335,30 +335,35 @@
           <span class="section-title">Quick Actions</span>
         </div>
         <div class="actions-grid">
-          <button routerLink="/flights" class="action-btn" style="background:var(--qa-flight-bg);color:var(--qa-flight-text);border-color:var(--qa-flight-border)">
+          <button
+            type="button"
+            class="action-btn"
+            routerLink="/travel-deals"
+            style="background:var(--qa-deals-bg, var(--qa-event-bg));color:var(--qa-deals-text, var(--qa-event-text));border-color:var(--qa-deals-border, var(--qa-event-border))"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7"/>
+              <path d="M2 7h20v5H2z"/>
+              <path d="M12 22V7"/>
+              <path d="M12 7H7.5a2.5 2.5 0 1 1 2.1-3.85C10.4 4.2 12 7 12 7z"/>
+              <path d="M12 7h4.5a2.5 2.5 0 1 0-2.1-3.85C13.6 4.2 12 7 12 7z"/>
             </svg>
-            Book Flight
+            Travel Deals
           </button>
-          <button class="action-btn" style="background:var(--qa-hotel-bg);color:var(--qa-hotel-text);border-color:var(--qa-hotel-border)">
+          <button
+            type="button"
+            class="action-btn"
+            routerLink="/profile"
+            fragment="friend-search"
+            style="background:var(--qa-flight-bg);color:var(--qa-flight-text);border-color:var(--qa-flight-border)"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M19 8v6"/>
+              <path d="M22 11h-6"/>
             </svg>
-            Find Hotel
-          </button>
-          <button class="action-btn" style="background:var(--qa-event-bg);color:var(--qa-event-text);border-color:var(--qa-event-border)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Book Event
-          </button>
-          <button class="action-btn" style="background:var(--qa-budget-bg);color:var(--qa-budget-text);border-color:var(--qa-budget-border)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
-              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-            </svg>
-            Set Budget
+            Invite Friend
           </button>
         </div>
       </div>
