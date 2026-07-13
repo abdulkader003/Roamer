@@ -1,7 +1,5 @@
 import { NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/sidebar/sidebar.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';

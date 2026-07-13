@@ -6,7 +6,7 @@ spring:
   application:
     name: sep-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/sep}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sep}
     username: ${SPRING_DATASOURCE_USERNAME:sep}
     password: ${SPRING_DATASOURCE_PASSWORD:sepsep123}
 
