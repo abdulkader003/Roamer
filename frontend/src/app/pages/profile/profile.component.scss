@@ -1,9 +1,7 @@
 .profile-page {
   min-height: calc(100vh - 64px);
   padding: 30px clamp(18px, 4vw, 48px) 48px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--accent-bg) 38%, var(--page-bg)) 0%, var(--page-bg) 340px),
-    var(--page-bg);
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -1282,7 +1280,7 @@ app-world-travel-map {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 160;
+  z-index: var(--z-modal, 1300);
   display: grid;
   place-items: center;
   padding: 20px;

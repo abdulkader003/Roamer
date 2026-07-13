@@ -1,6 +1,6 @@
 .calendar-page {
-  --calendar-page-bg: var(--page-bg);
-  --calendar-card-bg: var(--surface-primary);
+  --calendar-page-bg: transparent;
+  --calendar-card-bg: var(--translucent-surface-strong, var(--surface-primary));
   --calendar-panel-bg: var(--surface-secondary);
   --calendar-panel-bg-hover: var(--surface-hover);
   --calendar-border: var(--border);
@@ -28,6 +28,8 @@
   box-shadow: 0 12px 35px var(--calendar-shadow);
   padding: 32px;
   border: 1px solid var(--calendar-border);
+  backdrop-filter: blur(18px) saturate(128%);
+  -webkit-backdrop-filter: blur(18px) saturate(128%);
 }
 
 .calendar-toolbar {
@@ -249,7 +251,6 @@
 
 .month-week {
   position: relative;
-  isolation: isolate;
   --hotel-lane-count: 0;
 }
 
@@ -534,27 +535,38 @@
 
 .event-drawer-overlay {
   position: fixed;
-  top: 64px;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 40;
-  display: flex;
-  justify-content: flex-end;
-  background: var(--calendar-overlay);
-  backdrop-filter: blur(4px);
+  inset: 0;
+  z-index: var(--z-modal, 1300);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--modal-backdrop-bg);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .event-drawer {
-  width: min(460px, 100vw);
-  height: calc(100vh - 64px);
+  width: min(560px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
   padding: 28px 24px 24px;
   box-sizing: border-box;
-  background: var(--calendar-card-bg);
-  border-left: 1px solid var(--calendar-border);
-  box-shadow: -24px 0 48px var(--calendar-shadow);
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
+  border-radius: 16px;
+  box-shadow: none !important;
+  filter: none !important;
+  outline: none !important;
+  border-left: none !important;
+  border-right: none !important;
   overflow-y: auto;
-  animation: drawer-slide-in 0.24s ease-out;
+  animation: modal-in 0.2s ease-out;
+}
+
+.event-drawer :where(button, input, select, textarea, [tabindex]):focus,
+.event-drawer :where(button, input, select, textarea, [tabindex]):focus-visible {
+  box-shadow: none !important;
+  filter: none !important;
+  outline: none !important;
 }
 
 .event-drawer-header {
@@ -679,6 +691,13 @@
 .form-field input:focus,
 .form-field textarea:focus,
 .form-field select:focus {
+  border-color: var(--calendar-border);
+  box-shadow: none;
+}
+
+.form-field input:focus-visible,
+.form-field textarea:focus-visible,
+.form-field select:focus-visible {
   border-color: var(--calendar-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--calendar-accent) 12%, transparent);
 }
@@ -733,13 +752,14 @@
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 50;
+  z-index: var(--z-modal, 1300);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   background: var(--calendar-overlay);
-  backdrop-filter: blur(5px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .event-modal {
@@ -748,8 +768,8 @@
   overflow-y: auto;
   border: 1px solid var(--calendar-border);
   border-radius: 14px;
-  background: var(--calendar-card-bg);
-  box-shadow: 0 28px 80px var(--calendar-shadow);
+  background: var(--modal-bg);
+  box-shadow: var(--modal-shadow);
   padding: 24px;
 }
 
@@ -871,21 +891,22 @@
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 60;
+  z-index: var(--z-modal, 1300);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   background: var(--calendar-overlay);
-  backdrop-filter: blur(5px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .confirm-dialog {
   width: min(420px, 100%);
   border: 1px solid var(--calendar-border);
   border-radius: 14px;
-  background: var(--calendar-card-bg);
-  box-shadow: 0 28px 80px var(--calendar-shadow);
+  background: var(--modal-bg);
+  box-shadow: var(--modal-shadow);
   padding: 24px;
 }
 
@@ -926,6 +947,18 @@
 
   to {
     transform: translateX(0);
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1052,7 +1085,8 @@
   }
 
   .event-drawer {
-    width: 100vw;
+    width: 100%;
+    max-height: calc(100vh - 32px);
     padding: 24px 18px 20px;
   }
 
@@ -1083,7 +1117,7 @@
   border-radius: 10px;
   margin-top: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-  z-index: 1000;
+  z-index: var(--z-popover, 1100);
   overflow: hidden;
 }
 

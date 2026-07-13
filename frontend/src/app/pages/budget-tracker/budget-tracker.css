@@ -1,6 +1,6 @@
 .main-content {
   padding: 28px;
-  background: var(--page-bg);
+  background: transparent;
   min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
@@ -24,10 +24,12 @@
 
 /* ── Section card ── */
 .section-card {
-  background: var(--surface-primary);
+  background: var(--translucent-surface-strong, var(--surface-primary));
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
+  backdrop-filter: blur(18px) saturate(128%);
+  -webkit-backdrop-filter: blur(18px) saturate(128%);
   transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 
@@ -860,7 +862,7 @@
 .expense-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-modal, 1300);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -995,7 +997,7 @@
   top: calc(100% + 7px);
   left: 0;
   right: 0;
-  z-index: 70;
+  z-index: var(--z-popover, 1100);
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1097,7 +1099,7 @@
   left: 0;
   right: 0;
   top: calc(100% + 7px);
-  z-index: 75;
+  z-index: var(--z-popover, 1100);
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface-primary);
@@ -1273,7 +1275,7 @@
 .confirm-dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-modal, 1300);
   display: flex;
   align-items: center;
   justify-content: center;

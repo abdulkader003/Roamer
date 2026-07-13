@@ -20,6 +20,7 @@
       }
     ]
   },
+
   "private": true,
   "dependencies": {
     "@angular/common": "21.2.11",
@@ -41,6 +42,7 @@
     "@angular/cli": "21.2.9",
     "@angular/compiler-cli": "21.2.11",
     "@tailwindcss/postcss": "^4.2.4",
+    "@types/html2canvas": "^0.5.35",
     "@types/jasmine": "~5.1.0",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",

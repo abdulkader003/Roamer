@@ -1,7 +1,13 @@
-import { Component, HostListener, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ThemePreference, ThemeService } from '../../services/theme.service';
+import {
+  CalendarViewPreference,
+  FeedbackPayload,
+  SettingsPreferences,
+  SettingsService
+} from '../../services/settings.service';
 
 @Component({
   selector: 'app-settings',
@@ -12,9 +18,11 @@ import { ThemePreference, ThemeService } from '../../services/theme.service';
 })
 export class SettingsComponent implements OnInit {
   private readonly themeService = inject(ThemeService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   // ── Section 1: Notifications ──
-  notifications = {
+  notifications: SettingsPreferences['notifications'] = {
     tripReminders: true,
     budgetAlerts: true,
     bookingUpdates: false
@@ -22,10 +30,10 @@ export class SettingsComponent implements OnInit {
 
   // ── Section 2: App Preferences ──
   readonly theme = this.themeService.theme;
-  defaultCalendarView: 'monthly' | 'weekly' = 'monthly';
+  defaultCalendarView: CalendarViewPreference = 'monthly';
 
   // ── Section 3: Privacy ──
-  privacy = {
+  privacy: SettingsPreferences['privacy'] = {
     shareTripData: false,
     allowAnalytics: true
   };
@@ -49,7 +57,7 @@ export class SettingsComponent implements OnInit {
     },
     {
       question: 'How do I switch between light and dark mode?',
-      answer: 'Go to Settings → App Preferences and choose Light, Dark, or System (follows your device setting).',
+      answer: 'Go to Settings → App Preferences and choose Light, Dark, or System. System follows your operating system theme.',
       open: false
     },
     {
@@ -65,6 +73,14 @@ export class SettingsComponent implements OnInit {
   feedbackEmoji = '';
   feedbackText = '';
   feedbackSubmitted = false;
+  feedbackSubmitting = false;
+  feedbackError = '';
+
+  isTermsOpen = false;
+  isLoadingSettings = false;
+  isSavingSettings = false;
+  settingsError = '';
+  private hasUserEditedSettings = false;
 
   readonly emojis = [
     { emoji: '😞', label: 'Terrible' },
@@ -74,28 +90,45 @@ export class SettingsComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.loadSettings();
+    void this.loadSettings();
   }
 
   // ── Load / Save ──
-  private loadSettings(): void {
-    const saved = localStorage.getItem('roamer-settings');
-    if (!saved) return;
+  private async loadSettings(): Promise<void> {
+    this.isLoadingSettings = true;
     try {
-      const data = JSON.parse(saved);
-      if (data.notifications) this.notifications = data.notifications;
-      if (data.defaultCalendarView) this.defaultCalendarView = data.defaultCalendarView;
-      if (data.privacy) this.privacy = data.privacy;
-    } catch {}
+      const settings = await this.settingsService.loadPreferences(this.currentPreferences());
+      if (this.hasUserEditedSettings) {
+        return;
+      }
+
+      this.notifications = { ...settings.notifications };
+      this.defaultCalendarView = settings.defaultCalendarView;
+      this.privacy = { ...settings.privacy };
+    } finally {
+      this.isLoadingSettings = false;
+      this.cdr.detectChanges();
+    }
   }
 
-  saveSettings(): void {
-    localStorage.setItem('roamer-settings', JSON.stringify({
-      notifications: this.notifications,
-      defaultCalendarView: this.defaultCalendarView,
-      privacy: this.privacy
-    }));
-    this.showSaveToast();
+  async saveSettings(): Promise<void> {
+    if (this.isSavingSettings) {
+      return;
+    }
+
+    this.isSavingSettings = true;
+    this.settingsError = '';
+    try {
+      await this.settingsService.savePreferences(this.currentPreferences());
+      this.hasUserEditedSettings = false;
+      this.showSaveToast();
+    } catch (error) {
+      console.error('Settings could not be saved to the backend.', error);
+      this.settingsError = 'Settings could not be saved. Please try again.';
+    } finally {
+      this.isSavingSettings = false;
+      this.cdr.detectChanges();
+    }
   }
 
   isSaveToastVisible = false;
@@ -103,6 +136,40 @@ export class SettingsComponent implements OnInit {
   private showSaveToast(): void {
     this.isSaveToastVisible = true;
     setTimeout(() => { this.isSaveToastVisible = false; }, 2500);
+  }
+
+  private currentPreferences(): SettingsPreferences {
+    return {
+      notifications: { ...this.notifications },
+      defaultCalendarView: this.defaultCalendarView,
+      privacy: { ...this.privacy }
+    };
+  }
+
+  toggleNotification(setting: keyof SettingsPreferences['notifications']): void {
+    this.markSettingsEdited();
+    this.notifications = {
+      ...this.notifications,
+      [setting]: !this.notifications[setting]
+    };
+  }
+
+  togglePrivacy(setting: keyof SettingsPreferences['privacy']): void {
+    this.markSettingsEdited();
+    this.privacy = {
+      ...this.privacy,
+      [setting]: !this.privacy[setting]
+    };
+  }
+
+  selectCalendarView(view: CalendarViewPreference): void {
+    this.markSettingsEdited();
+    this.defaultCalendarView = view;
+  }
+
+  private markSettingsEdited(): void {
+    this.hasUserEditedSettings = true;
+    this.settingsError = '';
   }
 
   // ── Theme ──
@@ -124,6 +191,8 @@ export class SettingsComponent implements OnInit {
     this.feedbackEmoji = '';
     this.feedbackText = '';
     this.feedbackSubmitted = false;
+    this.feedbackSubmitting = false;
+    this.feedbackError = '';
     this.isFeedbackOpen = true;
   }
 
@@ -136,6 +205,9 @@ export class SettingsComponent implements OnInit {
     if (this.isFeedbackOpen) {
       this.closeFeedback();
     }
+    if (this.isTermsOpen) {
+      this.closeTerms();
+    }
   }
 
   setRating(rating: number): void {
@@ -146,11 +218,43 @@ export class SettingsComponent implements OnInit {
     this.feedbackEmoji = emoji;
   }
 
-  submitFeedback(): void {
-    if (!this.feedbackRating) return;
-    this.feedbackSubmitted = true;
-    setTimeout(() => {
-      this.isFeedbackOpen = false;
-    }, 2000);
+  async submitFeedback(): Promise<void> {
+    this.feedbackError = '';
+
+    if (!this.feedbackRating) {
+      this.feedbackError = 'Please choose a star rating before submitting.';
+      return;
+    }
+
+    this.feedbackSubmitting = true;
+    const payload: FeedbackPayload = {
+      rating: this.feedbackRating,
+      emoji: this.feedbackEmoji,
+      message: this.feedbackText.trim(),
+      submittedAt: new Date().toISOString()
+    };
+
+    try {
+      await this.settingsService.submitFeedback(payload);
+      this.feedbackSubmitted = true;
+      this.cdr.detectChanges();
+      setTimeout(() => {
+        this.isFeedbackOpen = false;
+        this.feedbackSubmitting = false;
+        this.cdr.detectChanges();
+      }, 2000);
+    } catch {
+      this.feedbackSubmitting = false;
+      this.feedbackError = 'Feedback could not be saved. Please try again.';
+      this.cdr.detectChanges();
+    }
+  }
+
+  openTerms(): void {
+    this.isTermsOpen = true;
+  }
+
+  closeTerms(): void {
+    this.isTermsOpen = false;
   }
 }
