@@ -49,6 +49,18 @@ class TripControllerTest {
     }
 
     @Test
+    void getTripUsesAuthenticatedEmailAndTripId() {
+        TripResponse trip = response();
+        when(authentication.getName()).thenReturn("traveler@example.com");
+        when(tripService.getTrip("traveler@example.com", 11L)).thenReturn(trip);
+
+        TripResponse response = tripController.getTrip(authentication, 11L);
+
+        assertThat(response).isEqualTo(trip);
+        verify(tripService).getTrip("traveler@example.com", 11L);
+    }
+
+    @Test
     void createTripUsesAuthenticatedEmailAndRequest() {
         CreateTripRequest request = request();
         TripResponse savedTrip = response();

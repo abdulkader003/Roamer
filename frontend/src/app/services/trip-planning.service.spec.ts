@@ -1,14 +1,19 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { AuthService } from './auth';
+import { RealtimeWebSocketService } from './realtime-websocket.service';
 import { CreateTripBudgetRequest, TripPlanningService } from './trip-planning.service';
 
 describe('TripPlanningService', () => {
   let service: TripPlanningService;
   let httpTesting: HttpTestingController;
+  let realtimeMessages: Subject<unknown>;
 
   beforeEach(() => {
+    realtimeMessages = new Subject<unknown>();
+
     TestBed.configureTestingModule({
       providers: [
         TripPlanningService,
@@ -17,6 +22,10 @@ describe('TripPlanningService', () => {
         {
           provide: AuthService,
           useValue: { authHeader: () => ({ Authorization: 'Bearer test-token' }) },
+        },
+        {
+          provide: RealtimeWebSocketService,
+          useValue: { observe: () => realtimeMessages.asObservable() },
         },
       ],
     });
@@ -184,6 +193,97 @@ describe('TripPlanningService', () => {
         createdAt: '2026-06-20T18:00:00Z',
       },
     ]);
+  });
+
+  it('loads one accessible trip with the existing JWT header', () => {
+    service.getTrip(20).subscribe((trip) => {
+      expect(trip.name).toBe('Draft Barcelona');
+    });
+
+    const httpRequest = httpTesting.expectOne('/api/trips/20');
+    expect(httpRequest.request.method).toBe('GET');
+    expect(httpRequest.request.headers.get('Authorization')).toBe('Bearer test-token');
+    httpRequest.flush({
+      id: 20,
+      name: 'Draft Barcelona',
+      destination: 'Barcelona',
+      startDate: '2026-07-14',
+      endDate: '2026-07-21',
+      budget: 2000,
+      status: 'PLANNING',
+      createdAt: '2026-06-20T18:00:00Z',
+    });
+  });
+
+  it('emits realtime trip budget updates from websocket notifications', (done) => {
+    const updates: Array<{
+      notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+      tripId: number;
+    }> = [];
+
+    service.observeTripUpdates().subscribe((event) => {
+      updates.push(event);
+      expect(updates).toHaveSize(1);
+      expect(event.notificationType).toBe('TRIP_BUDGET_UPDATE');
+      expect(event.tripId).toBe(20);
+      done();
+    });
+
+    realtimeMessages.next({
+      eventType: 'TRIP_EXPENSE_CREATED',
+      notificationType: 'TRIP_BUDGET_UPDATE',
+      notificationId: 77,
+      title: 'Trip budget updated',
+      description: 'Ada Lovelace added an expense to Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · food',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
+  });
+
+  it('emits realtime trip participant updates from websocket notifications', (done) => {
+    const updates: Array<{
+      notificationType: 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+      tripId: number;
+    }> = [];
+
+    service.observeTripUpdates().subscribe((event) => {
+      updates.push(event);
+      expect(updates).toHaveSize(1);
+      expect(event.notificationType).toBe('TRIP_PARTICIPANT_JOINED');
+      expect(event.tripId).toBe(20);
+      done();
+    });
+
+    realtimeMessages.next({
+      eventType: 'TRIP_PARTICIPANT_JOINED',
+      notificationType: 'TRIP_PARTICIPANT_JOINED',
+      notificationId: 78,
+      title: 'Trip participants updated',
+      description: 'Grace Hopper joined Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · Grace Hopper',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
+  });
+
+  it('subscribes to trip topic updates for a specific trip', (done) => {
+    service.observeTripTopicUpdates(20).subscribe((event) => {
+      expect(event.notificationType).toBe('TRIP_UPDATE');
+      expect(event.tripId).toBe(20);
+      done();
+    });
+
+    realtimeMessages.next({
+      eventType: 'TRIP_DETAILS_UPDATED',
+      notificationType: 'TRIP_UPDATE',
+      notificationId: 79,
+      title: 'Trip updated',
+      description: 'Ada Lovelace updated Shared Rome.',
+      details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €120 · Ada Lovelace',
+      createdAt: '2026-07-03T08:15:30Z',
+      relatedEntityId: 20,
+    });
   });
 
   it('invites an accepted friend to a trip with the existing JWT header', () => {

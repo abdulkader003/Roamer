@@ -3,10 +3,11 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CalendarService } from '../hotels/services/calendar.service';
 import { AuthFlow, AuthService } from '../../services/auth';
+import { RoamerAvatarComponent } from '../../shared/roamer-avatar/roamer-avatar.component';
 
 @Component({
   selector: 'app-verify-email',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, RoamerAvatarComponent],
   templateUrl: './verify-email.html',
   styleUrl: './verify-email.css'
 })

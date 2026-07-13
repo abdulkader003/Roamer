@@ -10,6 +10,9 @@ import com.sep.budget.dto.CreateExpenseRequest;
 import com.sep.budget.dto.ExpenseResponse;
 import com.sep.budget.dto.TripBudgetRowResponse;
 import com.sep.trip.Trip;
+import com.sep.trip.TripInvitation;
+import com.sep.trip.TripInvitationRepository;
+import com.sep.trip.TripInvitationStatus;
 import com.sep.trip.TripRepository;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
@@ -25,6 +28,7 @@ import java.time.Month;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.TreeMap;
 import java.util.List;
 import java.util.Locale;
@@ -48,9 +52,11 @@ public class BudgetService {
     );
 
     private final TripRepository tripRepository;
+    private final TripInvitationRepository tripInvitationRepository;
     private final ExpenseRepository expenseRepository;
     private final CategoryBudgetLimitRepository categoryBudgetLimitRepository;
     private final AppUserRepository appUserRepository;
+    private final BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher;
     private final Clock clock;
 
     private record SpendingEntry(
@@ -64,24 +70,38 @@ public class BudgetService {
     @Autowired
     public BudgetService(
             TripRepository tripRepository,
+            TripInvitationRepository tripInvitationRepository,
             ExpenseRepository expenseRepository,
             CategoryBudgetLimitRepository categoryBudgetLimitRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher
     ) {
-        this(tripRepository, expenseRepository, categoryBudgetLimitRepository, appUserRepository, Clock.systemDefaultZone());
+        this(
+                tripRepository,
+                tripInvitationRepository,
+                expenseRepository,
+                categoryBudgetLimitRepository,
+                appUserRepository,
+                budgetRealtimeWebSocketPublisher,
+                Clock.systemDefaultZone()
+        );
     }
 
     BudgetService(
             TripRepository tripRepository,
+            TripInvitationRepository tripInvitationRepository,
             ExpenseRepository expenseRepository,
             CategoryBudgetLimitRepository categoryBudgetLimitRepository,
             AppUserRepository appUserRepository,
+            BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher,
             Clock clock
     ) {
         this.tripRepository = tripRepository;
+        this.tripInvitationRepository = tripInvitationRepository;
         this.expenseRepository = expenseRepository;
         this.categoryBudgetLimitRepository = categoryBudgetLimitRepository;
         this.appUserRepository = appUserRepository;
+        this.budgetRealtimeWebSocketPublisher = budgetRealtimeWebSocketPublisher;
         this.clock = clock;
     }
 
@@ -186,6 +206,7 @@ public class BudgetService {
         expense.setDate(request.date());
 
         Expense saved = expenseRepository.save(expense);
+        budgetRealtimeWebSocketPublisher.publishExpenseCreated(trip, owner, sharedTripParticipants(trip), saved);
 
         return toExpenseResponse(saved);
     }
@@ -197,6 +218,8 @@ public class BudgetService {
         Expense expense = expenseRepository.findByIdAndTripOwnerId(expenseId, owner.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Expense was not found."));
 
+        Trip originalTrip = expense.getTrip();
+        Expense originalExpense = snapshotExpense(expense);
         Trip trip = tripRepository.findById(request.tripId())
                 .orElseThrow(() -> new IllegalArgumentException("Trip was not found."));
 
@@ -212,6 +235,21 @@ public class BudgetService {
 
         Expense saved = expenseRepository.save(expense);
 
+        if (originalTrip != null && originalTrip.getId() != null && originalTrip.getId().equals(trip.getId())) {
+            budgetRealtimeWebSocketPublisher.publishExpenseUpdated(trip, owner, sharedTripParticipants(trip), saved);
+        } else {
+            if (originalTrip != null) {
+                budgetRealtimeWebSocketPublisher.publishExpenseDeleted(
+                        originalTrip,
+                        owner,
+                        sharedTripParticipants(originalTrip),
+                        originalExpense
+                );
+            }
+
+            budgetRealtimeWebSocketPublisher.publishExpenseCreated(trip, owner, sharedTripParticipants(trip), saved);
+        }
+
         return toExpenseResponse(saved);
     }
 
@@ -222,6 +260,7 @@ public class BudgetService {
         Expense expense = expenseRepository.findByIdAndTripOwnerId(expenseId, owner.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Expense was not found."));
 
+        budgetRealtimeWebSocketPublisher.publishExpenseDeleted(expense.getTrip(), owner, sharedTripParticipants(expense.getTrip()), expense);
         expenseRepository.delete(expense);
     }
 
@@ -515,6 +554,26 @@ public class BudgetService {
         return tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(owner.getId());
     }
 
+    private List<AppUser> sharedTripParticipants(Trip trip) {
+        if (trip == null || trip.getId() == null) {
+            return List.of();
+        }
+
+        Map<Long, AppUser> participants = new LinkedHashMap<>();
+        for (TripInvitation invitation : tripInvitationRepository.findAllByTripIdAndStatusOrderByCreatedAtDesc(
+                trip.getId(),
+                TripInvitationStatus.ACCEPTED
+        )) {
+            AppUser invitedUser = invitation.getInvitedUser();
+            if (invitedUser == null || invitedUser.getId() == null) {
+                continue;
+            }
+            participants.putIfAbsent(invitedUser.getId(), invitedUser);
+        }
+
+        return new ArrayList<>(participants.values());
+    }
+
     private List<Expense> accessibleExpenses(List<Trip> trips) {
         if (trips.isEmpty()) {
             return List.of();
@@ -551,6 +610,16 @@ public class BudgetService {
         }
 
         return amount;
+    }
+
+    private Expense snapshotExpense(Expense expense) {
+        Expense snapshot = new Expense();
+        snapshot.setTrip(expense.getTrip());
+        snapshot.setCategory(expense.getCategory());
+        snapshot.setAmount(expense.getAmount());
+        snapshot.setDescription(expense.getDescription());
+        snapshot.setDate(expense.getDate());
+        return snapshot;
     }
 
     private boolean isOverBudget(BigDecimal budget, BigDecimal spent) {

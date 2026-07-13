@@ -25,10 +25,16 @@ public class FriendService {
 
     private final AppUserRepository userRepository;
     private final FriendRequestRepository friendRequestRepository;
+    private final FriendNotificationWebSocketPublisher friendNotificationWebSocketPublisher;
 
-    public FriendService(AppUserRepository userRepository, FriendRequestRepository friendRequestRepository) {
+    public FriendService(
+            AppUserRepository userRepository,
+            FriendRequestRepository friendRequestRepository,
+            FriendNotificationWebSocketPublisher friendNotificationWebSocketPublisher
+    ) {
         this.userRepository = userRepository;
         this.friendRequestRepository = friendRequestRepository;
+        this.friendNotificationWebSocketPublisher = friendNotificationWebSocketPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -54,7 +60,8 @@ public class FriendService {
 
         validateSendRequest(sender, receiver);
 
-        friendRequestRepository.save(new FriendRequest(sender, receiver, FriendRequestStatus.PENDING));
+        FriendRequest friendRequest = friendRequestRepository.save(new FriendRequest(sender, receiver, FriendRequestStatus.PENDING));
+        friendNotificationWebSocketPublisher.publishFriendRequestCreated(friendRequest);
         return new MessageResponse("Friend request sent.");
     }
 
@@ -71,7 +78,8 @@ public class FriendService {
     public MessageResponse acceptFriendRequest(String authenticatedEmail, Long requestId) {
         FriendRequest friendRequest = findPendingRequestForReceiver(authenticatedEmail, requestId);
         friendRequest.setStatus(FriendRequestStatus.ACCEPTED);
-        friendRequestRepository.save(friendRequest);
+        FriendRequest savedRequest = friendRequestRepository.save(friendRequest);
+        friendNotificationWebSocketPublisher.publishFriendRequestAccepted(savedRequest);
         return new MessageResponse("Friend request accepted.");
     }
 
@@ -79,7 +87,8 @@ public class FriendService {
     public MessageResponse declineFriendRequest(String authenticatedEmail, Long requestId) {
         FriendRequest friendRequest = findPendingRequestForReceiver(authenticatedEmail, requestId);
         friendRequest.setStatus(FriendRequestStatus.DECLINED);
-        friendRequestRepository.save(friendRequest);
+        FriendRequest savedRequest = friendRequestRepository.save(friendRequest);
+        friendNotificationWebSocketPublisher.publishFriendRequestDeclined(savedRequest);
         return new MessageResponse("Friend request declined.");
     }
 

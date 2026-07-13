@@ -45,6 +45,14 @@ public class TripController {
     }
 
     /**
+     * Returns one accessible trip for the authenticated account.
+     */
+    @GetMapping("/{tripId}")
+    public TripResponse getTrip(Authentication authentication, @PathVariable Long tripId) {
+        return tripService.getTrip(authentication.getName(), tripId);
+    }
+
+    /**
      * Creates a trip for the authenticated account after DTO and date validation.
      */
     @PostMapping

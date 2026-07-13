@@ -359,10 +359,12 @@ export class ProfileComponent implements OnInit {
 
     const homeAirportCode = this.resolveHomeAirportCodeForSave();
     if (homeAirportCode === null) {
+      this.setHomeAirportError();
       this.profileForm.controls.homeAirport.markAsTouched();
       this.profileError = 'Choose a matching airport suggestion or enter a valid 3-letter IATA code.';
       return;
     }
+    this.clearHomeAirportError();
 
     const formValue = this.profileForm.getRawValue();
     const request: UpdateProfileRequest = {
@@ -562,9 +564,13 @@ export class ProfileComponent implements OnInit {
   selectHomeAirport(airport: AirportOption): void {
     this.selectedHomeAirport = airport;
     this.profileForm.controls.homeAirport.setValue(this.airportOptions.formatAirport(airport), { emitEvent: false });
+    this.profileForm.controls.homeAirport.markAsDirty();
+    this.profileForm.controls.homeAirport.markAsTouched();
+    this.clearHomeAirportError();
     this.airportSuggestions = [];
     this.airportSearchMessage = '';
     this.isAirportPickerOpen = false;
+    this.refreshView();
   }
 
   togglePasswordVisibility(field: 'current' | 'new' | 'confirm'): void {
@@ -867,6 +873,10 @@ export class ProfileComponent implements OnInit {
       ? exactAirport
       : null;
 
+    if (!query || this.selectedHomeAirport || /^[A-Za-z]{3}$/.test(query)) {
+      this.clearHomeAirportError();
+    }
+
     if (!this.isAirportPickerOpen) {
       return;
     }
@@ -906,16 +916,50 @@ export class ProfileComponent implements OnInit {
       return '';
     }
 
-    const airport = this.selectedHomeAirport ?? this.airportOptions.find(rawValue);
+    const foundAirport = this.airportOptions.find(rawValue);
+    const selectedAirport = this.selectedHomeAirport && this.isExactAirportSelection(rawValue, this.selectedHomeAirport)
+      ? this.selectedHomeAirport
+      : null;
+    const airport = foundAirport ?? selectedAirport;
+
     if (airport) {
+      this.selectedHomeAirport = airport;
+      this.profileForm.controls.homeAirport.setValue(this.airportOptions.formatAirport(airport), { emitEvent: false });
       return airport.code;
     }
 
-    if (/^[A-Za-z]{3}$/.test(rawValue)) {
-      return rawValue.toUpperCase();
+    const codeFromText = this.extractAirportCode(rawValue);
+    if (codeFromText) {
+      return codeFromText;
     }
 
     return null;
+  }
+
+  private extractAirportCode(value: string): string | null {
+    const parenthesizedCode = value.match(/\(([A-Za-z]{3})\)/)?.[1];
+    const exactCode = value.match(/^[A-Za-z]{3}$/)?.[0];
+    const trailingCode = value.match(/(?:^|[\s·,/-])([A-Za-z]{3})\s*$/)?.[1];
+    const code = parenthesizedCode || exactCode || trailingCode || '';
+
+    return code ? code.toUpperCase() : null;
+  }
+
+  private setHomeAirportError(): void {
+    const control = this.profileForm.controls.homeAirport;
+    control.setErrors({ ...(control.errors ?? {}), airport: true });
+  }
+
+  private clearHomeAirportError(): void {
+    const control = this.profileForm.controls.homeAirport;
+
+    if (!control.hasError('airport')) {
+      return;
+    }
+
+    const remainingErrors = { ...(control.errors ?? {}) };
+    delete remainingErrors['airport'];
+    control.setErrors(Object.keys(remainingErrors).length ? remainingErrors : null);
   }
 
   private normalizeTravelAchievements(values: string[]): string[] {

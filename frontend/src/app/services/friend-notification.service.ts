@@ -1,18 +1,31 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { catchError, forkJoin, of } from 'rxjs';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService, FriendRequestItem } from './friend-community.service';
-import { TripPlanningService, TripInvitationResponse } from './trip-planning.service';
+import { RealtimeWebSocketService } from './realtime-websocket.service';
+import { TripPlanningService, TripInvitationResponse, TripRealtimeEvent, TripResponse } from './trip-planning.service';
 
 export interface FriendNotificationItem {
   id: number;
-  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE';
+  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
   requestId: number;
   title: string;
   description: string;
   details?: string;
   createdAt: string;
   read: boolean;
+}
+
+export interface RealtimeNotificationMessage {
+  eventType: string;
+  notificationType: FriendNotificationItem['type'];
+  notificationId: number;
+  title: string;
+  description: string;
+  details?: string | null;
+  createdAt: string;
+  relatedEntityId?: number | null;
+  actorEmail?: string | null;
 }
 
 @Injectable({
@@ -22,18 +35,41 @@ export class FriendNotificationService {
   private readonly authService = inject(AuthService);
   private readonly friendCommunityService = inject(FriendCommunityService);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly realtimeWebSocketService = inject(RealtimeWebSocketService, { optional: true });
   private dismissedNotificationsStorageKey = this.buildDismissedNotificationsStorageKey();
   private notificationsStorageKey = this.buildNotificationsStorageKey();
   private readonly notifications = signal<FriendNotificationItem[]>(this.loadStoredNotifications());
   private readonly dismissedNotificationKeys = signal<string[]>(this.loadDismissedNotificationKeys());
   private readNotificationKeysStorageKey = this.buildReadNotificationsStorageKey();
   private readonly readNotificationKeys = signal<string[]>(this.loadReadNotificationKeys());
+  private readonly tripTopicSubscriptions = new Map<number, Subscription>();
 
   readonly items = this.notifications.asReadonly();
   readonly unreadCount = computed(() => this.notifications().filter((notification) => !notification.read && !this.isRead(notification.type, notification.requestId) && !this.isDismissed(notification.type, notification.requestId)).length);
   readonly hasNotifications = computed(() => this.notifications().length > 0);
 
+  constructor() {
+    this.realtimeWebSocketService?.observe<RealtimeNotificationMessage>('/user/queue/notifications').subscribe((message) => {
+      this.ingestRealtimeNotification(message);
+    });
+
+    effect(
+      () => {
+        const token = (this.authService.token?.() ?? '').trim();
+
+        if (!token) {
+          this.clearTripTopicSubscriptions();
+          return;
+        }
+
+        this.refreshTripTopicSubscriptions();
+      },
+      { allowSignalWrites: true }
+    );
+  }
+
   refresh(): void {
+    this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
 
     forkJoin({
@@ -44,6 +80,7 @@ export class FriendNotificationService {
       next: ({ requests, invitations, sentInvitations }) => {
         if (requests && invitations && sentInvitations) {
           this.syncNotifications(requests, invitations, sentInvitations);
+          this.refreshTripTopicSubscriptions();
           return;
         }
 
@@ -58,6 +95,8 @@ export class FriendNotificationService {
         if (sentInvitations) {
           this.syncSentTripInvitationResponses(sentInvitations);
         }
+
+        this.refreshTripTopicSubscriptions();
       },
       error: () => {
         // Keep the last known notifications if the refresh fails.
@@ -66,6 +105,7 @@ export class FriendNotificationService {
   }
 
   syncIncomingRequests(requests: FriendRequestItem[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     this.mergeNotifications(
       requests.map((request) => this.friendRequestNotification(request, new Map(this.notifications().map((notification) => [`${notification.type}:${notification.requestId}`, notification.read]))))
@@ -73,6 +113,7 @@ export class FriendNotificationService {
   }
 
   syncTripInvitations(invitations: TripInvitationResponse[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     this.mergeNotifications(
       this.filterVisibleNotifications(
@@ -99,6 +140,7 @@ export class FriendNotificationService {
   }
 
   syncSentTripInvitationResponses(invitations: TripInvitationResponse[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const responseNotifications = this.filterVisibleNotifications(
       invitations
@@ -129,6 +171,7 @@ export class FriendNotificationService {
   }
 
   private syncNotifications(requests: FriendRequestItem[], invitations: TripInvitationResponse[], sentInvitations: TripInvitationResponse[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const previousState = new Map(this.notifications().map((notification) => [`${notification.type}:${notification.requestId}`, notification.read]));
     const friendNotifications = requests.map((request) => this.friendRequestNotification(request, previousState));
@@ -179,6 +222,7 @@ export class FriendNotificationService {
   }
 
   dismissNotification(notification: FriendNotificationItem): void {
+    this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
     const key = this.notificationKey(notification.type, notification.requestId);
     this.dismissedNotificationKeys.update((keys) => (keys.includes(key) ? keys : [...keys, key]));
@@ -209,6 +253,7 @@ export class FriendNotificationService {
   }
 
   markAllAsRead(): void {
+    this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const keys = this.notifications().map((notification) => this.notificationKey(notification.type, notification.requestId));
     this.readNotificationKeys.set(Array.from(new Set([...this.readNotificationKeys(), ...keys])));
@@ -219,6 +264,7 @@ export class FriendNotificationService {
 
   clear(): void {
     this.notifications.set([]);
+    this.clearTripTopicSubscriptions();
   }
 
   private displayName(username: string, firstName?: string | null, lastName?: string | null): string {
@@ -433,6 +479,7 @@ export class FriendNotificationService {
   }
 
   private mergeNotifications(nextNotifications: FriendNotificationItem[]): void {
+    this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
     const existingNotifications = new Map(
@@ -461,11 +508,137 @@ export class FriendNotificationService {
     this.persistNotifications();
   }
 
+  private ingestRealtimeNotification(message: RealtimeNotificationMessage): void {
+    if (!message?.notificationId || !message.notificationType) {
+      return;
+    }
+
+    if (this.isSelfAuthoredTripNotification(message.actorEmail, message.notificationType)) {
+      return;
+    }
+
+    this.mergeNotifications([
+      {
+        id: message.notificationId,
+        type: message.notificationType,
+        requestId: message.notificationId,
+        title: message.title,
+        description: message.description,
+        details: message.details ?? undefined,
+        createdAt: message.createdAt,
+        read: false,
+      },
+    ]);
+  }
+
+  private refreshTripTopicSubscriptions(): void {
+    if (!(this.authService.token?.() ?? '').trim()) {
+      return;
+    }
+
+    this.tripPlanningService.listSavedTrips().subscribe({
+      next: (trips) => this.syncTripTopicSubscriptions(trips),
+      error: () => {
+        // Keep the last known trip subscriptions if the trip list cannot be loaded.
+      },
+    });
+  }
+
+  private syncTripTopicSubscriptions(trips: TripResponse[]): void {
+    const nextTripIds = new Set(trips.map((trip) => trip.id));
+
+    for (const [tripId, subscription] of this.tripTopicSubscriptions.entries()) {
+      if (nextTripIds.has(tripId)) {
+        continue;
+      }
+
+      subscription.unsubscribe();
+      this.tripTopicSubscriptions.delete(tripId);
+    }
+
+    for (const tripId of nextTripIds) {
+      if (this.tripTopicSubscriptions.has(tripId)) {
+        continue;
+      }
+
+      const subscription = this.tripPlanningService.observeTripTopicUpdates(tripId).subscribe((event) => {
+        this.ingestTripRealtimeNotification(event);
+      });
+
+      this.tripTopicSubscriptions.set(tripId, subscription);
+    }
+  }
+
+  private ingestTripRealtimeNotification(event: TripRealtimeEvent): void {
+    if (
+      !event?.notificationId ||
+      !event.notificationType ||
+      !['TRIP_UPDATE', 'TRIP_BUDGET_UPDATE', 'TRIP_PARTICIPANT_JOINED', 'TRIP_PARTICIPANT_LEFT'].includes(event.notificationType)
+    ) {
+      return;
+    }
+
+    if (this.isSelfAuthoredTripNotification(event.actorEmail, event.notificationType)) {
+      return;
+    }
+
+    this.mergeNotifications([
+      {
+        id: event.notificationId,
+        type: event.notificationType,
+        requestId: event.notificationId,
+        title: event.title,
+        description: event.description,
+        details: event.details ?? undefined,
+        createdAt: event.createdAt,
+        read: false,
+      },
+    ]);
+  }
+
+  private clearTripTopicSubscriptions(): void {
+    for (const subscription of this.tripTopicSubscriptions.values()) {
+      subscription.unsubscribe();
+    }
+
+    this.tripTopicSubscriptions.clear();
+  }
+
+  private ensureNotificationsLoaded(): void {
+    const nextStorageKey = this.buildNotificationsStorageKey();
+
+    if (this.notificationsStorageKey === nextStorageKey) {
+      return;
+    }
+
+    this.notificationsStorageKey = nextStorageKey;
+    this.notifications.set(this.loadStoredNotifications());
+  }
+
   private getStorage(): Storage | null {
     try {
       return typeof localStorage === 'undefined' ? null : localStorage;
     } catch {
       return null;
     }
+  }
+
+  private isSelfAuthoredTripNotification(
+    actorEmail: string | null | undefined,
+    notificationType: FriendNotificationItem['type']
+  ): boolean {
+    if (
+      notificationType !== 'TRIP_UPDATE' &&
+      notificationType !== 'TRIP_BUDGET_UPDATE' &&
+      notificationType !== 'TRIP_PARTICIPANT_JOINED' &&
+      notificationType !== 'TRIP_PARTICIPANT_LEFT'
+    ) {
+      return false;
+    }
+
+    const currentEmail = this.authService.email()?.trim().toLowerCase();
+    const normalizedActorEmail = actorEmail?.trim().toLowerCase();
+
+    return Boolean(currentEmail && normalizedActorEmail && currentEmail === normalizedActorEmail);
   }
 }

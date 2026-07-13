@@ -1,9 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 
 import { FriendCommunityService } from '../../../services/friend-community.service';
 import { FriendNotificationService } from '../../../services/friend-notification.service';
+import { RealtimeWebSocketService } from '../../../services/realtime-websocket.service';
 import { TripPlanningService } from '../../../services/trip-planning.service';
 import { TripTempService } from '../create/trip-temp.service';
 import { TripComponent } from './trip.component';
@@ -14,6 +15,7 @@ describe('TripComponent', () => {
   let tripTempService: jasmine.SpyObj<TripTempService>;
   let friendCommunityService: jasmine.SpyObj<FriendCommunityService>;
   let friendNotificationService: jasmine.SpyObj<FriendNotificationService>;
+  let realtimeWebSocketService: jasmine.SpyObj<RealtimeWebSocketService>;
 
   const createPdfExporterSpy = () => ({
     exportTripSummaryPdf: jasmine.createSpy('exportTripSummaryPdf').and.resolveTo(),
@@ -27,6 +29,7 @@ describe('TripComponent', () => {
       'listIncomingTripInvitations',
       'listTripParticipants',
       'listSentTripInvitations',
+      'observeTripUpdates',
       'acceptTripInvitation',
       'declineTripInvitation',
       'inviteFriendToTrip',
@@ -49,6 +52,7 @@ describe('TripComponent', () => {
       },
     ]));
     tripPlanningService.listSentTripInvitations.and.returnValue(of([]));
+    tripPlanningService.observeTripUpdates.and.returnValue(EMPTY);
     tripPlanningService.acceptTripInvitation.and.returnValue(of({ message: 'Trip invitation accepted.' }));
     tripPlanningService.declineTripInvitation.and.returnValue(of({ message: 'Trip invitation declined.' }));
     tripPlanningService.cancelTripInvitation.and.returnValue(of({ message: 'Trip invitation cancelled.' }));
@@ -93,6 +97,8 @@ describe('TripComponent', () => {
     friendCommunityService = jasmine.createSpyObj<FriendCommunityService>('FriendCommunityService', ['listFriends']);
     friendCommunityService.listFriends.and.returnValue(of([]));
     friendNotificationService = jasmine.createSpyObj<FriendNotificationService>('FriendNotificationService', ['refresh']);
+    realtimeWebSocketService = jasmine.createSpyObj<RealtimeWebSocketService>('RealtimeWebSocketService', ['observe']);
+    realtimeWebSocketService.observe.and.returnValue(EMPTY);
     tripTempService.getTripTemp.and.returnValue(emptyTripTemp());
     tripTempService.updateTripTemp.and.callFake((changes) => ({
       ...emptyTripTemp(),
@@ -107,6 +113,7 @@ describe('TripComponent', () => {
         { provide: TripTempService, useValue: tripTempService },
         { provide: FriendCommunityService, useValue: friendCommunityService },
         { provide: FriendNotificationService, useValue: friendNotificationService },
+        { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
       ],
     }).compileComponents();
   });
