@@ -1,7 +1,7 @@
-import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CalendarEvent, Hotel, HotelSort } from '../models/hotel.model';
 import { HotelService } from '../services/hotel.service';
 import { CalendarService } from '../services/calendar.service';
@@ -27,7 +27,7 @@ interface CalendarDay {
   templateUrl: './hotel-search.component.html',
   styleUrls: ['./hotel-search.component.css'],
 })
-export class HotelSearchComponent implements OnDestroy {
+export class HotelSearchComponent implements OnDestroy, OnInit {
   location = '';
   checkIn = '';
   checkOut = '';
@@ -74,6 +74,7 @@ export class HotelSearchComponent implements OnDestroy {
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private previousBodyOverflow: string | null = null;
   private destinationFocusTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private deepLinkedHotelId: number | null = null;
 
   readonly cityOptions = HOTEL_DESTINATION_NAMES;
 
@@ -83,8 +84,13 @@ export class HotelSearchComponent implements OnDestroy {
   constructor(
     private hotelService: HotelService,
     private calendarService: CalendarService,
+    private route: ActivatedRoute,
     private changeDetectorRef: ChangeDetectorRef
   ) {}
+
+  ngOnInit(): void {
+    this.applyDealQueryParams();
+  }
 
   ngOnDestroy(): void {
     if (this.toastTimeoutId) {
@@ -154,6 +160,7 @@ export class HotelSearchComponent implements OnDestroy {
         next: (hotels) => {
           this.hotels = this.withSearchDetails(Array.isArray(hotels) ? hotels : []);
           this.applySort();
+          this.openDeepLinkedHotel();
           this.showToast(
             this.hotels.length
               ? `${this.hotels.length} stay${this.hotels.length === 1 ? '' : 's'} found in ${selectedLocation}.`
@@ -256,6 +263,58 @@ export class HotelSearchComponent implements OnDestroy {
   private setActiveDatePicker(kind: 'checkIn' | 'checkOut' | null): void {
     this.activeDatePicker = kind;
     this.updatePageScrollLock();
+  }
+
+  private applyDealQueryParams(): void {
+    const query = this.route.snapshot.queryParamMap;
+    const location = query.get('location')?.trim();
+    const checkIn = query.get('checkIn')?.trim();
+    const checkOut = query.get('checkOut')?.trim();
+    const adults = Number(query.get('adults'));
+    const children = Number(query.get('children'));
+    const hotelId = Number(query.get('hotelId'));
+
+    if (location) {
+      this.location = location;
+    }
+
+    if (checkIn) {
+      this.checkIn = checkIn;
+    }
+
+    if (checkOut) {
+      this.checkOut = checkOut;
+    }
+
+    if (Number.isFinite(adults) && adults > 0) {
+      this.adults = Math.min(this.maxGuests, Math.floor(adults));
+    }
+
+    if (Number.isFinite(children) && children >= 0) {
+      this.children = Math.min(this.maxGuests - this.adults, Math.floor(children));
+    }
+
+    if (Number.isFinite(hotelId) && hotelId > 0) {
+      this.deepLinkedHotelId = Math.floor(hotelId);
+    }
+
+    if (query.get('autoSearch') === 'true' && this.location && this.checkIn && this.checkOut) {
+      setTimeout(() => this.search());
+    }
+  }
+
+  private openDeepLinkedHotel(): void {
+    if (this.deepLinkedHotelId === null) {
+      return;
+    }
+
+    const matchingHotel = this.hotels.find((hotel) => hotel.id === this.deepLinkedHotelId);
+    if (!matchingHotel) {
+      return;
+    }
+
+    this.selectHotel(matchingHotel);
+    this.deepLinkedHotelId = null;
   }
 
   private updatePageScrollLock(): void {

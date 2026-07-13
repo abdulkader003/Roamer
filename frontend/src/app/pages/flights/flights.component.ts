@@ -15,7 +15,7 @@ import {
   SortMode,
   TripType,
 } from './flight.model';
-import { FlightsService } from './flights.service';
+import { FlightResponse, FlightsService } from './flights.service';
 import { CalendarEvent } from '../hotels/models/hotel.model';
 import { CalendarService } from '../hotels/services/calendar.service';
 
@@ -53,6 +53,8 @@ export class FlightsComponent implements OnDestroy {
   private readonly calendarService = inject(CalendarService);
   private readonly route = inject(ActivatedRoute);
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private deepLinkedFlightId = '';
+  private deepLinkedSearchId: number | null = null;
 
   // Optional: read theme from your service (for any theme-aware logic)
   // private readonly themeService = inject(ThemeService);
@@ -712,6 +714,12 @@ export class FlightsComponent implements OnDestroy {
     const query = this.route.snapshot.queryParamMap;
     const tripType = this.readTripType(query.get('tripType'));
     const travelers = Number(query.get('travelers'));
+    const searchId = Number(query.get('searchId'));
+    this.deepLinkedFlightId = query.get('flightId')?.trim() ?? '';
+
+    if (Number.isFinite(searchId) && searchId > 0) {
+      this.deepLinkedSearchId = Math.floor(searchId);
+    }
 
     if (tripType) {
       this.tripType.set(tripType);
@@ -752,6 +760,15 @@ export class FlightsComponent implements OnDestroy {
 
     if (tripType === 'round-trip' && returnDate) {
       this.returnDate.set(returnDate);
+    }
+
+    if (this.deepLinkedSearchId !== null) {
+      setTimeout(() => this.loadDeepLinkedCachedSearch(this.deepLinkedSearchId!));
+      return;
+    }
+
+    if (query.get('autoSearch') === 'true') {
+      setTimeout(() => this.onSearch());
     }
   }
 
@@ -851,16 +868,7 @@ export class FlightsComponent implements OnDestroy {
     this.isSearching.set(true);
     this.flightsService.search(params).subscribe({
       next: response => {
-        if (this.tripType() === 'multi-city') {
-          this.flights.set([]);
-          this.returnFlights.set([]);
-          this.segmentFlights.set(response.segmentFlights ?? []);
-        } else {
-          this.flights.set(response.outboundFlights?.length ? response.outboundFlights : response.flights);
-          this.returnFlights.set(this.tripType() === 'round-trip' ? (response.returnFlights ?? []) : []);
-          this.segmentFlights.set([]);
-        }
-        this.expandedFlightId.set(null);
+        this.applyFlightResponse(response);
         this.isSearching.set(false);
         const resultCount = this.resultCount();
         this.showToast(
@@ -880,6 +888,49 @@ export class FlightsComponent implements OnDestroy {
     });
   }
 
+  private loadDeepLinkedCachedSearch(searchId: number): void {
+    this.isSearching.set(true);
+    this.searchError.set('');
+
+    this.flightsService.getCachedSearch(searchId).subscribe({
+      next: response => {
+        this.applyFlightResponse(response);
+        this.isSearching.set(false);
+        this.showToast('Opened the exact saved flight deal.', 'success');
+      },
+      error: error => {
+        console.error('[FlightsComponent] cached search failed', error);
+        this.isSearching.set(false);
+        this.showToast('Could not open the exact saved deal. Searching the route instead.', 'error');
+        this.onSearch();
+      },
+    });
+  }
+
+  private applyFlightResponse(response: FlightResponse): void {
+    this.appliedTripType.set(response.tripType);
+    this.appliedDepartureDate.set(this.parseDateInput(response.departureDate));
+    this.appliedReturnDate.set(this.parseDateInput(response.returnDate ?? ''));
+    this.appliedMultiCitySegments.set((response.multiCitySegments ?? []).map(segment => ({
+      fromText: segment.fromText,
+      toText: segment.toText,
+      date: this.parseDateInput(segment.date ?? ''),
+    })));
+
+    if (response.tripType === 'multi-city') {
+      this.flights.set([]);
+      this.returnFlights.set([]);
+      this.segmentFlights.set(response.segmentFlights ?? []);
+    } else {
+      this.flights.set(response.outboundFlights?.length ? response.outboundFlights : response.flights);
+      this.returnFlights.set(response.tripType === 'round-trip' ? (response.returnFlights ?? []) : []);
+      this.segmentFlights.set([]);
+    }
+
+    this.expandedFlightId.set(null);
+    this.openDeepLinkedFlight();
+  }
+
   onSelectFlight(flight: Flight): void {
     this.selectedFlight.set(flight);
     this.flightCalendarMessage.set('');
@@ -887,6 +938,26 @@ export class FlightsComponent implements OnDestroy {
     this.activeMultiCityAirportPicker.set(null);
     this.activeDatePicker.set(null);
     this.travelersPickerOpen.set(false);
+  }
+
+  private openDeepLinkedFlight(): void {
+    if (!this.deepLinkedFlightId) {
+      return;
+    }
+
+    const matchingFlight = [
+      ...this.flights(),
+      ...this.returnFlights(),
+      ...this.segmentFlights().flatMap(segment => segment.flights),
+    ].find(flight => flight.id === this.deepLinkedFlightId || flight.flightNumber === this.deepLinkedFlightId);
+
+    if (!matchingFlight) {
+      return;
+    }
+
+    this.onSelectFlight(matchingFlight);
+    this.expandedFlightId.set(matchingFlight.id);
+    this.deepLinkedFlightId = '';
   }
 
   closeSelectedFlightModal(): void {

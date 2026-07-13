@@ -353,6 +353,7 @@ export class DashboardComponent implements OnDestroy {
     setTimeout(() => void this.router.navigate(['/trips/create/budget']), 260);
   }
 
+
   goToPreviousCalendarMonth(): void {
     this.changeCalendarMonth(-1);
   }
