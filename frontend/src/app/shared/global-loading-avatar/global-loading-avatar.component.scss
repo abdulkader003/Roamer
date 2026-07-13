@@ -1,32 +1,38 @@
 :host {
   position: fixed;
-  right: clamp(16px, 4vw, 36px);
-  bottom: clamp(16px, 4vw, 32px);
-  z-index: 1200;
-  display: block;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(3px);
   pointer-events: none;
 }
 
 .global-loader {
   display: grid;
   justify-items: center;
-  gap: 2px;
-  padding: 10px 14px 8px;
-  border: 1px solid rgba(127, 184, 255, 0.34);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 18px 46px rgba(20, 33, 61, 0.16);
-  backdrop-filter: blur(10px);
+  gap: 10px;
+  width: min(300px, 100%);
+  padding: 24px 26px 22px;
+  border: 1px solid rgba(127, 184, 255, 0.38);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 249, 255, 0.92));
+  box-shadow: 0 28px 70px rgba(20, 33, 61, 0.22);
+  backdrop-filter: blur(14px);
+  animation: roamer-loader-enter 0.2s ease-out both;
 }
 
 .loader-stage {
   display: grid;
   justify-items: center;
-  width: 86px;
+  width: 112px;
 }
 
 .roamer-loading-avatar {
-  width: 76px;
+  width: 98px;
   margin: 0;
   transform-origin: 50% 72%;
   animation: roamer-loader-bounce 0.82s ease-in-out infinite;
@@ -201,9 +207,9 @@
 
 .road {
   position: relative;
-  width: 78px;
+  width: 104px;
   height: 8px;
-  margin-top: -4px;
+  margin-top: -6px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(20, 33, 61, 0.12);
@@ -224,9 +230,10 @@
 
 .loading-text {
   color: #123f9e;
-  font-size: 0.72rem;
+  font-size: 0.92rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.35;
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -239,28 +246,48 @@
   .road-line {
     animation: none;
   }
+
+  .global-loader {
+    animation: none;
+  }
 }
 
 @media (max-width: 640px) {
   :host {
-    right: 14px;
-    bottom: 14px;
+    padding: 18px;
   }
 
   .global-loader {
-    padding: 8px 11px 7px;
+    width: min(88vw, 300px);
+    padding: 22px 20px 20px;
   }
 
   .loader-stage {
-    width: 76px;
+    width: 96px;
   }
 
   .roamer-loading-avatar {
-    width: 68px;
+    width: 84px;
   }
 
   .road {
-    width: 70px;
+    width: 90px;
+  }
+
+  .loading-text {
+    font-size: 0.86rem;
+  }
+}
+
+@keyframes roamer-loader-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
