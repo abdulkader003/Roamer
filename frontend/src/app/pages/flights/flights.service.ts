@@ -43,6 +43,10 @@ export class FlightsService {
     return this.http.post<FlightResponse>(this.apiUrl, this.toBackendRequest(params));
   }
 
+  getCachedSearch(searchId: number): Observable<FlightResponse> {
+    return this.http.get<FlightResponse>(`${this.apiUrl}/searches/${searchId}`);
+  }
+
   private toBackendRequest(params: SearchParams) {
     return {
       ...params,

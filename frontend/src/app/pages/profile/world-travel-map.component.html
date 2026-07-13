@@ -29,10 +29,8 @@
             <stop offset="100%" stop-color="#f97316" />
           </linearGradient>
           <linearGradient id="bothCountryGradient" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stop-color="#2563eb" />
-            <stop offset="52%" stop-color="#2563eb" />
-            <stop offset="53%" stop-color="#f59e0b" />
-            <stop offset="100%" stop-color="#f59e0b" />
+            <stop offset="0%" stop-color="#7c3aed" />
+            <stop offset="100%" stop-color="#a855f7" />
           </linearGradient>
           <filter id="mapGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#2563eb" flood-opacity="0.18" />
@@ -67,17 +65,6 @@
           }
         </g>
 
-        <g class="map-markers" filter="url(#mapGlow)" aria-hidden="true">
-          @for (shape of markerShapes(); track shape.name) {
-            <g
-              [attr.class]="markerClass(shape.name)"
-              [attr.transform]="markerTransform(shape, 0.68)">
-              <ellipse class="country-marker__shadow" cx="0" cy="2.4" rx="6.6" ry="2.2"></ellipse>
-              <path class="country-marker__pin" d="M0 0 C-4.7 -6.1 -9 -10.2 -9 -15.2 C-9 -20.7 -5 -24.7 0 -24.7 C5 -24.7 9 -20.7 9 -15.2 C9 -10.2 4.7 -6.1 0 0 Z"></path>
-              <circle class="country-marker__center" cx="0" cy="-15.2" r="3.1"></circle>
-            </g>
-          }
-        </g>
       </svg>
 
       @if (isLoadingMap || mapLoadError) {
@@ -117,7 +104,7 @@
       <div class="map-legend" aria-label="Map legend">
         <span><i class="legend-dot legend-dot--visited"></i>Visited</span>
         <span><i class="legend-dot legend-dot--upcoming"></i>Upcoming trip</span>
-        <span><i class="legend-dot legend-dot--both"></i>Both</span>
+        <span><i class="legend-dot legend-dot--both"></i>Visited & upcoming</span>
       </div>
 
       <label class="country-picker" for="visited-country">
@@ -205,10 +192,8 @@
                 <stop offset="100%" stop-color="#f97316" />
               </linearGradient>
               <linearGradient id="bothCountryGradientExpanded" x1="0" x2="1" y1="0" y2="1">
-                <stop offset="0%" stop-color="#2563eb" />
-                <stop offset="52%" stop-color="#2563eb" />
-                <stop offset="53%" stop-color="#f59e0b" />
-                <stop offset="100%" stop-color="#f59e0b" />
+                <stop offset="0%" stop-color="#7c3aed" />
+                <stop offset="100%" stop-color="#a855f7" />
               </linearGradient>
             </defs>
             <rect class="map-water map-water--expanded" x="0" y="0" width="1000" height="520" rx="28"></rect>
@@ -236,17 +221,6 @@
                 </path>
               }
             </g>
-            <g class="map-markers" aria-hidden="true">
-              @for (shape of markerShapes(); track shape.name) {
-                <g
-                  [attr.class]="markerClass(shape.name)"
-                  [attr.transform]="markerTransform(shape, 0.9)">
-                  <ellipse class="country-marker__shadow" cx="0" cy="2.4" rx="6.6" ry="2.2"></ellipse>
-                  <path class="country-marker__pin" d="M0 0 C-4.7 -6.1 -9 -10.2 -9 -15.2 C-9 -20.7 -5 -24.7 0 -24.7 C5 -24.7 9 -20.7 9 -15.2 C9 -10.2 4.7 -6.1 0 0 Z"></path>
-                  <circle class="country-marker__center" cx="0" cy="-15.2" r="3.1"></circle>
-                </g>
-              }
-            </g>
           </svg>
         </div>
 
@@ -257,7 +231,7 @@
           <div class="map-legend">
             <span><i class="legend-dot legend-dot--visited"></i>Visited</span>
             <span><i class="legend-dot legend-dot--upcoming"></i>Upcoming trip</span>
-            <span><i class="legend-dot legend-dot--both"></i>Both</span>
+            <span><i class="legend-dot legend-dot--both"></i>Visited & upcoming</span>
           </div>
         </aside>
       </div>

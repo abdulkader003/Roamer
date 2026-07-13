@@ -766,6 +766,76 @@ body {
   ::-webkit-scrollbar-thumb { background: #8A6520; border-radius: 2px; }
 }
 
+:is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page,
+app-signup .signup-container {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, #f8fbff 0%, var(--page-bg) 48%, #eef7ff 100%);
+}
+
+:is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page::before,
+:is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page::after,
+app-signup .signup-container::before,
+app-signup .signup-container::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+}
+
+:is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page::before,
+app-signup .signup-container::before {
+  width: min(52vw, 680px);
+  background:
+    radial-gradient(ellipse at 44% 48%, color-mix(in srgb, var(--accent) 12%, transparent) 0 28%, transparent 56%),
+    repeating-linear-gradient(0deg, transparent 0 42px, color-mix(in srgb, var(--accent) 10%, transparent) 43px 44px),
+    repeating-linear-gradient(90deg, transparent 0 54px, color-mix(in srgb, var(--accent) 10%, transparent) 55px 56px);
+  mask-image: radial-gradient(ellipse at 42% 48%, black 0 46%, transparent 70%);
+  opacity: 0.85;
+}
+
+:is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page::after,
+app-signup .signup-container::after {
+  background:
+    radial-gradient(ellipse at 16% 72%, color-mix(in srgb, #38bdf8 14%, transparent), transparent 42%),
+    repeating-radial-gradient(ellipse at 16% 58%, transparent 0 72px, color-mix(in srgb, var(--accent) 8%, transparent) 73px 75px, transparent 76px 150px);
+  opacity: 0.75;
+}
+
+:is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-card,
+app-signup .signup-card {
+  position: relative;
+  z-index: 1;
+}
+
+:is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
+  position: absolute;
+  left: clamp(72px, 11vw, 176px);
+  top: 18%;
+}
+
+@media (max-width: 900px) {
+  :is(app-login, app-verify-email, app-forgot-password, app-reset-password) .auth-page::before,
+  app-signup .signup-container::before {
+    width: 100%;
+    opacity: 0.45;
+  }
+
+  :is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
+    left: 24px;
+    width: clamp(210px, 30vw, 300px);
+  }
+}
+
+@media (max-width: 700px) {
+  :is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
+    display: none;
+  }
+}
+
 
 .page-wallpaper {
   position: relative;
@@ -802,4 +872,18 @@ body {
   to {
     opacity: 1;
   }
+}
+
+body.profile-map-expanded {
+  overflow: hidden;
+}
+
+body.profile-map-expanded .app-main--with-sidebar {
+  margin-left: 0;
+}
+
+body.profile-map-expanded app-navbar,
+body.profile-map-expanded app-sidebar {
+  opacity: 0;
+  pointer-events: none;
 }

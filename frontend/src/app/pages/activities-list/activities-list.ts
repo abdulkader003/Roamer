@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, timeout } from 'rxjs/operators';
 import { ActivitiesService, Activity, ActivitySearchResponse } from '../../services/activities';
 import { HOTEL_DESTINATIONS } from '../hotels/hotel-search/hotel-destinations';
@@ -155,6 +155,7 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
   constructor(
     private readonly activitiesService: ActivitiesService,
     private readonly calendarService: CalendarService,
+    private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly ngZone: NgZone,
     private readonly cdr: ChangeDetectorRef
@@ -162,6 +163,7 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.restoreViewState();
+    this.applyDealQueryParams();
   }
 
   ngOnDestroy(): void {
@@ -318,6 +320,25 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     }
 
     this.searchActivities(true);
+  }
+
+  private applyDealQueryParams(): void {
+    const query = this.route.snapshot.queryParamMap;
+    const city = query.get('city')?.trim();
+    const keyword = query.get('keyword')?.trim();
+
+    if (city) {
+      this.cityText = city;
+      this.selectedCity = city;
+    }
+
+    if (keyword) {
+      this.searchTerm = keyword;
+    }
+
+    if (query.get('autoSearch') === 'true' && city) {
+      setTimeout(() => this.searchActivities(false));
+    }
   }
 
   updateCityText(value: string): void {

@@ -5,6 +5,8 @@ import com.sep.flight.dto.flight.FlightSearchRequest;
 import com.sep.flight.service.FlightService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,5 +30,11 @@ public class FlightController {
     @PostMapping
     public FlightResponse searchFlights(@Valid @RequestBody FlightSearchRequest request) {
         return flightService.searchFlights(request);
+    }
+
+    @Operation(summary = "Get cached flight search")
+    @GetMapping("/searches/{searchId}")
+    public FlightResponse getCachedSearch(@PathVariable Long searchId) {
+        return flightService.getCachedSearch(searchId);
     }
 }

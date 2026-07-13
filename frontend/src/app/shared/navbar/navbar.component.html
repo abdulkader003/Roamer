@@ -94,10 +94,10 @@
                 @for (notification of notificationItems(); track notification.type + '-' + notification.requestId) {
                   <article class="notification-item" [class.notification-item--read]="notification.read">
                     <div class="notification-item__icon" aria-hidden="true">
-                      @if (notification.type === 'TRIP_INVITATION') {
-                        TR
-                      } @else {
+                      @if (notification.type === 'FRIEND_REQUEST') {
                         FR
+                      } @else {
+                        TR
                       }
                     </div>
                     <div class="notification-item__copy">

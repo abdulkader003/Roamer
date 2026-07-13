@@ -35,13 +35,16 @@ class FriendServiceTest {
     @Mock
     private FriendRequestRepository friendRequestRepository;
 
+    @Mock
+    private FriendNotificationWebSocketPublisher friendNotificationWebSocketPublisher;
+
     private FriendService friendService;
     private AppUser currentUser;
     private AppUser otherUser;
 
     @BeforeEach
     void setUp() {
-        friendService = new FriendService(userRepository, friendRequestRepository);
+        friendService = new FriendService(userRepository, friendRequestRepository, friendNotificationWebSocketPublisher);
 
         currentUser = user();
         currentUser.setId(1L);
@@ -98,11 +101,17 @@ class FriendServiceTest {
         when(friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(2L, 1L, FriendRequestStatus.ACCEPTED)).thenReturn(false);
         when(friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, FriendRequestStatus.PENDING)).thenReturn(false);
         when(friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(2L, 1L, FriendRequestStatus.PENDING)).thenReturn(false);
+        when(friendRequestRepository.save(any(FriendRequest.class))).thenAnswer(invocation -> {
+            FriendRequest request = invocation.getArgument(0);
+            request.setId(21L);
+            return request;
+        });
 
         MessageResponse response = friendService.sendFriendRequest("traveler@example.com", new SendFriendRequest(2L));
 
         assertThat(response.message()).isEqualTo("Friend request sent.");
         verify(friendRequestRepository).save(any(FriendRequest.class));
+        verify(friendNotificationWebSocketPublisher).publishFriendRequestCreated(any(FriendRequest.class));
     }
 
     @Test
@@ -117,6 +126,7 @@ class FriendServiceTest {
 
         assertThat(response.message()).isEqualTo("Friend request accepted.");
         assertThat(request.getStatus()).isEqualTo(FriendRequestStatus.ACCEPTED);
+        verify(friendNotificationWebSocketPublisher).publishFriendRequestAccepted(request);
     }
 
     @Test
@@ -131,6 +141,7 @@ class FriendServiceTest {
 
         assertThat(response.message()).isEqualTo("Friend request declined.");
         assertThat(request.getStatus()).isEqualTo(FriendRequestStatus.DECLINED);
+        verify(friendNotificationWebSocketPublisher).publishFriendRequestDeclined(request);
     }
 
     @Test

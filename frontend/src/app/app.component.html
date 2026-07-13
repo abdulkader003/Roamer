@@ -4,19 +4,27 @@
   (touchstart)="handleTouchStart($event)"
   (touchend)="handleTouchEnd($event)">
   <app-navbar (menuRequested)="toggleSidebar()" />
+@if (isLandingRoute()) {
+  <router-outlet />
+} @else {
+  <div
+    class="app-shell"
+    (touchstart)="handleTouchStart($event)"
+    (touchend)="handleTouchEnd($event)">
+    <app-navbar (menuRequested)="toggleSidebar()" />
 
-  <div class="app-content">
-    <app-sidebar
-      [isMobile]="isMobile()"
-      [isOpen]="isSidebarVisible()"
-      (closed)="closeSidebar()" />
+    <div class="app-content">
+      <app-sidebar
+        [isMobile]="isMobile()"
+        [isOpen]="isSidebarVisible()"
+        (closed)="closeSidebar()" />
 
-    <button
-      *ngIf="isMobile() && isSidebarOpen()"
-      type="button"
-      class="sidebar-backdrop"
-      aria-label="Close navigation menu"
-      (click)="closeSidebar()"></button>
+      <button
+        *ngIf="isMobile() && isSidebarOpen()"
+        type="button"
+        class="sidebar-backdrop"
+        aria-label="Close navigation menu"
+        (click)="closeSidebar()"></button>
 
     <main class="app-main" [class.app-main--with-sidebar]="!isMobile()">
       @if (wallpaperService.currentHero(); as hero) {
@@ -49,3 +57,9 @@
     </main>
   </div>
 </div>
+      <main class="app-main" [class.app-main--with-sidebar]="!isMobile()">
+        <router-outlet />
+      </main>
+    </div>
+  </div>
+}

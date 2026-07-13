@@ -7,6 +7,7 @@ import com.sep.flight.dto.flight.FlightResponse;
 import com.sep.flight.dto.flight.FlightSearchRequest;
 import com.sep.flight.entity.flight.FlightOfferEntity;
 import com.sep.flight.entity.flight.FlightSearchEntity;
+import com.sep.flight.exception.ExternalApiException;
 import com.sep.flight.mapper.FlightMapper;
 import com.sep.flight.repository.flight.FlightSearchRepository;
 import jakarta.transaction.Transactional;
@@ -87,6 +88,13 @@ public class FlightService {
                 .orElseGet(() -> fetchPersistAndMap(request));
     }
 
+    public FlightResponse getCachedSearch(Long searchId) {
+        FlightSearchEntity search = flightSearchRepository.findWithOffersById(searchId)
+                .orElseThrow(() -> new IllegalArgumentException("Flight search was not found."));
+
+        return flightMapper.toResponse(search, flightMapper.toDtos(search.getOffers()));
+    }
+
     /**
      * Finds a reusable direct-route search created within the cache window.
      *
@@ -127,13 +135,53 @@ public class FlightService {
     }
 
     /**
+     * Uses an older cache only after the provider fails, so normal searches still refresh when possible.
+     */
+    private Optional<FlightSearchEntity> findAnyCachedSearch(FlightSearchRequest request) {
+        if ("multi-city".equals(request.tripType()) || request.includeCityAirports()) {
+            return Optional.empty();
+        }
+
+        if (request.returnDate() == null) {
+            return flightSearchRepository.findFirstByTripTypeAndFromCodeAndToCodeAndDepartureDateAndReturnDateIsNullAndAdultsAndChildrenAndCabinClassOrderByCreatedAtDesc(
+                    request.tripType(),
+                    request.from().code(),
+                    request.to().code(),
+                    request.departureDate(),
+                    request.adults(),
+                    request.children(),
+                    request.cabinClass()
+            );
+        }
+
+        return flightSearchRepository.findFirstByTripTypeAndFromCodeAndToCodeAndDepartureDateAndReturnDateAndAdultsAndChildrenAndCabinClassOrderByCreatedAtDesc(
+                request.tripType(),
+                request.from().code(),
+                request.to().code(),
+                request.departureDate(),
+                request.returnDate(),
+                request.adults(),
+                request.children(),
+                request.cabinClass()
+        );
+    }
+
+    /**
      * Fetches outbound and optional return offers, persists them, and maps the saved search.
      */
     private FlightResponse fetchPersistAndMap(FlightSearchRequest request) {
-        if ("multi-city".equals(request.tripType())) {
-            return fetchPersistAndMapMultiCity(request);
-        }
+        try {
+            if ("multi-city".equals(request.tripType())) {
+                return fetchPersistAndMapMultiCity(request);
+            }
 
+            return fetchPersistAndMapDirectTrip(request);
+        } catch (ExternalApiException exception) {
+            return fallbackAfterProviderFailure(request, exception);
+        }
+    }
+
+    private FlightResponse fetchPersistAndMapDirectTrip(FlightSearchRequest request) {
         List<FlightOfferDto> outboundOffers = searchLeg(request, request.includeCityAirports());
         List<FlightOfferDto> returnOffers = List.of();
         if (isRoundTrip(request)) {
@@ -153,6 +201,69 @@ public class FlightService {
         FlightSearchEntity savedSearch = flightSearchRepository.save(searchEntity);
 
         return flightMapper.toResponse(savedSearch, offers);
+    }
+
+    private FlightResponse fallbackAfterProviderFailure(FlightSearchRequest request, ExternalApiException exception) {
+        Optional<FlightSearchEntity> staleCache = findAnyCachedSearch(request)
+                .filter(search -> !search.getOffers().isEmpty());
+
+        if (staleCache.isPresent()) {
+            FlightSearchEntity search = staleCache.get();
+            return flightMapper.toResponse(search, flightMapper.toDtos(search.getOffers()));
+        }
+
+        if ("multi-city".equals(request.tripType())) {
+            return fallbackMultiCityResponse(request);
+        }
+
+        List<FlightOfferDto> outboundOffers = estimatedLegOffers(request);
+        List<FlightOfferDto> returnOffers = isRoundTrip(request)
+                ? estimatedLegOffers(returnLegRequest(request))
+                : List.of();
+        List<FlightOfferDto> offers = new ArrayList<>();
+        offers.addAll(outboundOffers);
+        offers.addAll(returnOffers);
+
+        FlightSearchEntity searchEntity = flightMapper.toSearchEntity(request, writeMultiCitySegments(request));
+        List<FlightOfferEntity> offerEntities = new ArrayList<>();
+        outboundOffers.forEach(offer -> offerEntities.add(flightMapper.toOfferEntity(offer, searchEntity, "outbound")));
+        returnOffers.forEach(offer -> offerEntities.add(flightMapper.toOfferEntity(offer, searchEntity, "return")));
+        searchEntity.setOffers(offerEntities);
+
+        FlightSearchEntity savedSearch = flightSearchRepository.save(searchEntity);
+        return flightMapper.toResponse(savedSearch, outboundOffers, returnOffers, List.of(), offers);
+    }
+
+    private FlightResponse fallbackMultiCityResponse(FlightSearchRequest request) {
+        FlightSearchEntity searchEntity = flightMapper.toSearchEntity(request, writeMultiCitySegments(request));
+        List<FlightOfferEntity> offerEntities = new ArrayList<>();
+        List<FlightOfferDto> allOffers = new ArrayList<>();
+        List<FlightResponse.SegmentFlightsDto> segmentFlights = new ArrayList<>();
+
+        for (int i = 0; i < request.multiCitySegments().size(); i++) {
+            FlightSearchRequest.MultiCitySegmentDto segment = request.multiCitySegments().get(i);
+            FlightSearchRequest segmentRequest = segmentRequest(request, segment);
+            List<FlightOfferDto> segmentOffers = estimatedLegOffers(segmentRequest);
+            String legType = "segment-" + (i + 1);
+
+            segmentOffers.forEach(offer -> offerEntities.add(flightMapper.toOfferEntity(offer, searchEntity, legType)));
+            allOffers.addAll(segmentOffers);
+            segmentFlights.add(new FlightResponse.SegmentFlightsDto(
+                    i + 1,
+                    segment.fromText(),
+                    segment.toText(),
+                    segment.date(),
+                    segmentOffers
+            ));
+        }
+
+        searchEntity.setOffers(offerEntities);
+        FlightSearchEntity savedSearch = flightSearchRepository.save(searchEntity);
+        return flightMapper.toResponse(savedSearch, List.of(), List.of(), segmentFlights, allOffers);
+    }
+
+    private List<FlightOfferDto> estimatedLegOffers(FlightSearchRequest request) {
+        return flightMapper.fromAeroDataBox(null, request);
     }
 
     /**

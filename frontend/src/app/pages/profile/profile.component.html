@@ -180,9 +180,10 @@
                 <span class="field-error">Enter a valid phone number.</span>
               }
             </label>
-            <label class="airport-field">
-              Home airport
+            <div class="airport-field field-group">
+              <label for="profile-home-airport">Home airport</label>
               <input
+                id="profile-home-airport"
                 type="text"
                 formControlName="homeAirport"
                 autocomplete="off"
@@ -199,6 +200,7 @@
                         type="button"
                         class="airport-option"
                         role="option"
+                        (pointerdown)="$event.preventDefault(); selectHomeAirport(airport)"
                         (mousedown)="$event.preventDefault(); selectHomeAirport(airport)">
                         <strong>{{ airport.city }}</strong>
                         <span>{{ airport.fullName }}</span>
@@ -213,7 +215,7 @@
               @if (fieldHasError('homeAirport')) {
                 <span class="field-error">Choose an airport suggestion or enter a valid 3-letter IATA code.</span>
               }
-            </label>
+            </div>
           </div>
 
           <div class="achievement-section">
@@ -336,6 +338,7 @@
           <label>
             Search travelers
             <input
+              id="friend-search-input"
               type="search"
               [formControl]="friendSearchControl"
               placeholder="Search by username"

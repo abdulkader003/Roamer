@@ -118,6 +118,7 @@
   transition: fill 0.15s, opacity 0.15s, filter 0.15s, stroke-width 0.15s;
 }
 
+.country-shape:focus,
 .country-shape:focus-visible,
 .country-shape--hovered {
   outline: none;
@@ -148,40 +149,6 @@
 
 .map-stage--expanded .country-shape--both {
   fill: url("#bothCountryGradientExpanded");
-}
-
-.country-marker {
-  color: #2563eb;
-  pointer-events: none;
-}
-
-.country-marker--visited {
-  color: #2563eb;
-}
-
-.country-marker--upcoming {
-  color: #f59e0b;
-}
-
-.country-marker--both {
-  color: #16a34a;
-}
-
-.country-marker__pin {
-  fill: currentColor;
-  stroke: var(--surface-primary);
-  stroke-width: 1.4;
-  paint-order: stroke;
-}
-
-.country-marker__center {
-  fill: var(--surface-primary);
-  opacity: 0.92;
-}
-
-.country-marker__shadow {
-  fill: rgba(15, 23, 42, 0.22);
-  opacity: 0.42;
 }
 
 .map-floating-toolbar {
@@ -336,7 +303,7 @@
 }
 
 .legend-dot--both {
-  background: linear-gradient(90deg, #2563eb 0 50%, #f59e0b 51% 100%);
+  background: #7c3aed;
 }
 
 .country-picker {
@@ -467,17 +434,21 @@
 .map-dialog-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 1000;
   z-index: var(--z-modal, 1300);
   display: grid;
   place-items: center;
-  padding: 22px;
+  width: 100vw;
+  min-height: 100dvh;
+  padding: clamp(14px, 2.2vw, 28px);
   background: rgba(15, 23, 42, 0.68);
   backdrop-filter: blur(10px);
+  isolation: isolate;
 }
 
 .map-dialog {
-  width: min(1240px, 100%);
-  max-height: min(880px, calc(100vh - 44px));
+  width: min(1500px, calc(100vw - clamp(28px, 4.4vw, 56px)));
+  max-height: calc(100dvh - clamp(28px, 4.4vw, 56px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
@@ -505,12 +476,12 @@
 .expanded-map-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 280px);
   gap: 14px;
 }
 
 .map-stage--expanded {
-  min-height: min(66vh, 680px);
+  min-height: min(68dvh, 720px);
 }
 
 .expanded-map-summary {
@@ -547,6 +518,14 @@
   .map-stage {
     min-height: 330px;
   }
+
+  .map-dialog {
+    overflow: auto;
+  }
+
+  .map-stage--expanded {
+    min-height: 52dvh;
+  }
 }
 
 @media (max-width: 640px) {
@@ -576,5 +555,17 @@
   .map-expand-button {
     width: 100%;
     justify-content: center;
+  }
+
+  .map-dialog-backdrop {
+    align-items: start;
+    padding: 10px;
+  }
+
+  .map-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+    padding: 12px;
   }
 }

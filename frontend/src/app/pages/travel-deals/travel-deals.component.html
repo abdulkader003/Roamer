@@ -1,0 +1,68 @@
+<main class="deals-page page-wallpaper wallpaper-dashboard">
+  <header class="deals-hero">
+    <nav class="deals-crumbs" aria-label="Breadcrumb">
+      <a routerLink="/dashboard">Dashboard</a>
+      <span>›</span>
+      <strong>Travel Deals</strong>
+    </nav>
+    <div>
+      <span class="deals-kicker">Quick Action</span>
+      <h1>Travel deals for <em>you</em>.</h1>
+      <p>Flight, hotel, and activity suggestions built from Roamer's existing saved trip and cached inventory data.</p>
+    </div>
+  </header>
+
+  <section class="deals-panel">
+    <div class="deals-toolbar">
+      <div class="deals-filters" aria-label="Filter travel deals">
+        @for (filter of filters; track filter) {
+          <button
+            type="button"
+            class="deals-filter"
+            [class.is-active]="selectedFilter() === filter"
+            (click)="selectFilter(filter)">
+            {{ filter === 'ALL' ? 'All' : (filter | titlecase) }}
+          </button>
+        }
+      </div>
+
+      <button type="button" class="deals-refresh" (click)="loadDeals()" [disabled]="isLoading()">
+        {{ isLoading() ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
+
+    @if (isLoading()) {
+      <div class="deals-state">Finding the best options from your Roamer data...</div>
+    } @else if (error()) {
+      <div class="deals-state deals-state-error">
+        <span>{{ error() }}</span>
+        <button type="button" (click)="loadDeals()">Retry</button>
+      </div>
+    } @else if (filteredDeals().length === 0) {
+      <div class="deals-state">No deals found yet. Save a trip and Roamer will personalize this page.</div>
+    } @else {
+      <div class="deals-grid">
+        @for (deal of filteredDeals(); track deal.id) {
+          <article class="deal-card">
+            <div class="deal-topline">
+              <span class="deal-type">{{ deal.type | titlecase }}</span>
+              <strong>{{ formatDealPrice(deal) }}</strong>
+            </div>
+            <h2>{{ deal.title }}</h2>
+            <p class="deal-route">
+              @if (deal.origin) {
+                {{ deal.origin }} →
+              }
+              {{ deal.destination }}
+            </p>
+            <p class="deal-description">{{ deal.description }}</p>
+            <div class="deal-footer">
+              <span>{{ deal.provider }}</span>
+              <button type="button" (click)="openDeal(deal)">{{ deal.actionLabel }}</button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+</main>
