@@ -224,6 +224,24 @@ describe('DashboardComponent weather rotation', () => {
     fixture.destroy();
   });
 
+  it('returns the correct greeting for local morning, afternoon, evening, and night hours', () => {
+    expect(component.getGreeting(new Date(2026, 0, 1, 8, 0))).toBe('GOOD MORNING');
+    expect(component.getGreeting(new Date(2026, 0, 1, 13, 0))).toBe('GOOD AFTERNOON');
+    expect(component.getGreeting(new Date(2026, 0, 1, 19, 0))).toBe('GOOD EVENING');
+    expect(component.getGreeting(new Date(2026, 0, 1, 23, 0))).toBe('GOOD NIGHT');
+    expect(component.getGreeting(new Date(2026, 0, 1, 3, 0))).toBe('GOOD NIGHT');
+  });
+
+  it('renders the dynamic greeting in the hero section', () => {
+    component.greeting = 'GOOD MORNING';
+    fixture.detectChanges();
+
+    const heroGreeting: HTMLElement = fixture.nativeElement.querySelector('.hero-sup');
+
+    expect(heroGreeting).toBeTruthy();
+    expect(heroGreeting.textContent?.trim()).toBe('GOOD MORNING');
+  });
+
   it('shows exactly 3 initial cities with weather data', fakeAsync(() => {
     fixture.detectChanges();
     tick();

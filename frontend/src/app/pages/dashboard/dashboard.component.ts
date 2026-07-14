@@ -151,6 +151,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private weatherRotationIntervalId: ReturnType<typeof setInterval> | null = null;
   private weatherRequestSequence = 0;
   private recommendationRefreshSeed = 0;
+  greeting = this.getGreeting();
   readonly isPlanningTrip = signal(false);
 
   visibleCalendarMonth = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
@@ -223,6 +224,24 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       this.loadBudgetOverview();
     }
   });
+
+  getGreeting(date: Date = new Date()): string {
+    const hour = date.getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return 'GOOD MORNING';
+    }
+
+    if (hour >= 12 && hour < 17) {
+      return 'GOOD AFTERNOON';
+    }
+
+    if (hour >= 17 && hour < 22) {
+      return 'GOOD EVENING';
+    }
+
+    return 'GOOD NIGHT';
+  }
 
   ngOnInit(): void {
     this.loadUpcomingTrips();
