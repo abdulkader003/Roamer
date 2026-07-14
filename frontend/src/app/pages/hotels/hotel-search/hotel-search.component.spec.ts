@@ -187,7 +187,7 @@ describe('HotelSearch', () => {
     expect(component.citySuggestions).toContain('München');
   });
 
-  it('opens the destination overlay on focus and shows matches after typing', () => {
+  it('shows inline destination suggestions on focus and typing without opening a modal', () => {
     component.location = '';
     component.showCitySuggestions();
     expect(component.activeCitySuggestions).toBeTrue();
@@ -202,11 +202,40 @@ describe('HotelSearch', () => {
     expect(component.citySuggestions).toEqual([]);
   });
 
-  it('keeps the destination overlay open when input has no matches', () => {
+  it('lets users type directly into the destination field and see inline suggestions', () => {
+    const destinationInput: HTMLInputElement = fixture.nativeElement.querySelector('input[name="location"]');
+
+    destinationInput.dispatchEvent(new Event('focus'));
+    destinationInput.value = 'Tok';
+    destinationInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(component.location).toBe('Tok');
+    expect(component.activeCitySuggestions).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.city-popover')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.city-popover-backdrop')).toBeNull();
+    const dropdown: HTMLElement = fixture.nativeElement.querySelector('.city-suggestions');
+    const searchPanel: HTMLElement = fixture.nativeElement.querySelector('.search-panel');
+    const searchStage: HTMLElement = fixture.nativeElement.querySelector('.search-stage');
+    const searchCard: HTMLElement = fixture.nativeElement.querySelector('.search-card');
+    expect(dropdown).toBeTruthy();
+    expect(dropdown.classList).toContain('city-suggestions--floating');
+    expect(searchPanel.contains(dropdown)).toBeFalse();
+    expect(searchCard.contains(dropdown)).toBeFalse();
+    expect(searchStage.contains(dropdown)).toBeFalse();
+    expect(component.citySuggestionsStyle['top']).toBeTruthy();
+    expect(component.citySuggestionsStyle['width']).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Tokyo');
+  });
+
+  it('keeps the inline destination suggestions open when input has no matches', () => {
     component.updateLocationText('zzzzzz');
+    fixture.detectChanges();
 
     expect(component.citySuggestions).toEqual([]);
     expect(component.activeCitySuggestions).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.city-suggestions')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('No matching destinations found.');
   });
 
   it('keeps city selection from the suggestions dropdown working', () => {
