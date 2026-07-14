@@ -10,6 +10,14 @@ import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { ActivitiesService, Activity } from '../../services/activities';
 import { CalendarService } from '../hotels/services/calendar.service';
 import { DashboardComponent, DESTINATION_WEATHER_CITIES } from './dashboard.component';
+import {
+  RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE,
+  RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES
+} from '../../services/recommended-experience-cities';
+
+function sortedValues(values: readonly string[]): string[] {
+  return [...values].sort((first, second) => first.localeCompare(second));
+}
 
 function weatherFor(cities: readonly string[]): WeatherDto[] {
   return cities.map((city) => ({
@@ -109,29 +117,35 @@ describe('DashboardComponent weather rotation', () => {
         Berlin: { genre: 'Concerts', title: 'Open Air Concert', country: 'Germany' },
         Munich: { genre: 'Festivals', title: 'Summer Festival', country: 'Germany' },
         Hamburg: { genre: 'Theatre', title: 'Harbor Theatre Night', country: 'Germany' },
+        Cologne: { genre: 'Family', title: 'Cologne Family Fair', country: 'Germany' },
         Paris: { genre: 'Arts', title: 'Modern Art Exhibition', country: 'France' },
         Lyon: { genre: 'Food & Drink', title: 'Lyon Food Market', country: 'France' },
+        Marseille: { genre: 'Concerts', title: 'Marseille Live Night', country: 'France' },
+        Nice: { genre: 'Festivals', title: 'Nice Summer Festival', country: 'France' },
         Madrid: { genre: 'Comedy', title: 'Comedy Showcase', country: 'Spain' },
         Barcelona: { genre: 'Museums', title: 'Modern Art Exhibition', country: 'Spain' },
         Valencia: { genre: 'Family', title: 'Family Science Day', country: 'Spain' },
+        Seville: { genre: 'Concerts', title: 'Seville Guitar Night', country: 'Spain' },
         Rome: { genre: 'Food & Drink', title: 'Roman Food Market', country: 'Italy' },
         Milan: { genre: 'Theatre', title: 'Milan Musical Night', country: 'Italy' },
+        Florence: { genre: 'Arts', title: 'Florence Gallery Evening', country: 'Italy' },
+        Naples: { genre: 'Festivals', title: 'Naples Street Festival', country: 'Italy' },
         Amsterdam: { genre: 'Concerts', title: 'Canal Jazz Concert', country: 'Netherlands' },
+        Rotterdam: { genre: 'Sports', title: 'Rotterdam Sports Night', country: 'Netherlands' },
+        Brussels: { genre: 'Food & Drink', title: 'Brussels Food Walk', country: 'Belgium' },
+        Antwerp: { genre: 'Arts', title: 'Antwerp Design Expo', country: 'Belgium' },
         Vienna: { genre: 'Music', title: 'Classical Music Evening', country: 'Austria' },
+        Salzburg: { genre: 'Music', title: 'Salzburg Concert Hall', country: 'Austria' },
         Prague: { genre: 'Cultural Events', title: 'Old Town Culture Walk', country: 'Czech Republic' },
+        Budapest: { genre: 'Theatre', title: 'Budapest Stage Night', country: 'Hungary' },
         Lisbon: { genre: 'Festivals', title: 'Lisbon Street Festival', country: 'Portugal' },
+        Porto: { genre: 'Food & Drink', title: 'Porto Wine Market', country: 'Portugal' },
         Copenhagen: { genre: 'Family', title: 'Harbor Family Day', country: 'Denmark' },
-        Tokyo: { genre: 'Museums', title: 'Digital Art Museum', country: 'Japan' },
-        Seoul: { genre: 'Concerts', title: 'K Pop Live Night', country: 'South Korea' },
-        Dubai: { genre: 'Food & Drink', title: 'Dubai Food Festival', country: 'United Arab Emirates' },
-        Singapore: { genre: 'Family', title: 'Garden Family Experience', country: 'Singapore' },
-        Sydney: { genre: 'Theatre', title: 'Harbor Theatre Show', country: 'Australia' },
-        London: { genre: 'Theatre', title: 'West End Musical', country: 'United Kingdom' },
-        'New York': { genre: 'Baseball', title: 'Yankees Baseball Night', country: 'United States' },
-        'Los Angeles': { genre: 'Concerts', title: 'Hollywood Bowl Concert', country: 'United States' },
-        Toronto: { genre: 'Comedy', title: 'Toronto Comedy Night', country: 'Canada' },
-        Vancouver: { genre: 'Cultural Events', title: 'Vancouver Culture Fair', country: 'Canada' },
-        'Mexico City': { genre: 'Festivals', title: 'Mexico City Festival', country: 'Mexico' },
+        Stockholm: { genre: 'Concerts', title: 'Stockholm Pop Night', country: 'Sweden' },
+        Oslo: { genre: 'Museums', title: 'Oslo Museum Evening', country: 'Norway' },
+        Dublin: { genre: 'Comedy', title: 'Dublin Comedy Club', country: 'Ireland' },
+        Athens: { genre: 'Cultural Events', title: 'Athens Culture Walk', country: 'Greece' },
+        Zurich: { genre: 'Sports', title: 'Zurich Sports Festival', country: 'Switzerland' },
       };
       const cityCategory = cityCategories[targetCity] ?? {
         genre: 'Cultural Events',
@@ -282,6 +296,35 @@ describe('DashboardComponent weather rotation', () => {
     expect(fixture.nativeElement.querySelector('.rec-img')).toBeTruthy();
   }));
 
+  it('uses the first European city batch on initial load', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+
+    const requestedCities = new Set(
+      activitiesService.getActivities.calls.allArgs()
+        .map((args) => args[0])
+        .filter((city): city is string => typeof city === 'string')
+    );
+    const firstBatch = RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(0, RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE);
+
+    for (const city of firstBatch) {
+      expect(requestedCities.has(city)).toBeTrue();
+    }
+
+    expect(sortedValues(component.experiences().map((experience) => experience.city))).toEqual(sortedValues(firstBatch));
+  }));
+
+  it('displays only European city results', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+
+    const europeanCities = new Set<string>(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES);
+
+    expect(component.experiences()).toHaveSize(8);
+    expect(component.experiences().every((experience) => europeanCities.has(experience.city))).toBeTrue();
+    expect(component.experiences().some((experience) => experience.city === 'New York')).toBeFalse();
+  }));
+
   it('diversifies recommended experiences by category and city when available', fakeAsync(() => {
     fixture.detectChanges();
     tick();
@@ -317,8 +360,8 @@ describe('DashboardComponent weather rotation', () => {
       items: Array.from({ length: 8 }, (_, index) => activity({
         id: `sports-only-${index}`,
         title: `Sports Event ${index + 1}`,
-        city: 'New York',
-        country: 'United States',
+        city: RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES[index],
+        country: 'Europe',
         genre: 'Sports',
         category: 'Sports'
       })),
@@ -341,8 +384,8 @@ describe('DashboardComponent weather rotation', () => {
       items: Array.from({ length: 8 }, (_, index) => activity({
         id: `no-price-${index}`,
         title: `Free City Event ${index + 1}`,
-        city: `City ${index + 1}`,
-        country: `Country ${index + 1}`,
+        city: RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES[index],
+        country: 'Europe',
         price: 0,
         minPrice: undefined,
         maxPrice: undefined
@@ -374,12 +417,35 @@ describe('DashboardComponent weather rotation', () => {
     const refreshedIds = component.experiences().map((experience) => experience.id);
 
     expect(activitiesService.getActivities).toHaveBeenCalled();
-    expect(activitiesService.getActivities.calls.allArgs().some((args) => args[0] === 'Munich')).toBeTrue();
+    expect(activitiesService.getActivities.calls.allArgs().some((args) => args[0] === 'Rome')).toBeTrue();
     expect(activitiesService.getActivities.calls.allArgs().some((args) => args[1] === 'soccer')).toBeTrue();
     expect(activitiesService.getActivities.calls.allArgs().some((args) => args[4] === 1)).toBeTrue();
-    expect(activitiesService.getActivities.calls.allArgs().some((args) => args[0] === undefined && args[2] === 1 && args[3] === 40)).toBeTrue();
     expect(refreshedIds).not.toEqual(initialIds);
     expect(fixture.nativeElement.querySelectorAll('.rec-card')).toHaveSize(8);
+  }));
+
+  it('advances through four European city batches before restarting', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    const displayedCitiesByBatch = [component.experiences().map((experience) => experience.city)];
+
+    for (let refreshIndex = 0; refreshIndex < 4; refreshIndex++) {
+      (fixture.nativeElement.querySelector('.recommendations-card .view-all') as HTMLButtonElement).click();
+      tick();
+      fixture.detectChanges();
+      displayedCitiesByBatch.push(component.experiences().map((experience) => experience.city));
+    }
+
+    expect(sortedValues(displayedCitiesByBatch[0])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(0, 8)));
+    expect(sortedValues(displayedCitiesByBatch[1])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(8, 16)));
+    expect(sortedValues(displayedCitiesByBatch[2])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(16, 24)));
+    expect(sortedValues(displayedCitiesByBatch[3])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(24, 32)));
+    expect(sortedValues(displayedCitiesByBatch[4])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(0, 8)));
+
+    const firstFourBatches = displayedCitiesByBatch.slice(0, 4).flat();
+    expect(new Set(firstFourBatches).size).toBe(32);
   }));
 
   it('opens recommended experience details and adds the event to calendar', fakeAsync(() => {

@@ -18,6 +18,10 @@ import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { TripTempService } from '../trips/create/trip-temp.service';
 import { BudgetApiService, BudgetCategoryResponse, BudgetSummaryResponse } from '../../services/budget-api.service';
 import { ActivitiesService, Activity } from '../../services/activities';
+import {
+  RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE,
+  RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES
+} from '../../services/recommended-experience-cities';
 import { CalendarEvent } from '../hotels/models/hotel.model';
 import { CalendarService } from '../hotels/services/calendar.service';
 
@@ -52,34 +56,6 @@ export const DESTINATION_WEATHER_CITIES = [
 const WEATHER_ROTATION_INTERVAL_MS = 20000;
 const VISIBLE_WEATHER_CITY_COUNT = 3;
 const RECOMMENDED_EXPERIENCE_LIMIT = 8;
-const RECOMMENDED_EXPERIENCE_CITIES = [
-  'Berlin',
-  'Munich',
-  'Paris',
-  'Madrid',
-  'Rome',
-  'Amsterdam',
-  'Tokyo',
-  'Dubai',
-  'Singapore',
-  'Sydney',
-  'Hamburg',
-  'Barcelona',
-  'Valencia',
-  'Lyon',
-  'Milan',
-  'Vienna',
-  'Prague',
-  'Lisbon',
-  'Copenhagen',
-  'London',
-  'New York',
-  'Los Angeles',
-  'Toronto',
-  'Vancouver',
-  'Mexico City',
-  'Seoul',
-] as const;
 const WORLD_CUP_EXPERIENCE_KEYWORDS = ['football', 'soccer', 'FIFA', 'World Cup', 'fan festival', 'sports'] as const;
 const REFRESH_EXPERIENCE_KEYWORDS = ['festival', 'concert', 'theatre', 'comedy', 'family', 'sports', 'museum', 'food', 'culture'] as const;
 const RECOMMENDED_CATEGORY_TARGETS = [
@@ -324,14 +300,16 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isExperiencesLoading.set(true);
     this.experiencesError.set('');
 
-    // Blends priority World Cup results with general events for a more diverse recommendation set.
+    const activeCities = this.recommendedExperienceCities();
+    const fallbackCities = this.recommendedExperienceFallbackCities(activeCities);
+
+    // Uses the active European batch first; fallback cities are loaded only if a batch has gaps.
     forkJoin({
-      worldCupActivities: this.loadExperienceBatch('football', refresh).pipe(catchError(() => of(null))),
-      generalActivities: this.loadExperienceBatch('', refresh).pipe(catchError(() => of(null))),
-      latestActivities: this.loadLatestExperienceBatch(refresh).pipe(catchError(() => of(null))),
+      worldCupActivities: this.loadExperienceBatch(activeCities, 'football', refresh).pipe(catchError(() => of(null))),
+      generalActivities: this.loadExperienceBatch(activeCities, '', refresh).pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ worldCupActivities, generalActivities, latestActivities }) => {
-        if (worldCupActivities === null && generalActivities === null && latestActivities === null) {
+      next: ({ worldCupActivities, generalActivities }) => {
+        if (worldCupActivities === null && generalActivities === null) {
           this.handleRecommendedExperiencesError(new Error('Recommended experience requests failed.'));
           return;
         }
@@ -339,25 +317,26 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         const received = [
           ...(worldCupActivities ?? []),
           ...(generalActivities ?? []),
-          ...(latestActivities ?? []),
         ];
-        const merged = this.toRecommendedExperiences([
-          ...received,
-        ], refresh, previousExperienceIds);
-        const nextExperiences = this.ensureRefreshedExperienceOrder(
-          merged.slice(0, RECOMMENDED_EXPERIENCE_LIMIT),
-          refresh,
-          previousExperienceIds
-        );
+        const merged = this.toRecommendedExperiences(received, refresh, previousExperienceIds);
 
-        console.debug('Recommended experiences:', {
-          received: received.length,
-          usable: received.filter((activity) => this.hasUsableRecommendedExperience(activity)).length,
-          returned: nextExperiences.length,
+        if (merged.length >= RECOMMENDED_EXPERIENCE_LIMIT || fallbackCities.length === 0) {
+          this.applyRecommendedExperiences(received, merged, refresh, previousExperienceIds);
+          return;
+        }
+
+        this.loadExperienceBatch(fallbackCities, '', refresh).subscribe({
+          next: (fallbackActivities) => {
+            const fallbackReceived = [...received, ...fallbackActivities];
+            this.applyRecommendedExperiences(
+              fallbackReceived,
+              this.toRecommendedExperiences(fallbackReceived, refresh, previousExperienceIds),
+              refresh,
+              previousExperienceIds
+            );
+          },
+          error: () => this.applyRecommendedExperiences(received, merged, refresh, previousExperienceIds)
         });
-        this.experiences.set(nextExperiences);
-        this.isExperiencesLoading.set(false);
-        this.cdr.detectChanges();
       },
       error: (error) => this.handleRecommendedExperiencesError(error)
     });
@@ -654,8 +633,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private loadExperienceBatch(keyword = '', refresh = false) {
-    const cities = this.recommendedExperienceCities(refresh);
+  private loadExperienceBatch(cities: readonly string[], keyword = '', refresh = false) {
     const requests = cities.map((city, index) =>
       this.activitiesService.getActivities(
         city,
@@ -680,24 +658,32 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  private loadLatestExperienceBatch(refresh = false) {
-    const pageCount = refresh ? 2 : 1;
-    const requests = Array.from({ length: pageCount }, (_, page) =>
-      this.activitiesService.getActivities(undefined, '', page, 40, refresh ? this.recommendationRefreshSeed : undefined).pipe(
-        map((response) => response.items ?? []),
-        catchError(() => of([]))
-      )
-    );
-
-    return forkJoin(requests).pipe(
-      map((results) => results.flat())
-    );
-  }
-
   private handleRecommendedExperiencesError(error: unknown): void {
     console.error('Failed to load recommended experiences:', error);
     this.experiences.set([]);
     this.experiencesError.set('Recommended experiences are unavailable right now.');
+    this.isExperiencesLoading.set(false);
+    this.cdr.detectChanges();
+  }
+
+  private applyRecommendedExperiences(
+    received: Activity[],
+    merged: Experience[],
+    refresh: boolean,
+    previousExperienceIds: Set<string>
+  ): void {
+    const nextExperiences = this.ensureRefreshedExperienceOrder(
+      merged.slice(0, RECOMMENDED_EXPERIENCE_LIMIT),
+      refresh,
+      previousExperienceIds
+    );
+
+    console.debug('Recommended experiences:', {
+      received: received.length,
+      usable: received.filter((activity) => this.hasUsableRecommendedExperience(activity)).length,
+      returned: nextExperiences.length,
+    });
+    this.experiences.set(nextExperiences);
     this.isExperiencesLoading.set(false);
     this.cdr.detectChanges();
   }
@@ -806,7 +792,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private hasUsableRecommendedExperience(activity: Activity): boolean {
     return Boolean(
       activity?.id &&
-      activity.title?.trim()
+      activity.title?.trim() &&
+      this.isRecommendedEuropeanCity(activity.city)
     );
   }
 
@@ -865,12 +852,20 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     return hash % 100;
   }
 
-  private recommendedExperienceCities(refresh: boolean): readonly string[] {
-    if (!refresh) {
-      return RECOMMENDED_EXPERIENCE_CITIES.slice(0, 10);
-    }
+  private recommendedExperienceCities(): readonly string[] {
+    const batchCount = RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.length / RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE;
+    const batchIndex = this.recommendationRefreshSeed % batchCount;
+    const startIndex = batchIndex * RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE;
 
-    return this.rotateValues([...RECOMMENDED_EXPERIENCE_CITIES], this.recommendationRefreshSeed).slice(0, 10);
+    return RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(
+      startIndex,
+      startIndex + RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE
+    );
+  }
+
+  private recommendedExperienceFallbackCities(activeCities: readonly string[]): readonly string[] {
+    const activeCitySet = new Set(activeCities);
+    return RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.filter((city) => !activeCitySet.has(city));
   }
 
   private recommendedExperienceKeyword(keyword: string, refresh: boolean, index: number): string {
@@ -956,6 +951,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private normalizeRecommendationKey(value: string | undefined): string {
     return value?.trim().toLowerCase() || 'unknown';
+  }
+
+  private isRecommendedEuropeanCity(city: string | undefined): boolean {
+    return RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.some((preferredCity) => preferredCity === city);
   }
 
   private recommendedExperienceDuplicateKey(activity: Activity): string {
