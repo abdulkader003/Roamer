@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth';
 
 export type CalendarViewPreference = 'monthly' | 'weekly';
+export type CalendarView = 'month' | 'week';
 
 export interface SettingsPreferences {
   notifications: {
@@ -27,6 +28,18 @@ export interface FeedbackPayload {
 
 const SETTINGS_STORAGE_KEY = 'roamer-settings';
 const FEEDBACK_STORAGE_KEY = 'roamer-feedback-drafts';
+const DEFAULT_SETTINGS_PREFERENCES: SettingsPreferences = {
+  notifications: {
+    tripReminders: true,
+    budgetAlerts: true,
+    bookingUpdates: false
+  },
+  defaultCalendarView: 'monthly',
+  privacy: {
+    shareTripData: false,
+    allowAnalytics: true
+  }
+};
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
@@ -75,6 +88,22 @@ export class SettingsService {
       this.saveFeedbackLocally(payload);
       throw error;
     }
+  }
+
+  getDefaultCalendarView(): CalendarView {
+    return this.toCalendarView(this.loadPreferencesLocally(DEFAULT_SETTINGS_PREFERENCES).defaultCalendarView);
+  }
+
+  setDefaultCalendarViewPreference(view: CalendarViewPreference): void {
+    const preferences = this.loadPreferencesLocally(DEFAULT_SETTINGS_PREFERENCES);
+    this.savePreferencesLocally({
+      ...preferences,
+      defaultCalendarView: view
+    });
+  }
+
+  private toCalendarView(view: CalendarViewPreference): CalendarView {
+    return view === 'weekly' ? 'week' : 'month';
   }
 
   private loadPreferencesLocally(defaults: SettingsPreferences): SettingsPreferences {

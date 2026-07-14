@@ -104,6 +104,7 @@ export class SettingsComponent implements OnInit {
 
       this.notifications = { ...settings.notifications };
       this.defaultCalendarView = settings.defaultCalendarView;
+      this.settingsService.setDefaultCalendarViewPreference(settings.defaultCalendarView);
       this.privacy = { ...settings.privacy };
     } finally {
       this.isLoadingSettings = false;
@@ -165,6 +166,7 @@ export class SettingsComponent implements OnInit {
   selectCalendarView(view: CalendarViewPreference): void {
     this.markSettingsEdited();
     this.defaultCalendarView = view;
+    this.settingsService.setDefaultCalendarViewPreference(view);
   }
 
   private markSettingsEdited(): void {
