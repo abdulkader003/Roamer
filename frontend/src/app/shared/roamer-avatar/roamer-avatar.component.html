@@ -14,14 +14,12 @@
         <stop offset="0.7" stop-color="#6fc8f5" />
         <stop offset="1" stop-color="#2563d9" />
       </radialGradient>
+
       <linearGradient id="landWash" x1="96" y1="96" x2="312" y2="285" gradientUnits="userSpaceOnUse">
         <stop offset="0" stop-color="#dff8ff" />
         <stop offset="1" stop-color="#aee6ff" />
       </linearGradient>
-      <linearGradient id="shoeShine" x1="106" y1="362" x2="332" y2="426" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#ffffff" />
-        <stop offset="1" stop-color="#dbeafe" />
-      </linearGradient>
+
       <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
         <feDropShadow dx="0" dy="12" stdDeviation="13" flood-color="#1a56db" flood-opacity="0.18" />
       </filter>
@@ -31,85 +29,156 @@
 
     <g class="avatar-limbs avatar-limbs--behind">
       <g class="avatar-arm avatar-arm--left">
-        <path class="arm-sleeve" d="M119 215c-43 5-72 35-72 72 0 28 19 48 48 52" />
-        <g class="avatar-hand avatar-hand--left">
-          <path class="hand-palm" d="M82 313c-16-14-15-39 4-51 10-6 23-5 34 4 14-9 33 0 37 18 18 4 25 24 12 40-17 21-62 18-87-11z" />
-          <path class="hand-finger" d="M94 262c1-17 21-23 31-8" />
-          <path class="hand-finger" d="M126 264c9-14 29-9 31 9" />
-          <path class="hand-crease" d="M95 312c18 12 43 15 61 4" />
+        <path class="arm-sleeve" d="M122 222 C88 228 63 257 66 291 C68 318 88 332 112 322" />
+
+        <g
+          class="avatar-hand avatar-hand--left"
+          transform="translate(112 322) scale(0.9) translate(-112 -322)">
+          <path
+            class="wrist-cuff"
+            d="M92 300 C105 289 127 293 137 309 C129 326 103 331 89 316 C83 309 84 303 92 300 Z" />
+
+          <path
+            class="glove glove--left"
+            d="
+              M69 284
+              C55 282 45 292 45 306
+              C45 321 59 331 74 326
+              C80 340 103 343 119 334
+              C137 324 148 305 142 287
+              C137 271 121 264 106 270
+              C98 257 79 257 72 271
+              C70 275 69 279 69 284
+              Z" />
+
+          <path class="glove-thumb-line" d="M73 286 C87 289 94 300 90 314" />
+          <path class="glove-finger-line" d="M99 272 C112 282 117 299 111 316" />
+          <path class="glove-palm-line" d="M78 319 C96 329 123 324 135 304" />
         </g>
       </g>
 
       <g class="avatar-arm avatar-arm--right">
-        <path class="arm-sleeve" d="M323 212c41-12 76 7 85 43 7 30-10 58-40 72" />
+        <path
+          class="arm-sleeve"
+          d="M318 222 C354 229 379 257 377 291 C376 309 362 321 343 309" />
+
         <g class="avatar-hand avatar-hand--right">
-          <path class="hand-palm" d="M345 307c-6-21 8-41 29-44 7-17 31-17 39 0 19 0 31 19 22 37-9 22-50 40-90 7z" />
-          <path class="hand-finger" d="M373 263c2-17 24-20 32-5" />
-          <path class="hand-finger" d="M405 264c13-9 30 3 27 20" />
-          <path class="hand-crease" d="M359 311c19 7 43 4 60-9" />
+          <path
+            class="glove glove--right"
+            d="
+             M341 286
+             C353 276 371 274 384 284
+             C391 273 408 275 415 288
+             C423 303 413 320 396 326
+             C380 332 361 329 349 318
+             C334 321 322 312 322 298
+             C322 289 330 283 341 286
+             Z" />
+
+          <path class="glove-thumb-line" d="M341 294 C353 299 359 310 355 322" />
+          <path class="glove-finger-line" d="M365 283 C373 295 374 310 367 322" />
+          <path class="glove-finger-line" d="M386 286 C394 298 393 312 384 323" />
+          <path class="glove-palm-line" d="M345 318 C362 329 389 327 403 311" />
         </g>
       </g>
     </g>
 
     <g class="avatar-legs">
       <g class="avatar-leg avatar-leg--left">
-        <path class="leg-stroke" d="M173 306c-6 40-24 74-54 98" />
-        <path class="avatar-shoe avatar-shoe--left" d="M77 404c25-29 68-30 92 4-15 21-70 26-92-4z" />
-        <path class="shoe-sole" d="M84 410c23 13 54 13 77 1" />
+        <path class="leg-stroke" d="M173 306 C167 347 147 381 116 403" />
+        <path
+          class="avatar-shoe avatar-shoe--left"
+          d="
+            M72 406
+            C78 388 102 378 130 378
+            C158 378 180 388 184 404
+            C188 420 170 433 141 437
+            C108 442 80 434 71 417
+            C69 413 69 409 72 406
+            Z" />
+        <path class="shoe-sole" d="M87 412 C109 424 140 423 159 409" />
+        <path class="shoe-shine" d="M99 400 C114 392 137 394 151 403" />
       </g>
+
       <g class="avatar-leg avatar-leg--right">
-        <path class="leg-stroke" d="M267 306c8 40 30 72 64 94" />
-        <path class="avatar-shoe avatar-shoe--right" d="M294 407c22-36 65-38 92-10-19 33-75 31-92 10z" />
-        <path class="shoe-sole" d="M306 411c24 10 56 7 74-7" />
+        <path class="leg-stroke" d="M267 306 C276 348 300 380 333 399" />
+        <path
+          class="avatar-shoe avatar-shoe--right"
+          d="
+            M293 406
+            C300 388 323 378 351 378
+            C379 378 401 389 406 404
+            C411 420 393 433 363 437
+            C331 441 302 434 293 417
+            C291 413 291 409 293 406
+            Z" />
+        <path class="shoe-sole" d="M309 412 C333 423 364 421 382 407" />
+        <path class="shoe-shine" d="M320 399 C337 392 360 394 374 402" />
       </g>
     </g>
 
     <g class="avatar-body" filter="url(#softShadow)">
       <circle class="globe-body" cx="220" cy="191" r="136" />
-      <path class="globe-highlight" d="M115 168c11-65 61-114 126-120" />
+      <path class="globe-highlight" d="M115 168 C126 103 176 54 241 48" />
 
       <g class="globe-landmarks">
-        <path class="land land--left" d="M125 123c25-45 93-56 128-22 20 19 8 42 30 58 30 23 18 72-29 94-54 25-110-6-105-44 3-25-35-31-24-86z" />
-        <path class="land land--right" d="M277 80c43 19 73 60 78 109-33-9-59-28-70-58-6-17-22-30-8-51z" />
-        <path class="land land--bottom" d="M175 274c32 14 68 12 100-5-14 30-45 50-82 51-16-9-24-24-18-46z" />
+        <path
+          class="land land--left"
+          d="M125 123 C150 78 218 67 253 101 C273 120 261 143 283 159 C313 182 301 231 254 253 C200 278 144 247 149 209 C152 184 114 178 125 123 Z" />
+        <path
+          class="land land--right"
+          d="M277 80 C320 99 350 140 355 189 C322 180 296 161 285 131 C279 114 263 101 277 80 Z" />
+        <path
+          class="land land--bottom"
+          d="M175 274 C207 288 243 286 275 269 C261 299 230 319 193 320 C177 311 169 296 175 274 Z" />
       </g>
 
       <g class="globe-grid">
-        <path d="M84 191h272" />
-        <path d="M116 126c58 28 151 28 210 0" />
-        <path d="M116 256c58-28 151-28 210 0" />
-        <path d="M220 55c-42 69-42 203 0 272" />
-        <path d="M220 55c42 69 42 203 0 272" />
+        <path d="M84 191 H356" />
+        <path d="M116 126 C174 154 267 154 326 126" />
+        <path d="M116 256 C174 228 267 228 326 256" />
+        <path d="M220 55 C178 124 178 258 220 327" />
+        <path d="M220 55 C262 124 262 258 220 327" />
       </g>
 
       <g class="avatar-face">
+        <g class="avatar-eyebrows">
+          <path
+            class="avatar-eyebrow avatar-eyebrow--left"
+            d="M150 130 Q174 116 198 130" />
+
+          <path
+            class="avatar-eyebrow avatar-eyebrow--right"
+            d="M242 130 Q266 116 290 130" />
+        </g>
+
         <g class="avatar-eye avatar-eye--left">
           <ellipse class="eye-white" cx="174" cy="175" rx="25" ry="31" />
           <circle class="eye-pupil" cx="181" cy="182" r="10" />
           <circle class="eye-spark" cx="177" cy="176" r="3" />
-          <path class="eye-lid eye-lid--top" d="M151 166c13-15 33-17 48-3" />
-          <path class="eye-lid eye-lid--bottom" d="M154 194c13 9 31 10 43 0" />
+          <path class="eye-lid eye-lid--top" d="M151 166 C164 151 184 149 199 163" />
+          <path class="eye-lid eye-lid--bottom" d="M154 194 C167 203 185 204 197 194" />
         </g>
 
         <g class="avatar-eye avatar-eye--right">
           <ellipse class="eye-white" cx="266" cy="175" rx="25" ry="31" />
           <circle class="eye-pupil" cx="273" cy="182" r="10" />
           <circle class="eye-spark" cx="269" cy="176" r="3" />
-          <path class="eye-lid eye-lid--top" d="M243 163c15-13 35-12 48 3" />
-          <path class="eye-lid eye-lid--bottom" d="M246 194c13 9 31 10 43 0" />
+          <path class="eye-lid eye-lid--top" d="M243 163 C258 150 278 151 291 166" />
+          <path class="eye-lid eye-lid--bottom" d="M246 194 C259 203 277 204 289 194" />
         </g>
 
         <circle class="cheek cheek--left" cx="139" cy="218" r="13" />
         <circle class="cheek cheek--right" cx="301" cy="218" r="13" />
-        <path class="avatar-mouth" d="M174 228c19 28 73 28 93 0" />
-        <path class="mouth-corner" d="M162 224c7 4 14 5 20 2" />
-        <path class="mouth-corner" d="M258 226c8 3 15 2 21-3" />
+        <path class="avatar-mouth" d="M174 228 C193 256 247 256 267 228" />
+        <path class="mouth-corner" d="M162 224 C169 228 176 229 182 226" />
+        <path class="mouth-corner" d="M258 226 C266 229 273 228 279 223" />
       </g>
     </g>
 
     <g class="avatar-limbs avatar-limbs--front">
-      <path class="cuff cuff--left" d="M111 214c13-4 28-3 40 5" />
-      <path class="cuff cuff--right" d="M292 217c13-9 28-12 43-8" />
+      <path class="cuff cuff--left" d="M111 214 C124 210 139 211 151 219" />
+      <path class="cuff cuff--right" d="M292 217 C305 208 320 205 335 209" />
     </g>
   </svg>
 </figure>

@@ -78,43 +78,103 @@
   fill: none;
   stroke: #2767df;
   stroke-linecap: round;
+  stroke-linejoin: round;
   stroke-width: 22;
 }
 
 .avatar-arm--left {
-  transform-origin: 84% 28%;
+  transform-box: view-box;
+  transform-origin: 82% 28%;
 }
 
 .avatar-arm--right {
-  transform-origin: 15% 24%;
+  transform-box: view-box;
+  transform-origin: 18% 28%;
 }
 
 .avatar-hand {
+  /* Hands inherit the arm group's transform and scale as part of the limb. */
+  transform-box: view-box;
   transform-origin: center;
 }
 
-.hand-palm,
-.avatar-shoe {
-  fill: url(#shoeShine);
-  stroke: #82b5ff;
-  stroke-linejoin: round;
-  stroke-width: 5.5;
+.avatar-hand--left {
+  transform: none;
 }
 
-.hand-finger,
-.hand-crease,
-.shoe-sole,
-.cuff {
-  fill: none;
-  stroke: #82b5ff;
+.avatar-hand--right {
+  transform: none;
+}
+
+.glove,
+.wrist-cuff {
+  fill: #ffffff;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.glove {
+  stroke: #14213d;
+  stroke-width: 5;
+}
+
+.wrist-cuff {
+  stroke: #82b5ff;
+  stroke-width: 4.5;
+}
+
+.glove-thumb-line,
+.glove-finger-line,
+.glove-palm-line {
+  fill: none;
+  stroke: #14213d;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.42;
+}
+
+.glove-thumb-line {
+  stroke-width: 3.5;
+}
+
+.glove-finger-line {
+  stroke-width: 3;
+}
+
+.glove-palm-line {
+  stroke-width: 3.4;
+}
+
+.avatar-shoe {
+  fill: #ffffff;
+  stroke: #14213d;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.shoe-sole {
+  fill: none;
+  stroke: #82b5ff;
   stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+.shoe-shine {
+  fill: none;
+  stroke: #dbeafe;
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0.95;
 }
 
 .cuff {
+  fill: none;
   stroke: #ffffff;
   stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   opacity: 0.82;
 }
 
@@ -126,14 +186,14 @@
   transform-origin: 25% 0;
 }
 
-.avatar-shoe {
+.avatar-eyebrow {
+  fill: none;
+  stroke: #22345d;
   stroke-width: 5;
-}
-
-.shoe-sole {
-  stroke: #5e9df4;
-  stroke-width: 4.5;
-  opacity: 0.58;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.95;
+  transition: transform 180ms ease;
 }
 
 .eye-white {
@@ -221,12 +281,6 @@
   opacity: 1;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .avatar-hand--right {
-    animation: avatar-wave 5.6s ease-in-out infinite;
-  }
-}
-
 @media (max-width: 900px) {
   :host {
     width: clamp(230px, 31vw, 320px);
@@ -241,21 +295,5 @@
 
   50% {
     transform: translateY(-10px);
-  }
-}
-
-@keyframes avatar-wave {
-  0%,
-  82%,
-  100% {
-    transform: rotate(0deg);
-  }
-
-  87% {
-    transform: rotate(5deg) translateY(-3px);
-  }
-
-  92% {
-    transform: rotate(-4deg) translateY(2px);
   }
 }
