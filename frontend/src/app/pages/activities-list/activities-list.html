@@ -30,7 +30,7 @@
 
   <section class="search-card" aria-label="Search activities">
     <div class="search-grid">
-      <label class="field city-field">
+      <label #cityField class="field city-field">
         <span class="field-label">City</span>
         <input
           type="text"
@@ -41,20 +41,9 @@
           autocomplete="off"
         />
         <span class="field-meta">Search global cities with local spellings and aliases.</span>
-
-        <div class="city-suggestions" *ngIf="activeCitySuggestions && citySuggestions.length">
-          <button
-            type="button"
-            class="city-option"
-            *ngFor="let city of citySuggestions"
-            (mousedown)="$event.preventDefault(); applyCity(city)">
-            <strong>{{ city.name }}</strong>
-            <span>{{ city.aliases.length ? city.aliases.slice(0, 2).join(' · ') : 'Global city search' }}</span>
-          </button>
-        </div>
       </label>
 
-      <label class="field keyword-field">
+      <label #keywordField class="field keyword-field">
         <span class="field-label">Activity keyword</span>
         <input
           type="text"
@@ -63,17 +52,6 @@
           (focus)="showKeywordSuggestions()"
           placeholder="Concert, museum, gallery..."
         />
-
-        <div class="city-suggestions city-suggestions--keywords" *ngIf="activeKeywordSuggestions && keywordSuggestions.length">
-          <button
-            type="button"
-            class="city-option city-option--keyword"
-            *ngFor="let keyword of keywordSuggestions"
-            (mousedown)="$event.preventDefault(); applyKeyword(keyword)">
-            <strong>{{ keyword }}</strong>
-            <span>Popular event search</span>
-          </button>
-        </div>
       </label>
 
       <div class="field date-field" [class.open]="activeDatePicker">
@@ -103,83 +81,55 @@
 
     <p class="search-error" *ngIf="errorMessage && !loading">{{ errorMessage }}</p>
 
-    <div
-      *ngIf="activeDatePicker"
-      class="date-popover-backdrop"
-      role="presentation"
-      (click)="closeDatePicker()">
-      <section
-        class="date-popover"
-        role="dialog"
-        aria-modal="true"
-        [attr.aria-label]="activeDatePickerTitle()"
-        (click)="$event.stopPropagation()">
-        <header class="date-popover__head">
-          <div>
-            <span class="date-popover__eyebrow">Activity dates</span>
-            <h3>{{ activeDatePickerTitle() }}</h3>
-          </div>
-          <button type="button" class="date-close" aria-label="Close date picker" (click)="closeDatePicker()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </header>
-
-        <div class="date-popover__body">
-          <aside class="date-manual">
-            <label>
-              <span>Manual date</span>
-              <input
-                type="text"
-                [value]="activeDatePickerInputValue()"
-                (input)="updateActiveDatePickerInput($any($event.target).value)"
-                [class.invalid]="manualDateError"
-                placeholder="YYYY-MM-DD"
-                inputmode="numeric"
-              />
-            </label>
-            <p class="date-hint" [class.error]="manualDateError">{{ activeDatePickerHint() }}</p>
-            <button type="button" class="date-clear" (click)="clearDateFilter()">Clear date</button>
-          </aside>
-
-          <div class="date-calendar">
-            <div class="date-calendar__toolbar">
-              <button type="button" aria-label="Previous month" (click)="shiftDatePickerMonth(-1)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
-              <strong>{{ datePickerMonthLabel() }}</strong>
-              <button type="button" aria-label="Next month" (click)="shiftDatePickerMonth(1)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
-            </div>
-
-            <div class="date-weekdays">
-              <span *ngFor="let day of weekDays">{{ day }}</span>
-            </div>
-
-            <div class="date-days">
-              <button
-                type="button"
-                *ngFor="let day of calendarDays()"
-                [class.muted]="!day.inCurrentMonth"
-                [class.today]="day.isToday"
-                [class.selected]="day.isSelected"
-                [class.past]="isPastCalendarDay(day)"
-                (click)="onCalendarDaySelect(day)">
-                {{ day.dayNumber }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
   </section>
+
+  <div
+    class="city-suggestions city-suggestions--floating"
+    *ngIf="activeCitySuggestions && citySuggestions.length"
+    [ngStyle]="citySuggestionsStyle">
+    <button
+      type="button"
+      class="city-option"
+      *ngFor="let city of citySuggestions"
+      (mousedown)="$event.preventDefault(); applyCity(city)">
+      <strong>{{ city.name }}</strong>
+      <span>{{ city.aliases.length ? city.aliases.slice(0, 2).join(' · ') : 'Global city search' }}</span>
+    </button>
+  </div>
+
+  <div
+    class="city-suggestions city-suggestions--keywords city-suggestions--floating"
+    *ngIf="activeKeywordSuggestions && keywordSuggestions.length"
+    [ngStyle]="keywordSuggestionsStyle">
+    <button
+      type="button"
+      class="city-option city-option--keyword"
+      *ngFor="let keyword of keywordSuggestions"
+      (mousedown)="$event.preventDefault(); applyKeyword(keyword)">
+      <strong>{{ keyword }}</strong>
+      <span>Popular event search</span>
+    </button>
+  </div>
+
+  <app-shared-date-picker
+    [open]="activeDatePicker"
+    eyebrow="Activity dates"
+    [title]="activeDatePickerTitle()"
+    [manualValue]="activeDatePickerInputValue()"
+    [hint]="activeDatePickerHint()"
+    [hasError]="!!manualDateError"
+    hintId="activity-manual-date-hint"
+    [monthLabel]="datePickerMonthLabel()"
+    [weekDays]="weekDays"
+    [days]="calendarDays()"
+    clearLabel="Clear date"
+    (closed)="closeDatePicker()"
+    (manualInput)="updateActiveDatePickerInput($event)"
+    (clearRequested)="clearDateFilter()"
+    (previousMonth)="shiftDatePickerMonth(-1)"
+    (nextMonth)="shiftDatePickerMonth(1)"
+    (daySelected)="onCalendarDaySelect($any($event))">
+  </app-shared-date-picker>
 
   <button type="button" class="filters-trigger" (click)="toggleFiltersDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -5,7 +5,7 @@
 .hotels-page {
   min-height: calc(100vh - 64px);
   padding: 28px clamp(18px, 4vw, 56px) 48px;
-  background: var(--page-bg);
+  background: transparent;
   animation: page-enter 0.45s ease-out both;
 }
 

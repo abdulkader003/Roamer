@@ -18,6 +18,7 @@ import {
 import { FlightResponse, FlightsService } from './flights.service';
 import { CalendarEvent } from '../hotels/models/hotel.model';
 import { CalendarService } from '../hotels/services/calendar.service';
+import { SharedDatePickerComponent } from '../../shared/date-picker/shared-date-picker.component';
 
 interface SegmentFlights {
   segmentIndex: number;
@@ -44,7 +45,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-flights',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, SharedDatePickerComponent],
   templateUrl: './flights.component.html',
   styleUrls: ['./flights.component.scss'],
 })

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, HostListener, NgZone, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, timeout } from 'rxjs/operators';
@@ -7,6 +7,7 @@ import { ActivitiesService, Activity, ActivitySearchResponse } from '../../servi
 import { HOTEL_DESTINATIONS } from '../hotels/hotel-search/hotel-destinations';
 import { CalendarEvent } from '../hotels/models/hotel.model';
 import { CalendarService } from '../hotels/services/calendar.service';
+import { SharedDatePickerComponent } from '../../shared/date-picker/shared-date-picker.component';
 import { StatusToastComponent, StatusToastType } from '../../shared/status-toast/status-toast.component';
 
 interface CalendarDay {
@@ -15,6 +16,7 @@ interface CalendarDay {
   inCurrentMonth: boolean;
   isSelected: boolean;
   isToday: boolean;
+  isPast?: boolean;
 }
 
 interface SearchCity {
@@ -45,11 +47,14 @@ type ActivitySort = 'recommended' | 'rating' | 'price-low' | 'price-high' | 'tit
 @Component({
   selector: 'app-activities-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, StatusToastComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SharedDatePickerComponent, StatusToastComponent],
   templateUrl: './activities-list.html',
   styleUrls: ['./activities-list.css'],
 })
 export class ActivitiesListComponent implements OnInit, OnDestroy {
+  @ViewChild('cityField') private cityFieldRef?: ElementRef<HTMLElement>;
+  @ViewChild('keywordField') private keywordFieldRef?: ElementRef<HTMLElement>;
+
   cityText = '';
   selectedCity = '';
   searchTerm = '';
@@ -76,10 +81,13 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
   datePickerMonth = new Date();
   manualDateText = '';
   manualDateError = '';
+  citySuggestionsStyle: Record<string, string> = {};
+  keywordSuggestionsStyle: Record<string, string> = {};
 
   private readonly requestTimeoutMs = 12000;
   private readonly pageSize = 12;
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private autocompleteFrameId: number | null = null;
   private currentRequestId = 0;
   private uniqueActivitiesCacheSource: Activity[] | null = null;
   private uniqueActivitiesCache: Activity[] = [];
@@ -162,11 +170,45 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     if (this.toastTimeoutId) {
       clearTimeout(this.toastTimeoutId);
     }
+
+    if (this.autocompleteFrameId !== null) {
+      cancelAnimationFrame(this.autocompleteFrameId);
+    }
   }
 
   @HostListener('window:scroll')
   onWindowScroll(): void {
+    this.updateAutocompletePosition();
     this.loadMoreIfNeeded();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateAutocompletePosition();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+
+    if (!target) {
+      return;
+    }
+
+    if (
+      target.closest('.city-field') ||
+      target.closest('.keyword-field') ||
+      target.closest('.city-suggestions')
+    ) {
+      return;
+    }
+
+    this.closeAutocompletePopovers();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    this.closeAutocompletePopovers();
   }
 
   searchActivities(showFeedback = true): void {
@@ -303,24 +345,32 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     this.cityText = value;
     this.activeCitySuggestions = true;
     this.activeKeywordSuggestions = false;
+    this.updateAutocompletePosition();
+    this.queueAutocompletePositionUpdate();
   }
 
   updateKeywordText(value: string): void {
     this.searchTerm = value;
     this.activeKeywordSuggestions = true;
     this.activeCitySuggestions = false;
+    this.updateAutocompletePosition();
+    this.queueAutocompletePositionUpdate();
   }
 
   showCitySuggestions(): void {
     this.activeCitySuggestions = true;
     this.activeKeywordSuggestions = false;
     this.activeDatePicker = false;
+    this.updateAutocompletePosition();
+    this.queueAutocompletePositionUpdate();
   }
 
   showKeywordSuggestions(): void {
     this.activeKeywordSuggestions = true;
     this.activeCitySuggestions = false;
     this.activeDatePicker = false;
+    this.updateAutocompletePosition();
+    this.queueAutocompletePositionUpdate();
   }
 
   toggleFiltersDrawer(): void {
@@ -373,6 +423,54 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
     this.searchTerm = keyword;
     this.activeKeywordSuggestions = false;
     this.errorMessage = '';
+  }
+
+  private closeAutocompletePopovers(): void {
+    this.activeCitySuggestions = false;
+    this.activeKeywordSuggestions = false;
+  }
+
+  private queueAutocompletePositionUpdate(): void {
+    if (this.autocompleteFrameId !== null) {
+      cancelAnimationFrame(this.autocompleteFrameId);
+    }
+
+    this.autocompleteFrameId = requestAnimationFrame(() => {
+      this.autocompleteFrameId = null;
+      this.updateAutocompletePosition();
+      this.cdr.detectChanges();
+    });
+  }
+
+  private updateAutocompletePosition(): void {
+    if (this.activeCitySuggestions) {
+      this.citySuggestionsStyle = this.autocompleteStyleFor(this.cityFieldRef);
+    }
+
+    if (this.activeKeywordSuggestions) {
+      this.keywordSuggestionsStyle = this.autocompleteStyleFor(this.keywordFieldRef);
+    }
+  }
+
+  private autocompleteStyleFor(ref?: ElementRef<HTMLElement>): Record<string, string> {
+    if (!ref) {
+      return {};
+    }
+
+    const rect = ref.nativeElement.getBoundingClientRect();
+    const gap = 10;
+    const viewportMargin = 16;
+    const maxHeight = Math.max(
+      160,
+      Math.min(360, window.innerHeight - rect.bottom - gap - viewportMargin)
+    );
+
+    return {
+      top: `${Math.round(rect.bottom + gap)}px`,
+      left: `${Math.round(rect.left)}px`,
+      width: `${Math.round(rect.width)}px`,
+      maxHeight: `${Math.round(maxHeight)}px`,
+    };
   }
 
   openActivityDetails(activity: Activity): void {
@@ -596,6 +694,7 @@ export class ActivitiesListComponent implements OnInit, OnDestroy {
         inCurrentMonth: date.getMonth() === month.getMonth(),
         isSelected: this.isSameDate(date, selected),
         isToday: this.isSameDate(date, this.today()),
+        isPast: this.isPastDate(date),
       };
     });
   }

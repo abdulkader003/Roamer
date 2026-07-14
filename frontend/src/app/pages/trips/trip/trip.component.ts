@@ -889,11 +889,7 @@ export class TripComponent implements OnInit, OnDestroy {
   }
 
   modalActivityTotal(trip: TripResponse, activity: TripTempActivity): number {
-    if (trip.activitiesJson) {
-      return Math.round(Number(activity.price || 0) * this.travelerCountFor(trip));
-    }
-
-    return Math.round(Number(activity.price || 0));
+    return Math.round(Number(activity.price || 0) * this.travelerCountFor(trip));
   }
 
   modalActivityDetailRows(activity: TripTempActivity): SummaryDetailRow[] {
@@ -1257,7 +1253,8 @@ export class TripComponent implements OnInit, OnDestroy {
       return savedStays;
     }
 
-    const tripTempStays = this.matchingTripTemp(trip)?.selectedHotels ?? [];
+    const tripTemp = this.matchingTripTemp(trip);
+    const tripTempStays = tripTemp?.selectedHotels ?? [];
 
     if (tripTempStays.length) {
       return tripTempStays;
@@ -1269,12 +1266,12 @@ export class TripComponent implements OnInit, OnDestroy {
 
     return [{
       hotelName: this.modalHotelName(trip),
-      city: trip.hotelCity || this.cityOnly(trip.destination) || 'Destination',
+      city: trip.hotelCity || tripTemp?.selectedHotelCity || this.cityOnly(trip.destination) || 'Destination',
       checkIn: trip.startDate,
       checkOut: trip.endDate,
       nights: this.nightsFor(trip),
-      stars: trip.hotelStars ?? null,
-      price: Number(trip.hotelTotal ?? 0),
+      stars: trip.hotelStars ?? tripTemp?.selectedHotelStars ?? null,
+      price: Number(trip.hotelTotal ?? tripTemp?.selectedHotelTotal ?? 0),
     }];
   }
 

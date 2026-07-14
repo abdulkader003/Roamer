@@ -116,7 +116,40 @@
   --qa-hotel-bg:     #EDE9FE; --qa-hotel-text:   #7C3AED; --qa-hotel-border:   transparent;
   --qa-event-bg:     #E6F4EA; --qa-event-text:   #0F9D58; --qa-event-border:   transparent;
   --qa-budget-bg:    #FEF3C7; --qa-budget-text:  #B45309; --qa-budget-border:  transparent;
+
+  /* Page hero wallpapers */
+  --hero-wallpaper-filter: saturate(126%) contrast(110%) brightness(104%);
+  --hero-wallpaper-overlay:
+    radial-gradient(ellipse 78% 54% at 18% 50%, rgba(6,12,24,0.68) 0%, rgba(6,12,24,0.46) 34%, rgba(6,12,24,0.16) 66%, transparent 100%),
+    linear-gradient(90deg, rgba(6,12,24,0.58) 0%, rgba(6,12,24,0.28) 34%, rgba(6,12,24,0.08) 62%, transparent 100%),
+    linear-gradient(180deg, rgba(6,12,24,0.20) 0%, transparent 38%, rgba(6,12,24,0.22) 100%);
+  --hero-wallpaper-crossfade-duration: 2600ms;
+  --hero-wallpaper-motion-duration: 52000ms;
+  --wallpaper-filter: var(--hero-wallpaper-filter);
+  --wallpaper-overlay: var(--hero-wallpaper-overlay);
+  --wallpaper-crossfade-duration: var(--hero-wallpaper-crossfade-duration);
+  --wallpaper-motion-duration: var(--hero-wallpaper-motion-duration);
+  --translucent-surface: color-mix(in srgb, var(--surface-primary) 72%, transparent);
+  --translucent-surface-strong: color-mix(in srgb, var(--surface-primary) 84%, transparent);
+  --overlay-surface: #FFFFFF;
+  --overlay-surface-soft: #F8FAFC;
+  --modal-bg: #FFFFFF;
+  --modal-surface: #F8FAFC;
+  --modal-border: #DDE3EA;
+  --modal-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  --modal-backdrop-bg: rgba(15, 23, 42, 0.54);
+
+  /* App layer scale */
+  --z-wallpaper: 0;
+  --z-content: 1;
+  --z-sidebar-backdrop: 800;
+  --z-sidebar: 900;
+  --z-navbar: 1000;
+  --z-popover: 1500;
+  --z-modal: 1600;
+  --z-toast: 1700;
 }
+
 
 /* ── DARK THEME ── */
 [data-theme='dark'] {
@@ -172,6 +205,7 @@
   /* Stat / icon */
   --icon-bg:     rgba(201,150,42,0.10);
   --icon-border: rgba(201,150,42,0.25);
+
 
   /* Badges */
   --badge-confirmed-bg:     rgba(16,185,129,0.12);
@@ -229,7 +263,31 @@
   --qa-hotel-bg:    rgba(201,150,42,0.08); --qa-hotel-text:   #C9962A; --qa-hotel-border:   rgba(201,150,42,0.20);
   --qa-event-bg:    rgba(201,150,42,0.08); --qa-event-text:   #C9962A; --qa-event-border:   rgba(201,150,42,0.20);
   --qa-budget-bg:   rgba(201,150,42,0.08); --qa-budget-text:  #C9962A; --qa-budget-border:  rgba(201,150,42,0.20);
+
+  /* Page hero wallpapers */
+  --hero-wallpaper-filter: saturate(118%) contrast(114%) brightness(80%);
+  --hero-wallpaper-overlay:
+    radial-gradient(ellipse 78% 54% at 18% 50%, rgba(5,5,6,0.76) 0%, rgba(5,5,6,0.52) 34%, rgba(5,5,6,0.20) 66%, transparent 100%),
+    radial-gradient(circle at 18% 6%, rgba(201,150,42,0.08), transparent 24%),
+    linear-gradient(90deg, rgba(5,5,6,0.62) 0%, rgba(5,5,6,0.30) 34%, rgba(5,5,6,0.08) 62%, transparent 100%),
+    linear-gradient(180deg, rgba(5,5,6,0.34) 0%, transparent 44%, rgba(5,5,6,0.50) 100%);
+  --hero-wallpaper-crossfade-duration: 2800ms;
+  --hero-wallpaper-motion-duration: 56000ms;
+  --wallpaper-filter: var(--hero-wallpaper-filter);
+  --wallpaper-overlay: var(--hero-wallpaper-overlay);
+  --wallpaper-crossfade-duration: var(--hero-wallpaper-crossfade-duration);
+  --wallpaper-motion-duration: var(--hero-wallpaper-motion-duration);
+  --translucent-surface: color-mix(in srgb, var(--surface-primary) 74%, transparent);
+  --translucent-surface-strong: color-mix(in srgb, var(--surface-primary) 86%, transparent);
+  --overlay-surface: #141414;
+  --overlay-surface-soft: #1A1A1A;
+  --modal-bg: #141414;
+  --modal-surface: #1A1A1A;
+  --modal-border: rgba(255, 255, 255, 0.12);
+  --modal-shadow: 0 20px 46px rgba(0, 0, 0, 0.42);
+  --modal-backdrop-bg: rgba(0, 0, 0, 0.66);
 }
+
 
 /* ── Base reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -242,6 +300,463 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   transition: background 0.3s, color 0.3s;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus:not(:focus-visible) {
+  outline: none !important;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, #ffffff) !important;
+  outline-offset: 2px !important;
+}
+
+:where(.date-popover, .travelers-popover, .guest-popover, .city-popover):focus,
+:where(.date-popover, .travelers-popover, .guest-popover, .city-popover):focus-visible {
+  outline: none !important;
+}
+
+:where(
+  .notification-menu,
+  .account-menu,
+  .airport-suggestions,
+  .city-suggestions,
+  .city-modal-suggestions,
+  .travelers-popover,
+  .guest-popover,
+  .city-popover,
+  .date-popover,
+  .expense-calendar,
+  .expense-category-options,
+  .expense-trip-options,
+  .trip-filter-options,
+  .export-menu,
+  .feedback-modal,
+  .terms-modal,
+  .invite-dialog,
+  .flight-modal,
+  .expense-modal,
+  .trip-prices-modal,
+  .confirm-dialog,
+  .event-modal,
+  .event-drawer,
+  .activity-modal,
+  .map-dialog,
+  .filters-drawer,
+  .modal-content
+) {
+  background: var(--modal-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--modal-border) !important;
+  box-shadow: var(--modal-shadow) !important;
+  filter: none !important;
+  outline: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:where(
+  .travelers-popover,
+  .guest-popover,
+  .city-popover,
+  .expense-calendar,
+  .expense-category-options,
+  .expense-trip-options,
+  .trip-filter-options,
+  .export-menu,
+  .notification-menu,
+  .account-menu
+) {
+  border-color: var(--modal-border) !important;
+  box-shadow: var(--modal-shadow) !important;
+}
+
+:where(
+  .feedback-backdrop,
+  .flight-modal-backdrop,
+  .expense-modal-backdrop,
+  .confirm-dialog-backdrop,
+  .event-modal-backdrop,
+  .activity-modal-overlay,
+  .map-dialog-backdrop,
+  .modal-overlay,
+  .dialog-backdrop,
+  .trip-modal-backdrop,
+  .filters-backdrop,
+  .date-popover-backdrop,
+  .travelers-popover-backdrop,
+  .guest-popover-backdrop,
+  .city-popover-backdrop,
+  .event-drawer-overlay
+) {
+  background: var(--modal-backdrop-bg) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+.date-popover {
+  position: relative;
+  z-index: 1;
+  width: min(430px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 48px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--modal-border);
+  border-radius: 16px;
+  background: var(--modal-bg);
+  box-shadow: var(--modal-shadow);
+  filter: none;
+  outline: none;
+  margin: 0;
+  transform: none;
+  animation: datePopoverIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.date-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popover, 1500);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: dateBackdropIn 180ms ease both;
+}
+
+.date-popover__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--modal-border);
+}
+
+.date-popover__head h3 {
+  margin: 4px 0 0;
+  font-size: 20px;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+.date-popover__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.date-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid var(--modal-border);
+  border-radius: 10px;
+  background: var(--modal-surface);
+  color: var(--text-primary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.date-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.date-close:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.date-popover__body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  min-height: 0;
+  overflow: visible;
+  padding-top: 16px;
+}
+
+.date-manual {
+  padding: 14px;
+  border: 1px solid var(--modal-border);
+  border-radius: 14px;
+  background: var(--modal-surface);
+}
+
+.date-manual label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-manual label span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.date-manual input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--modal-border);
+  border-radius: 10px;
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.date-manual input:focus {
+  border-color: var(--modal-border);
+  box-shadow: none;
+}
+
+.date-manual input:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.date-manual input.invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.date-hint {
+  min-height: 14px;
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+.date-hint.error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.date-range-summary {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.date-clear {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 10px;
+  border: 1px solid var(--modal-border);
+  border-radius: 10px;
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.date-clear:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.date-calendar {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.date-calendar__toolbar {
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.date-calendar__toolbar strong {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 760;
+  color: var(--text-primary);
+}
+
+.date-calendar__toolbar button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--modal-border);
+  border-radius: 9px;
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.date-calendar__toolbar button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.date-calendar__toolbar button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.date-weekdays,
+.date-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.date-weekdays {
+  margin-bottom: 8px;
+}
+
+.date-weekdays span {
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.date-days button {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 38px;
+  border: 1px solid var(--modal-border);
+  border-radius: 9px;
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.date-days button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.date-days button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.date-days button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 58%, #ffffff);
+  outline-offset: 2px;
+}
+
+.date-days button.muted {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.date-days button.today {
+  border-color: var(--modal-border);
+}
+
+.date-days button.in-range {
+  background: color-mix(in srgb, var(--primary) 18%, var(--modal-bg));
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--modal-border));
+  color: var(--primary);
+}
+
+.date-days button.selected,
+.date-days button.range-start,
+.date-days button.range-end {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+.date-days button.past {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.24);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+@keyframes dateBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes datePopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+:where(
+  .feedback-modal,
+  .terms-modal,
+  .trip-modal,
+  .invite-dialog,
+  .flight-modal,
+  .expense-modal,
+  .trip-prices-modal,
+  .confirm-dialog,
+  .event-modal,
+  .event-drawer,
+  .activity-modal,
+  .map-dialog,
+  .filters-drawer,
+  .modal-content,
+  .date-popover,
+  .travelers-popover,
+  .guest-popover,
+  .city-popover
+) :where(header, footer, .trip-modal-header, .modal-actions, .flight-modal__head, .flight-modal__footer, .event-modal-header) {
+  background: var(--modal-bg);
+  border-color: var(--modal-border);
+}
+
+@media (min-width: 901px) {
+  .app-main--with-sidebar :where(
+    .activities-page,
+    .calendar-page,
+    .flights-page,
+    .hotels-page,
+    .hotel-container,
+    .main-content,
+    .profile-page,
+    .settings-page,
+    .trips-page,
+    .trip-flights-page,
+    .destination-page,
+    .overview-page,
+    .budget-page
+  ) {
+    margin-left: 0;
+    margin-right: auto;
+  }
 }
 
 /* Dark mode scrollbar */
@@ -440,98 +955,41 @@ app-signup .signup-card {
 }
 
 
-/* ══════════════════════════════════════════════
-   PAGE WALLPAPERS
-   Each page gets a themed background image.
-   Usage: add class "page-wallpaper" + a page-specific
-   class to the main content wrapper.
-   ══════════════════════════════════════════════ */
-
 .page-wallpaper {
   position: relative;
-  isolation: isolate;
-  background: transparent !important;
+  background: var(--page-bg) !important;
 }
 
-.page-wallpaper::before,
-.page-wallpaper::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+.page-wallpaper > .page-head .page-head__text,
+.page-wallpaper > .settings-header,
+.page-wallpaper > .profile-header,
+.page-wallpaper .trips-content > .breadcrumbs,
+.page-wallpaper .trips-content > .page-header > div,
+.page-wallpaper > .page-header {
+  display: none !important;
 }
 
-.page-wallpaper::before {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.58;
-  transition: opacity 0.4s;
+.page-wallpaper .trips-content > .page-header {
+  justify-content: flex-end;
+  margin-bottom: 24px;
 }
 
-.page-wallpaper::after {
-  background:
-    radial-gradient(circle at 20% 8%, rgba(255,255,255,0.64), transparent 32%),
-    linear-gradient(90deg, rgba(244,246,251,0.80) 0%, rgba(244,246,251,0.46) 42%, rgba(244,246,251,0.68) 100%),
-    linear-gradient(180deg, rgba(244,246,251,0.72) 0%, rgba(244,246,251,0.26) 44%, rgba(244,246,251,0.78) 100%);
+.page-wallpaper > .page-head {
+  justify-content: flex-end;
+  margin-bottom: 24px;
 }
 
-[data-theme='dark'] .page-wallpaper::before {
-  opacity: 0.66;
+.page-wallpaper :where(.section-card, .stat-card, .settings-card, .search-card, .toolbar, .empty-state, .calendar-card, .trip-card, .profile-card, .hotel-card, .budget-card) {
+  background-color: var(--surface-primary);
 }
 
-[data-theme='dark'] .page-wallpaper::after {
-  background:
-    radial-gradient(circle at 20% 8%, rgba(201,150,42,0.12), transparent 30%),
-    linear-gradient(90deg, rgba(13,13,13,0.86) 0%, rgba(13,13,13,0.58) 42%, rgba(13,13,13,0.78) 100%),
-    linear-gradient(180deg, rgba(13,13,13,0.78) 0%, rgba(13,13,13,0.32) 44%, rgba(13,13,13,0.84) 100%);
-}
-
-.page-wallpaper > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* ── Per-page images ── */
-.wallpaper-dashboard::before {
-  background-image: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1800&q=85');
-}
-
-.wallpaper-trips::before {
-  background-image: url('https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1800&q=85');
-}
-
-.wallpaper-flights::before {
-  background-image: url('https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1800&q=85');
-}
-
-.wallpaper-hotels::before {
-  background-image: url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1800&q=85');
-}
-
-.wallpaper-activities::before {
-  background-image: url('https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1800&q=85');
-}
-
-.wallpaper-budget::before {
-  background-image: url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1800&q=85');
-}
-
-.wallpaper-calendar::before {
-  background-image: url('https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=1800&q=85');
-}
-
-.wallpaper-profile::before {
-  background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1800&q=85');
-}
-
-.wallpaper-settings::before {
-  background-image: url('https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1800&q=85');
-}
-
-.wallpaper-bookings::before {
-  background-image: url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1800&q=85');
+@keyframes page-content-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 body.profile-map-expanded {

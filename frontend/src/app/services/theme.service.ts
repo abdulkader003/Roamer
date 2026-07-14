@@ -1,13 +1,17 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { Injectable, OnDestroy, computed, effect, signal } from '@angular/core';
 
 export type Theme = 'light' | 'dark';
 export type ThemePreference = Theme | 'system';
 
+export function resolveSystemTheme(query: Pick<MediaQueryList, 'matches'>): Theme {
+  return query.matches ? 'dark' : 'light';
+}
+
 @Injectable({ providedIn: 'root' })
-export class ThemeService {
+export class ThemeService implements OnDestroy {
   private readonly STORAGE_KEY = 'roamer-theme';
   private readonly systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  private readonly systemTheme = signal<Theme>(this.getSystemTheme());
+  private readonly systemTheme = signal<Theme>(resolveSystemTheme(this.systemThemeQuery));
 
   theme = signal<ThemePreference>(this.loadTheme());
   resolvedTheme = computed<Theme>(() => {
@@ -24,6 +28,10 @@ export class ThemeService {
     });
   }
 
+  ngOnDestroy(): void {
+    this.systemThemeQuery.removeEventListener('change', this.handleSystemThemeChange);
+  }
+
   toggle(): void {
     this.theme.set(this.resolvedTheme() === 'dark' ? 'light' : 'dark');
   }
@@ -38,11 +46,7 @@ export class ThemeService {
     return 'light';
   }
 
-  private getSystemTheme(): Theme {
-    return this.systemThemeQuery.matches ? 'dark' : 'light';
-  }
-
   private readonly handleSystemThemeChange = (event: MediaQueryListEvent): void => {
-    this.systemTheme.set(event.matches ? 'dark' : 'light');
+    this.systemTheme.set(resolveSystemTheme(event));
   };
 }

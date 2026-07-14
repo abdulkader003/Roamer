@@ -30,7 +30,7 @@
 	            class="toggle-switch"
 	            role="switch"
 	            [class.active]="notifications.tripReminders"
-	            (click)="notifications.tripReminders = !notifications.tripReminders"
+	            (click)="toggleNotification('tripReminders')"
 	            aria-label="Trip reminders"
 	            [attr.aria-checked]="notifications.tripReminders">
             <span class="toggle-thumb"></span>
@@ -47,7 +47,7 @@
 	            class="toggle-switch"
 	            role="switch"
 	            [class.active]="notifications.budgetAlerts"
-	            (click)="notifications.budgetAlerts = !notifications.budgetAlerts"
+	            (click)="toggleNotification('budgetAlerts')"
 	            aria-label="Budget alerts"
 	            [attr.aria-checked]="notifications.budgetAlerts">
             <span class="toggle-thumb"></span>
@@ -64,7 +64,7 @@
 	            class="toggle-switch"
 	            role="switch"
 	            [class.active]="notifications.bookingUpdates"
-	            (click)="notifications.bookingUpdates = !notifications.bookingUpdates"
+	            (click)="toggleNotification('bookingUpdates')"
 	            aria-label="Booking updates"
 	            [attr.aria-checked]="notifications.bookingUpdates">
             <span class="toggle-thumb"></span>
@@ -106,10 +106,10 @@
       <div class="pref-group">
         <span class="pref-label">Default Calendar View</span>
         <div class="theme-options">
-          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'monthly'" (click)="defaultCalendarView = 'monthly'">
+          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'monthly'" (click)="selectCalendarView('monthly')">
             Monthly
           </button>
-          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'weekly'" (click)="defaultCalendarView = 'weekly'">
+          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'weekly'" (click)="selectCalendarView('weekly')">
             Weekly
           </button>
         </div>
@@ -138,7 +138,7 @@
 	            class="toggle-switch"
 	            role="switch"
 	            [class.active]="privacy.shareTripData"
-	            (click)="privacy.shareTripData = !privacy.shareTripData"
+	            (click)="togglePrivacy('shareTripData')"
 	            aria-label="Share trip data"
 	            [attr.aria-checked]="privacy.shareTripData">
             <span class="toggle-thumb"></span>
@@ -155,7 +155,7 @@
 	            class="toggle-switch"
 	            role="switch"
 	            [class.active]="privacy.allowAnalytics"
-	            (click)="privacy.allowAnalytics = !privacy.allowAnalytics"
+	            (click)="togglePrivacy('allowAnalytics')"
 	            aria-label="Allow analytics"
 	            [attr.aria-checked]="privacy.allowAnalytics">
             <span class="toggle-thumb"></span>
@@ -212,7 +212,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           Share Feedback
         </button>
-        <button type="button" class="help-button secondary">
+        <button type="button" class="help-button secondary" (click)="openTerms()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Terms & Policies
         </button>
@@ -223,8 +223,14 @@
 
   <!-- Save Button -->
   <div class="save-bar">
-    <button type="button" class="save-button" (click)="saveSettings()">Save Settings</button>
+    <button type="button" class="save-button" [disabled]="isSavingSettings" (click)="saveSettings()">
+      {{ isSavingSettings ? 'Saving...' : 'Save Settings' }}
+    </button>
   </div>
+
+  @if (settingsError) {
+    <div class="save-toast save-toast-error" role="alert">{{ settingsError }}</div>
+  }
 
   <!-- Save Toast -->
   @if (isSaveToastVisible) {
@@ -254,11 +260,14 @@
           </div>
 
           <p class="feedback-subtitle">How would you rate your experience?</p>
+          @if (feedbackError) {
+            <p class="feedback-error" role="alert">{{ feedbackError }}</p>
+          }
 
           <!-- Stars -->
           <div class="star-rating">
             @for (star of [1,2,3,4,5]; track star) {
-	              <button type="button" class="star" [class.active]="star <= feedbackRating" [attr.aria-label]="'Rate ' + star + ' out of 5'" [attr.aria-pressed]="star === feedbackRating" (click)="setRating(star)">★</button>
+	              <button type="button" class="star" [class.active]="star <= feedbackRating" [disabled]="feedbackSubmitting" [attr.aria-label]="'Rate ' + star + ' out of 5'" [attr.aria-pressed]="star === feedbackRating" (click)="setRating(star)">★</button>
             }
           </div>
 
@@ -269,6 +278,7 @@
                 type="button"
                 class="emoji-option"
 	                [class.active]="feedbackEmoji === item.emoji"
+	                [disabled]="feedbackSubmitting"
 	                (click)="setEmoji(item.emoji)"
 	                [attr.aria-label]="item.label"
 	                [attr.aria-pressed]="feedbackEmoji === item.emoji"
@@ -282,6 +292,7 @@
           <textarea
             class="feedback-text"
             [(ngModel)]="feedbackText"
+            [disabled]="feedbackSubmitting"
             placeholder="Tell us more (optional)..."
             rows="3">
           </textarea>
@@ -289,11 +300,45 @@
           <button
             type="button"
             class="feedback-submit"
-            [disabled]="!feedbackRating"
+            [disabled]="feedbackSubmitting"
             (click)="submitFeedback()">
-            Submit Feedback
+            {{ feedbackSubmitting ? 'Submitting...' : 'Submit Feedback' }}
           </button>
         }
+      </div>
+    </div>
+  }
+
+  <!-- Terms and Policies Modal -->
+  @if (isTermsOpen) {
+	    <div class="feedback-backdrop" (click)="closeTerms()">
+	      <div
+	        class="feedback-modal terms-modal"
+	        role="dialog"
+	        aria-modal="true"
+	        aria-labelledby="terms-title"
+	        (click)="$event.stopPropagation()">
+          <div class="feedback-header">
+	            <h3 id="terms-title">Terms & Policies</h3>
+	            <button type="button" class="feedback-close" aria-label="Close terms and policies dialog" (click)="closeTerms()">&times;</button>
+          </div>
+
+          <div class="terms-content">
+            <section>
+              <h4>Terms of Use</h4>
+              <p>Roamer helps you plan trips, track budgets, and organize travel details. Keep your account information accurate and only add content you have permission to use.</p>
+            </section>
+            <section>
+              <h4>Privacy Policy</h4>
+              <p>Your trip, budget, and profile settings stay local to this frontend unless a connected feature already saves them to the backend. Privacy toggles are stored locally for now.</p>
+            </section>
+            <section>
+              <h4>Data & Feedback</h4>
+              <p>Feedback is saved locally in this browser until a feedback API is added. Do not include sensitive personal or payment information in feedback messages.</p>
+            </section>
+          </div>
+
+          <button type="button" class="feedback-submit" (click)="closeTerms()">Close</button>
       </div>
     </div>
   }

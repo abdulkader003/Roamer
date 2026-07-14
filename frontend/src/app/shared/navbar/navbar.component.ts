@@ -70,7 +70,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.menuRequested.emit();
   }
 
-  toggleTheme(): void {
+  toggleTheme(event?: MouseEvent): void {
+    event?.stopPropagation();
     this.themeService.toggle();
   }
 

@@ -2,7 +2,7 @@
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 1400;
+  z-index: var(--z-toast, 1400);
   max-width: min(380px, calc(100vw - 32px));
   padding: 14px 18px;
   border: 1px solid var(--border, rgba(15, 23, 42, 0.12));

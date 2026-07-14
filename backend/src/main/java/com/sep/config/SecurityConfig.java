@@ -13,7 +13,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
 import java.util.List;
 
 /**
@@ -62,6 +61,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/trips/**").authenticated()
                         .requestMatchers("/api/budget/**").authenticated()
                         .requestMatchers("/api/calendar-events/**").authenticated()
+                        .requestMatchers("/api/settings", "/api/settings/**").authenticated()
+                        .requestMatchers("/api/feedback", "/api/feedback/**").authenticated()
                         .requestMatchers("/api/travel-deals/**").authenticated()
                         //.requestMatchers("/api/weather/**").authenticated()
                         .requestMatchers("/api/travel-documents/**").authenticated()
