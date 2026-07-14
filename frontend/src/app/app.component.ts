@@ -1,4 +1,4 @@
-import { NgIf } from '@angular/common';
+import { AsyncPipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/sidebar/sidebar.component';
@@ -6,11 +6,13 @@ import { NavbarComponent } from './shared/navbar/navbar.component';
 import { WallpaperLayer, WallpaperService } from './services/wallpaper.service';
 import { ThemeService } from './services/theme.service';
 import { RealtimeWebSocketService } from './services/realtime-websocket.service';
+import { LoadingService } from './services/loading.service';
+import { GlobalLoadingAvatarComponent } from './shared/global-loading-avatar/global-loading-avatar.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgIf, RouterOutlet, SidebarComponent, NavbarComponent],
+  imports: [AsyncPipe, NgIf, RouterOutlet, SidebarComponent, NavbarComponent, GlobalLoadingAvatarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,11 +22,13 @@ export class AppComponent {
   private readonly realtimeWebSocketService = inject(RealtimeWebSocketService);
   readonly wallpaperService = inject(WallpaperService);
   private readonly themeService = inject(ThemeService);
+  private readonly loadingService = inject(LoadingService);
   private readonly mobileBreakpoint = 900;
   private readonly tabletBreakpoint = 1200;
   private touchStartX = 0;
   private touchStartY = 0;
 
+  readonly isLoading$ = this.loadingService.isLoading$;
   readonly isMobile = signal(false);
   readonly isTablet = signal(false);
   readonly isSidebarOpen = signal(true);

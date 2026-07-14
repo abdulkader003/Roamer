@@ -811,10 +811,85 @@ app-signup .signup-card {
   z-index: 1;
 }
 
-:is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
+:is(app-login, app-verify-email, app-reset-password) .auth-page.auth-page,
+app-signup .signup-container.signup-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 500px);
+  align-items: center;
+  justify-items: stretch;
+  column-gap: clamp(1.5rem, 4vw, 5rem);
+  padding-inline: clamp(24px, 4vw, 64px);
+}
+
+:is(app-login, app-verify-email, app-reset-password) .auth-avatar,
+app-signup .auth-avatar {
+  position: static;
+  width: min(100%, clamp(220px, 26vw, 380px));
+  max-width: 100%;
+  justify-self: center;
+}
+
+:is(app-login, app-signup) .auth-intro {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(220px, 1.1fr);
+  align-items: center;
+  justify-self: center;
+  width: min(100%, 720px);
+  min-width: 0;
+}
+
+:is(app-login, app-signup) .auth-welcome {
+  position: relative;
+  z-index: 1;
+  padding: clamp(18px, 2vw, 26px);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface-primary) 88%, #e0f2fe);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+:is(app-login, app-signup) .auth-welcome::after {
   position: absolute;
-  left: clamp(72px, 11vw, 176px);
-  top: 18%;
+  top: 50%;
+  right: -10px;
+  width: 18px;
+  height: 18px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-right: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  background: color-mix(in srgb, var(--surface-primary) 88%, #e0f2fe);
+  content: '';
+  transform: translateY(-50%) rotate(45deg);
+}
+
+:is(app-login, app-signup) .auth-welcome__eyebrow {
+  margin: 0 0 7px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+:is(app-login, app-signup) .auth-welcome h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: clamp(1.7rem, 2.4vw, 2.35rem);
+  font-weight: 400;
+  line-height: 1.08;
+}
+
+:is(app-login, app-signup) .auth-welcome > p:last-child {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+:is(app-login, app-verify-email, app-reset-password) .auth-card,
+app-signup .signup-card {
+  min-width: 0;
+  justify-self: center;
 }
 
 @media (max-width: 900px) {
@@ -824,15 +899,58 @@ app-signup .signup-card {
     opacity: 0.45;
   }
 
-  :is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
-    left: 24px;
-    width: clamp(210px, 30vw, 300px);
+  :is(app-login, app-verify-email, app-reset-password) .auth-page.auth-page,
+  app-signup .signup-container.signup-container {
+    grid-template-columns: minmax(0, 500px);
+    justify-content: center;
+    column-gap: 0;
+    padding-inline: 24px;
+  }
+
+  :is(app-login, app-verify-email, app-reset-password) .auth-avatar,
+  app-signup .auth-avatar {
+    width: clamp(130px, 22vw, 180px);
+  }
+
+  :is(app-login, app-signup) .auth-intro {
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: min(100%, 500px);
+    margin-bottom: 20px;
+  }
+
+  :is(app-login, app-signup) .auth-welcome {
+    padding: 16px 18px;
+  }
+
+  :is(app-login, app-signup) .auth-welcome h2 {
+    font-size: 1.65rem;
+  }
+
+  :is(app-login, app-signup) .auth-welcome > p:last-child {
+    font-size: 13px;
   }
 }
 
-@media (max-width: 700px) {
-  :is(app-login, app-verify-email, app-signup, app-reset-password) .auth-avatar {
-    display: none;
+@media (max-width: 560px) {
+  :is(app-login, app-signup) .auth-intro {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  :is(app-login, app-signup) .auth-welcome {
+    text-align: center;
+  }
+
+  :is(app-login, app-signup) .auth-welcome::after {
+    top: auto;
+    right: 50%;
+    bottom: -10px;
+    transform: translateX(50%) rotate(135deg);
+  }
+
+  :is(app-login, app-signup) .auth-avatar {
+    width: 132px;
   }
 }
 
