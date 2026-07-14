@@ -16,14 +16,13 @@
 
     <section
       class="search-stage"
-      [class.search-stage--city-open]="activeCitySuggestions && citySuggestions.length > 0"
       [class.search-stage--date-open]="!!activeDatePicker">
       <section
         class="search-card"
-        [class.search-card--popover-open]="activeCitySuggestions || guestsOpen || !!activeDatePicker"
+        [class.search-card--popover-open]="guestsOpen || !!activeDatePicker"
         aria-label="Search hotels">
         <form class="search-panel" (ngSubmit)="search()">
-          <label class="field destination-field" [class.destination-field--open]="activeCitySuggestions">
+          <label #destinationField class="field destination-field" [class.destination-field--open]="activeCitySuggestions">
             <span class="field-label">Destination</span>
             <input
               type="text"
@@ -33,6 +32,7 @@
               [ngModel]="location"
               (ngModelChange)="updateLocationText($event)"
               (focus)="showCitySuggestions()"
+              (keydown)="handleDestinationKeydown($event)"
             />
             <span class="field-meta">Type a city name and choose from suggestions.</span>
           </label>
@@ -98,6 +98,27 @@
         <p class="search-error" *ngIf="searchError && !isSearching">{{ searchError }}</p>
       </section>
     </section>
+
+    <div
+      class="city-suggestions city-suggestions--floating"
+      *ngIf="activeCitySuggestions && location.trim().length > 0"
+      [ngStyle]="citySuggestionsStyle"
+      role="listbox"
+      aria-label="Destination suggestions">
+      <button
+        type="button"
+        class="city-option"
+        *ngFor="let city of citySuggestions; let i = index"
+        [class.active]="i === activeCitySuggestionIndex"
+        (mouseenter)="activeCitySuggestionIndex = i"
+        (mousedown)="$event.preventDefault()"
+        (click)="selectDestination(city)">
+        <strong>{{ city }}</strong>
+        <span>Popular hotel destination</span>
+      </button>
+
+      <p class="city-empty" *ngIf="citySuggestions.length === 0">No matching destinations found.</p>
+    </div>
   </div>
 </section>
 
@@ -437,64 +458,6 @@
         <button type="button" (click)="changeGuests('children', 1)" [disabled]="adults + children >= maxGuests" aria-label="Increase children">+</button>
       </div>
     </div>
-  </section>
-</div>
-
-<div
-  *ngIf="activeCitySuggestions"
-  class="city-popover-backdrop"
-  role="presentation"
-  (click)="closeDestinationOverlay()">
-  <section
-    class="city-popover"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Choose hotel destination"
-    (click)="$event.stopPropagation()">
-    <header class="city-popover__head">
-      <div>
-        <span class="city-popover__eyebrow">Hotel destination</span>
-        <h3>Choose a destination</h3>
-      </div>
-      <button type="button" class="city-close" aria-label="Close destination search" (click)="closeDestinationOverlay()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </header>
-
-    <label class="city-search-field">
-      <span>Destination</span>
-      <input
-        #destinationModalInput
-        type="text"
-        autocomplete="off"
-        placeholder="Type a city name"
-        [ngModel]="location"
-        (ngModelChange)="updateLocationText($event)"
-        (keydown)="handleDestinationKeydown($event)"
-      />
-    </label>
-
-    <div class="city-modal-suggestions" *ngIf="location.trim().length > 0; else destinationPrompt">
-      <button
-        type="button"
-        class="city-modal-option"
-        *ngFor="let city of citySuggestions; let i = index"
-        [class.active]="i === activeCitySuggestionIndex"
-        (mouseenter)="activeCitySuggestionIndex = i"
-        (click)="selectDestination(city)">
-        <strong>{{ city }}</strong>
-        <span>Popular hotel destination</span>
-      </button>
-
-      <p class="city-modal-empty" *ngIf="citySuggestions.length === 0">No matching destinations found.</p>
-    </div>
-
-    <ng-template #destinationPrompt>
-      <p class="city-modal-empty">Start typing to see matching destinations.</p>
-    </ng-template>
   </section>
 </div>
 

@@ -61,6 +61,7 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
   calendarMessage = '';
   currentImageIndex = 0;
   activeCitySuggestionIndex = 0;
+  citySuggestionsStyle: Record<string, string> = {};
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   readonly priceFilters = ['All prices', 'Budget', 'Mid-range', 'Premium'];
   readonly starFilters = ['All stars', '5-star', '4-star', '3-star & below'];
@@ -74,13 +75,13 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
 
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private previousBodyOverflow: string | null = null;
-  private destinationFocusTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private deepLinkedHotelId: number | null = null;
+  private autocompleteFrameId: number | null = null;
 
   readonly cityOptions = HOTEL_DESTINATION_NAMES;
 
   @ViewChild('resultsSection') resultsSection!: ElementRef<HTMLElement>;
-  @ViewChild('destinationModalInput') destinationModalInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('destinationField') private destinationFieldRef?: ElementRef<HTMLElement>;
 
   constructor(
     private hotelService: HotelService,
@@ -98,11 +99,35 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
       clearTimeout(this.toastTimeoutId);
     }
 
-    if (this.destinationFocusTimeoutId) {
-      clearTimeout(this.destinationFocusTimeoutId);
+    if (this.autocompleteFrameId !== null) {
+      cancelAnimationFrame(this.autocompleteFrameId);
     }
 
     this.unlockPageScroll();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    this.updateDestinationSuggestionsPosition();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateDestinationSuggestionsPosition();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+
+    if (
+      target?.closest('.destination-field') ||
+      target?.closest('.city-suggestions')
+    ) {
+      return;
+    }
+
+    this.closeDestinationOverlay();
   }
 
   @HostListener('document:keydown.escape')
@@ -192,6 +217,7 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
     this.location = value;
     this.setDestinationOverlayOpen(true);
     this.updateActiveCitySuggestionIndex();
+    this.queueDestinationSuggestionsPositionUpdate();
   }
 
   showCitySuggestions(): void {
@@ -199,7 +225,7 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
     this.setActiveDatePicker(null);
     this.setDestinationOverlayOpen(true);
     this.updateActiveCitySuggestionIndex();
-    this.focusDestinationModalInput();
+    this.queueDestinationSuggestionsPositionUpdate();
   }
 
   get citySuggestions(): string[] {
@@ -256,9 +282,45 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
 
     if (!isOpen) {
       this.activeCitySuggestionIndex = 0;
+      this.citySuggestionsStyle = {};
+    } else {
+      this.updateDestinationSuggestionsPosition();
     }
 
     this.updatePageScrollLock();
+  }
+
+  private queueDestinationSuggestionsPositionUpdate(): void {
+    if (this.autocompleteFrameId !== null) {
+      cancelAnimationFrame(this.autocompleteFrameId);
+    }
+
+    this.autocompleteFrameId = requestAnimationFrame(() => {
+      this.autocompleteFrameId = null;
+      this.updateDestinationSuggestionsPosition();
+      this.changeDetectorRef.detectChanges();
+    });
+  }
+
+  private updateDestinationSuggestionsPosition(): void {
+    if (!this.activeCitySuggestions || !this.destinationFieldRef) {
+      return;
+    }
+
+    const rect = this.destinationFieldRef.nativeElement.getBoundingClientRect();
+    const gap = 10;
+    const viewportMargin = 16;
+    const maxHeight = Math.max(
+      160,
+      Math.min(360, window.innerHeight - rect.bottom - gap - viewportMargin)
+    );
+
+    this.citySuggestionsStyle = {
+      top: `${Math.round(rect.bottom + gap)}px`,
+      left: `${Math.round(rect.left)}px`,
+      width: `${Math.round(rect.width)}px`,
+      maxHeight: `${Math.round(maxHeight)}px`,
+    };
   }
 
   private setActiveDatePicker(kind: 'checkIn' | 'checkOut' | null): void {
@@ -319,7 +381,7 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
   }
 
   private updatePageScrollLock(): void {
-    if (this.activeDatePicker || this.activeCitySuggestions || this.guestsOpen) {
+    if (this.activeDatePicker || this.guestsOpen) {
       this.lockPageScroll();
       return;
     }
@@ -343,17 +405,6 @@ export class HotelSearchComponent implements OnDestroy, OnInit {
 
     document.body.style.overflow = this.previousBodyOverflow;
     this.previousBodyOverflow = null;
-  }
-
-  private focusDestinationModalInput(): void {
-    if (this.destinationFocusTimeoutId) {
-      clearTimeout(this.destinationFocusTimeoutId);
-    }
-
-    this.destinationFocusTimeoutId = setTimeout(() => {
-      this.destinationModalInput?.nativeElement.focus();
-      this.destinationFocusTimeoutId = null;
-    });
   }
 
   validateDates(): void {
