@@ -7,6 +7,7 @@ import {
   EventCardComponent
 } from '../../components/event-card/event-card.component';
 import { AuthService } from '../../services/auth';
+import { CalendarView, SettingsService } from '../../services/settings.service';
 
 type EventCategory =
   | 'Flight'
@@ -73,7 +74,7 @@ export class CalendarMonth {
 
   weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  viewMode: 'month' | 'week' = 'month';
+  viewMode: CalendarView = 'month';
   selectedDay: number | null = null;
 
   today = new Date();
@@ -125,6 +126,7 @@ export class CalendarMonth {
   eventDraft: EventDraft = this.createEmptyEventDraft();
 
   ngOnInit() {
+    this.viewMode = this.settingsService.getDefaultCalendarView();
     this.generateCalendar();
     this.loadCalendarEvents();
   }
@@ -250,7 +252,7 @@ export class CalendarMonth {
     }
   }
 
-  setViewMode(mode: 'month' | 'week') {
+  setViewMode(mode: CalendarView) {
     this.viewMode = mode;
     this.generateCalendar();
   }
@@ -1087,6 +1089,7 @@ export class CalendarMonth {
 
   constructor(
     private cdr: ChangeDetectorRef,
-    private authService: AuthService
+    private authService: AuthService,
+    private settingsService: SettingsService
   ) {}
 }
