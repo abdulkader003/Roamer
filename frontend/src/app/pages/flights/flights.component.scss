@@ -70,11 +70,6 @@
   margin-bottom: 28px;
 
   &__text { min-width: 0; }
-  &__actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
 }
 
 .crumbs {
@@ -108,30 +103,6 @@
   color: var(--text-muted);
   font-size: 15px;
   max-width: 56ch;
-}
-
-.ghost-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 200ms ease;
-
-  svg { width: 14px; height: 14px; }
-
-  &:hover {
-    color: var(--text);
-    border-color: var(--border-strong);
-    background: var(--surface-soft);
-  }
 }
 
 // ---------------- Search Card ----------------
@@ -2070,8 +2041,6 @@
 // Mobile
 @media (max-width: 720px) {
   .flights-page { padding: 20px 16px 40px; }
-
-  .page-head__actions { display: none; }
 
   .date-popover-backdrop {
     align-items: stretch;
