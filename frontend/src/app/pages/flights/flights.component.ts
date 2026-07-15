@@ -37,6 +37,7 @@ interface CalendarDay {
   isRangeEnd: boolean;
   isInRange: boolean;
   isToday: boolean;
+  isPast: boolean;
 }
 
 // If your ThemeService lives elsewhere, adjust the path.
@@ -491,6 +492,12 @@ export class FlightsComponent implements OnDestroy {
 
   selectCalendarDate(date: Date): void {
     const selected = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    if (this.isPastDate(selected)) {
+      const message = 'Choose today or a future flight date.';
+      this.manualDateError.set(message);
+      this.showToast(message, 'error');
+      return;
+    }
 
     if (this.activeMultiCityDatePicker() !== null) {
       this.updateMultiCityDate(this.activeMultiCityDatePicker()!, this.formatDateInput(selected));
@@ -1234,6 +1241,11 @@ export class FlightsComponent implements OnDestroy {
       return;
     }
 
+    if (this.isPastDate(parsed)) {
+      this.manualDateError.set('Choose today or a future flight date.');
+      return;
+    }
+
     if (this.activeMultiCityDatePicker() !== null) {
       this.updateMultiCityDate(this.activeMultiCityDatePicker()!, this.formatDateInput(parsed));
       this.datePickerMonth.set(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
@@ -1310,6 +1322,7 @@ export class FlightsComponent implements OnDestroy {
         isRangeEnd: shouldShowRange && isRangeEnd,
         isInRange,
         isToday: this.isSameDate(date, new Date()),
+        isPast: current < this.todayStart(),
       };
     });
   }
@@ -1377,9 +1390,11 @@ export class FlightsComponent implements OnDestroy {
     if (!this.from().code) return 'Please enter a valid origin airport code, for example Düsseldorf (DUS).';
     if (!this.to().code) return 'Please enter a valid destination airport code, for example Paris (CDG).';
     if (!departure) return 'Please choose a valid departure date.';
+    if (this.isPastDate(departure)) return 'Departure date must be today or in the future.';
 
     if (this.tripType() === 'round-trip') {
       if (!returnDate) return 'Please choose a valid return date for a round trip.';
+      if (this.isPastDate(returnDate)) return 'Return date must be today or in the future.';
       if (this.startOfDay(returnDate) < this.startOfDay(departure)) {
         return 'Return date cannot be before departure date.';
       }
@@ -1403,6 +1418,9 @@ export class FlightsComponent implements OnDestroy {
         return `Segment ${i + 1} needs airport codes, for example DUS or Düsseldorf DUS.`;
       }
       if (!segment.date) return `Please choose a valid date for segment ${i + 1}.`;
+      if (this.isPastDate(segment.date)) {
+        return `Segment ${i + 1} date must be today or in the future.`;
+      }
 
       const previous = segments[i - 1];
       if (previous?.date && this.startOfDay(segment.date) < this.startOfDay(previous.date)) {
@@ -1544,6 +1562,14 @@ export class FlightsComponent implements OnDestroy {
 
   private startOfDay(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  private todayStart(): Date {
+    return this.startOfDay(new Date());
+  }
+
+  private isPastDate(date: Date): boolean {
+    return this.startOfDay(date) < this.todayStart();
   }
 
   private showToast(message: string, type: 'success' | 'error' | 'info'): void {

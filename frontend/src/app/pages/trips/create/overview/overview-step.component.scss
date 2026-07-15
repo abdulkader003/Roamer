@@ -457,6 +457,27 @@
   position: relative;
 }
 
+.export-button {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-primary) 92%, var(--accent-bg)),
+    color-mix(in srgb, var(--accent-bg) 76%, var(--surface-primary))
+  );
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.export-button:hover:not(:disabled),
+.export-button:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-bg) 62%, var(--surface-primary));
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 18%, transparent);
+  transform: translateY(-1px);
+}
+
 .export-menu {
   position: absolute;
   bottom: calc(100% + 8px);
