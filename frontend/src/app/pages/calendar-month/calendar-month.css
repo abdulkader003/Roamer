@@ -19,6 +19,7 @@
   box-sizing: border-box;
   font-family: inherit;
   position: relative;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -247,6 +248,8 @@
 .month-view {
   display: grid;
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .month-week {
@@ -325,6 +328,7 @@
 .events-container {
   flex: 1;
   min-height: 0;
+  max-height: 240px;
   margin-top: 10px;
   padding-top: 8px;
   display: flex;
@@ -481,8 +485,9 @@
 /* WEEK VIEW */
 .week-view {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+  min-width: 0;
 }
 
 .week-day-name {
@@ -999,6 +1004,10 @@
     padding: 8px;
   }
 
+  .events-container {
+    max-height: 190px;
+  }
+
   .month-events-container {
     margin-top: calc(10px + var(--hotel-lane-count) * 28px);
   }
@@ -1056,12 +1065,17 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .month-view {
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+  }
+
   .calendar-grid,
   .month-weekdays,
   .month-week {
-    grid-template-columns: repeat(7, minmax(40px, 1fr));
-    overflow-x: auto;
-    padding-bottom: 6px;
+    min-width: 720px;
+    grid-template-columns: repeat(7, minmax(92px, 1fr));
   }
 
   .month-week {
@@ -1078,6 +1092,10 @@
 
   .week-view {
     grid-template-columns: 1fr;
+  }
+
+  .week-day-box {
+    min-height: auto;
   }
 
   .form-row--double {
@@ -1112,11 +1130,11 @@
   top: 100%;
   left: 0;
   width: 100%;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--modal-bg);
+  border: 1px solid var(--calendar-border);
   border-radius: 10px;
   margin-top: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  box-shadow: var(--modal-shadow);
   z-index: var(--z-popover, 1100);
   overflow: hidden;
 }
@@ -1128,5 +1146,5 @@
 }
 
 .search-result-item:hover {
-  background: #f5f5f5;
+  background: var(--calendar-panel-bg-hover);
 }
