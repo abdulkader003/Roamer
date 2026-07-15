@@ -431,7 +431,7 @@
         <h4>Airlines</h4>
         <div class="check-list">
           <label
-            *ngFor="let a of airlineCheckboxes"
+            *ngFor="let a of visibleAirlineCheckboxes()"
             class="check-row"
             [class.checked]="filters().airlines[a.code]"
             (click)="toggleAirline(a.code)">
@@ -442,6 +442,13 @@
             <span class="check-count">{{ airlineCount(a.code) }}</span>
           </label>
         </div>
+        <button
+          *ngIf="hiddenAirlineCount() > 0"
+          type="button"
+          class="airlines-toggle"
+          (click)="toggleAirlineList()">
+          {{ showAllAirlines() ? 'Show less' : 'Show more airlines (' + hiddenAirlineCount() + ')' }}
+        </button>
       </div>
 
       <div class="filter-group">

@@ -305,6 +305,17 @@ export class FlightsComponent implements OnDestroy {
     { code: 'LX', name: 'SWISS',            minPrice: 176 },
     { code: 'TK', name: 'Turkish Airlines', minPrice: 169 },
   ];
+  readonly visibleAirlineLimit = 5;
+  readonly showAllAirlines = signal(false);
+  readonly visibleAirlineCheckboxes = computed(() => (
+    this.showAllAirlines()
+      ? this.airlineCheckboxes
+      : this.airlineCheckboxes.slice(0, this.visibleAirlineLimit)
+  ));
+  readonly hiddenAirlineCount = computed(() => Math.max(
+    this.airlineCheckboxes.length - this.visibleAirlineLimit,
+    0
+  ));
 
   // ---------------- Sort & results ----------------
   readonly sortMode = signal<SortMode>('best');
@@ -657,6 +668,10 @@ export class FlightsComponent implements OnDestroy {
       ...f,
       airlines: { ...f.airlines, [code]: !f.airlines[code] },
     }));
+  }
+
+  toggleAirlineList(): void {
+    this.showAllAirlines.update(showAll => !showAll);
   }
 
   toggleWindow(w: DepartureWindow): void {
