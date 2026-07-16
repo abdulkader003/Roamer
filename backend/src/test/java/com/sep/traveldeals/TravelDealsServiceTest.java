@@ -106,6 +106,26 @@ class TravelDealsServiceTest {
                 });
     }
 
+    @Test
+    void findDealsForUserWithRefreshKeyGeneratesNewFlightDealInsteadOfReusingCachedOffer() {
+        when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
+        when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(savedTrip()));
+        when(hotelRepository.findByCityContainingIgnoreCase(anyString())).thenReturn(List.of());
+        when(activityRepository.findByCityIgnoreCaseOrderByStartDateAsc(anyString())).thenReturn(List.of());
+
+        List<TravelDealResponse> deals = travelDealsService.findDealsForUser("traveler@example.com", "manual-refresh");
+
+        assertThat(deals)
+                .filteredOn(deal -> "FLIGHT".equals(deal.type()) && "Paris".equals(deal.destination()))
+                .anySatisfy(deal -> {
+                    assertThat(deal.id()).startsWith("flight-paris-");
+                    assertThat(deal.title()).isNotEqualTo("Roamer Air to Paris");
+                    assertThat(deal.provider()).isNotEqualTo("Roamer Air");
+                    assertThat(deal.actionRoute()).doesNotContain("flightId=flight-paris-123");
+                    assertThat(deal.actionRoute()).contains("autoSearch=true");
+                });
+    }
+
     private Trip savedTrip() {
         Trip trip = new Trip();
         trip.setName("Paris Weekend");

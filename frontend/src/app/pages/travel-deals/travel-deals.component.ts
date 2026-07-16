@@ -33,11 +33,11 @@ export class TravelDealsComponent {
     this.loadDeals();
   }
 
-  loadDeals(): void {
+  loadDeals(forceRefresh = false): void {
     this.isLoading.set(true);
     this.error.set('');
 
-    this.travelDealsService.getDeals().subscribe({
+    this.travelDealsService.getDeals(forceRefresh).subscribe({
       next: (deals) => {
         this.deals.set(deals);
         this.isLoading.set(false);

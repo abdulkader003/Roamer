@@ -26,7 +26,7 @@
         }
       </div>
 
-      <button type="button" class="deals-refresh" (click)="loadDeals()" [disabled]="isLoading()">
+      <button type="button" class="deals-refresh" (click)="loadDeals(true)" [disabled]="isLoading()">
         {{ isLoading() ? 'Loading...' : 'Refresh' }}
       </button>
     </div>
@@ -36,7 +36,7 @@
     } @else if (error()) {
       <div class="deals-state deals-state-error">
         <span>{{ error() }}</span>
-        <button type="button" (click)="loadDeals()">Retry</button>
+        <button type="button" (click)="loadDeals(true)">Retry</button>
       </div>
     } @else if (filteredDeals().length === 0) {
       <div class="deals-state">No deals found yet. Save a trip and Roamer will personalize this page.</div>
