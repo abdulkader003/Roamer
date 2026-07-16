@@ -51,6 +51,10 @@ export class TravelDealsComponent {
     });
   }
 
+  refreshDeals(): void {
+    this.loadDeals(true);
+  }
+
   selectFilter(filter: TravelDealFilter): void {
     this.selectedFilter.set(filter);
   }

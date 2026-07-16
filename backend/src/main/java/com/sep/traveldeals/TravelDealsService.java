@@ -2,15 +2,21 @@ package com.sep.traveldeals;
 
 import com.sep.activity.ActivityEntity;
 import com.sep.activity.ActivityRepository;
+import com.sep.activity.ActivityDto;
+import com.sep.activity.ActivitiesService;
 import com.sep.flight.entity.flight.FlightOfferEntity;
 import com.sep.flight.entity.flight.FlightSearchEntity;
 import com.sep.flight.repository.flight.FlightOfferRepository;
+import com.sep.hotel.dto.HotelResponse;
 import com.sep.hotel.model.Hotel;
 import com.sep.hotel.repository.HotelRepository;
+import com.sep.hotel.service.HotelService;
 import com.sep.trip.Trip;
 import com.sep.trip.TripRepository;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -21,10 +27,12 @@ import java.time.LocalDate;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 import java.util.Set;
 
 @Service
@@ -50,22 +58,28 @@ public class TravelDealsService {
     private final FlightOfferRepository flightOfferRepository;
     private final HotelRepository hotelRepository;
     private final ActivityRepository activityRepository;
+    private final HotelService hotelService;
+    private final ActivitiesService activitiesService;
 
     public TravelDealsService(
             AppUserRepository userRepository,
             TripRepository tripRepository,
             FlightOfferRepository flightOfferRepository,
             HotelRepository hotelRepository,
-            ActivityRepository activityRepository
+            ActivityRepository activityRepository,
+            HotelService hotelService,
+            ActivitiesService activitiesService
     ) {
         this.userRepository = userRepository;
         this.tripRepository = tripRepository;
         this.flightOfferRepository = flightOfferRepository;
         this.hotelRepository = hotelRepository;
         this.activityRepository = activityRepository;
+        this.hotelService = hotelService;
+        this.activitiesService = activitiesService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<TravelDealResponse> findDealsForUser(String email) {
         return findDealsForUser(email, null);
     }
@@ -91,6 +105,7 @@ public class TravelDealsService {
             }
         }
 
+        Collections.shuffle(deals, new Random(stableHash(rotationKey + ":deals")));
         return deals.stream()
                 .limit(9)
                 .toList();
@@ -155,29 +170,82 @@ public class TravelDealsService {
         );
     }
 
-    private java.util.Optional<TravelDealResponse> findHotelDeal(String destination) {
-        return hotelRepository.findByCityContainingIgnoreCase(destination).stream()
+    private List<TravelDealResponse> findHotelDeals(String destination, String rotationKey) {
+        List<TravelDealResponse> liveDeals = findLiveHotelDeals(destination, rotationKey);
+        if (!liveDeals.isEmpty()) {
+            return liveDeals;
+        }
+
+        List<Hotel> hotels = hotelRepository.findByCityContainingIgnoreCase(destination).stream()
                 .filter(hotel -> hotel.getPricePerNight() != null)
-                .min(Comparator.comparing(Hotel::getPricePerNight))
+                .toList();
+
+        int stayNights = stayNights(rotationKey, destination);
+        LocalDate checkIn = dealDate(rotationKey, "hotel", destination);
+
+        return rotatingWindow(hotels, Comparator.comparing(Hotel::getPricePerNight), rotationKey + ":cached-hotel:" + destination)
+                .stream()
                 .map(hotel -> new TravelDealResponse(
                         "hotel-" + hotel.getId(),
                         "HOTEL",
                         hotel.getName(),
                         null,
                         fallback(hotel.getCity(), destination),
-                        hotelDealTotal(hotel).setScale(0, RoundingMode.HALF_UP),
+                        hotelDealTotal(hotel, stayNights).setScale(0, RoundingMode.HALF_UP),
                         "EUR",
                         fallback(hotel.getSource(), "Hotel inventory"),
                         hotelDescription(hotel),
                         "View hotels",
-                        hotelDealRoute(fallback(hotel.getCity(), destination), hotel.getId())
-                ));
+                        hotelDealRoute(fallback(hotel.getCity(), destination), hotel.getId(), checkIn, stayNights)
+                ))
+                .toList();
     }
 
-    private java.util.Optional<TravelDealResponse> findActivityDeal(String destination) {
-        return activityRepository.findByCityIgnoreCaseOrderByStartDateAsc(destination).stream()
+    private List<TravelDealResponse> findLiveHotelDeals(String destination, String rotationKey) {
+        LocalDate checkIn = dealDate(rotationKey, "hotel", destination);
+        int stayNights = stayNights(rotationKey, destination);
+        String checkInText = checkIn.toString();
+        String checkOutText = checkIn.plusDays(stayNights).toString();
+
+        try {
+            List<HotelResponse> hotels = hotelService.searchHotels(destination, checkInText, checkOutText, 2, 0).stream()
+                    .filter(hotel -> hotel.pricePerNight() != null)
+                    .toList();
+
+            return rotatingWindow(hotels, Comparator.comparing(HotelResponse::pricePerNight), rotationKey + ":live-hotel:" + destination)
+                    .stream()
+                    .map(hotel -> new TravelDealResponse(
+                            "hotel-live-" + hotel.id(),
+                            "HOTEL",
+                            hotel.name(),
+                            null,
+                            fallback(hotel.city(), destination),
+                            hotel.pricePerNight().multiply(BigDecimal.valueOf(stayNights)).setScale(0, RoundingMode.HALF_UP),
+                            "EUR",
+                            "Agoda RapidAPI",
+                            hotelDescription(hotel),
+                            "View exact hotel",
+                            hotelDealRoute(fallback(hotel.city(), destination), hotel.id(), checkIn, stayNights)
+                    ))
+                    .toList();
+        } catch (RuntimeException ex) {
+            log.warn("Live hotel deal search failed for '{}': {}", destination, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<TravelDealResponse> findActivityDeals(String destination, String rotationKey) {
+        List<TravelDealResponse> liveDeals = findLiveActivityDeals(destination, rotationKey);
+        if (!liveDeals.isEmpty()) {
+            return liveDeals;
+        }
+
+        List<ActivityEntity> activities = activityRepository.findByCityIgnoreCaseOrderByStartDateAsc(destination).stream()
                 .filter(activity -> activityPrice(activity) != null)
-                .min(Comparator.comparing(this::activityPrice))
+                .toList();
+
+        return rotatingWindow(activities, Comparator.comparing(this::activityPrice), rotationKey + ":cached-activity:" + destination)
+                .stream()
                 .map(activity -> new TravelDealResponse(
                         "activity-" + activity.getId(),
                         "ACTIVITY",
@@ -190,7 +258,36 @@ public class TravelDealsService {
                         activityDescription(activity),
                         "View activities",
                         activityDealRoute(activity)
-                ));
+                ))
+                .toList();
+    }
+
+    private List<TravelDealResponse> findLiveActivityDeals(String destination, String rotationKey) {
+        try {
+            List<ActivityDto> activities = activitiesService.getActivities(destination, null, 0, 12).getItems().stream()
+                    .filter(activity -> activityPrice(activity) != null)
+                    .toList();
+
+            return rotatingWindow(activities, Comparator.comparing(this::activityPrice), rotationKey + ":live-activity:" + destination)
+                    .stream()
+                    .map(activity -> new TravelDealResponse(
+                            "activity-live-" + activity.getId(),
+                            "ACTIVITY",
+                            activity.getTitle(),
+                            null,
+                            fallback(activity.getCity(), destination),
+                            activityPrice(activity).setScale(0, RoundingMode.HALF_UP),
+                            fallback(activity.getPriceCurrency(), "EUR"),
+                            fallback(activity.getSource(), "Ticketmaster"),
+                            activityDescription(activity),
+                            "View exact activity",
+                            "/activities/" + encode(activity.getId())
+                    ))
+                    .toList();
+        } catch (RuntimeException ex) {
+            log.warn("Live activity deal search failed for '{}': {}", destination, ex.getMessage());
+            return List.of();
+        }
     }
 
     private List<String> preferredDestinations(List<Trip> trips) {
@@ -226,7 +323,54 @@ public class TravelDealsService {
         }
     }
 
+    private <T> List<T> rotatingWindow(List<T> items, Comparator<T> comparator, String rotationKey) {
+        List<T> rotationPool = items.stream()
+                .sorted(comparator)
+                .limit(DEAL_ROTATION_POOL_SIZE)
+                .toList();
+
+        if (rotationPool.isEmpty()) {
+            return List.of();
+        }
+
+        List<T> rotated = rotateList(rotationPool, rotationKey);
+        return rotated.stream()
+                .limit(DEALS_PER_TYPE_PER_DESTINATION)
+                .toList();
+    }
+
+    private <T> List<T> rotateList(List<T> items, String rotationKey) {
+        if (items.size() <= 1) {
+            return items;
+        }
+
+        List<T> rotated = new ArrayList<>(items);
+        Collections.rotate(rotated, -Math.floorMod(stableHash(rotationKey), rotated.size()));
+        return rotated;
+    }
+
+    private int stableHash(String value) {
+        return value == null ? 0 : value.hashCode();
+    }
+
+    private LocalDate dealDate(String rotationKey, String dealType, String destination) {
+        int dayOffset = 7 + Math.floorMod(stableHash(rotationKey + ":" + dealType + ":" + destination), 45);
+        return LocalDate.now().plusDays(dayOffset);
+    }
+
+    private int stayNights(String rotationKey, String destination) {
+        return 2 + Math.floorMod(stableHash(rotationKey + ":hotel-nights:" + destination), 4);
+    }
+
     private BigDecimal activityPrice(ActivityEntity activity) {
+        Double price = activity.getPrice() != null
+                ? activity.getPrice()
+                : activity.getMinPrice();
+
+        return price == null ? null : BigDecimal.valueOf(price);
+    }
+
+    private BigDecimal activityPrice(ActivityDto activity) {
         Double price = activity.getPrice() != null
                 ? activity.getPrice()
                 : activity.getMinPrice();
@@ -323,11 +467,10 @@ public class TravelDealsService {
                 + "&autoSearch=true";
     }
 
-    private String hotelDealRoute(String destination, Long hotelId) {
-        LocalDate checkIn = LocalDate.now().plusDays(14);
+    private String hotelDealRoute(String destination, Long hotelId, LocalDate checkIn, int stayNights) {
         String route = "/hotels?location=" + encode(destination)
                 + "&checkIn=" + checkIn
-                + "&checkOut=" + checkIn.plusDays(3)
+                + "&checkOut=" + checkIn.plusDays(stayNights)
                 + "&adults=2"
                 + "&children=0"
                 + "&autoSearch=true";
@@ -335,8 +478,8 @@ public class TravelDealsService {
         return hotelId == null ? route : route + "&hotelId=" + hotelId;
     }
 
-    private BigDecimal hotelDealTotal(Hotel hotel) {
-        return hotel.getPricePerNight().multiply(BigDecimal.valueOf(3));
+    private BigDecimal hotelDealTotal(Hotel hotel, int stayNights) {
+        return hotel.getPricePerNight().multiply(BigDecimal.valueOf(stayNights));
     }
 
     private String activityDealRoute(ActivityEntity activity) {
@@ -378,6 +521,21 @@ public class TravelDealsService {
         return details.isEmpty() ? "Cached hotel option from Roamer inventory." : String.join(" · ", details);
     }
 
+    private String hotelDescription(HotelResponse hotel) {
+        List<String> details = new ArrayList<>();
+        if (hotel.stars() != null) {
+            details.add(hotel.stars() + " stars");
+        }
+        if (hotel.ratingScore() != null) {
+            details.add("rated " + hotel.ratingScore());
+        }
+        if (StringUtils.hasText(hotel.distanceFromCenter())) {
+            details.add(hotel.distanceFromCenter());
+        }
+
+        return details.isEmpty() ? "Live hotel option from Agoda." : String.join(" · ", details);
+    }
+
     private String activityDescription(ActivityEntity activity) {
         List<String> details = new ArrayList<>();
         if (StringUtils.hasText(activity.getCategory())) {
@@ -391,6 +549,21 @@ public class TravelDealsService {
         }
 
         return details.isEmpty() ? "Cached activity option from Roamer inventory." : String.join(" · ", details);
+    }
+
+    private String activityDescription(ActivityDto activity) {
+        List<String> details = new ArrayList<>();
+        if (StringUtils.hasText(activity.getCategory())) {
+            details.add(activity.getCategory());
+        }
+        if (activity.getStartDate() != null && activity.getStartDate().toLocalDate().isAfter(LocalDate.now())) {
+            details.add(activity.getStartDate().toLocalDate().toString());
+        }
+        if (StringUtils.hasText(activity.getVenue())) {
+            details.add(activity.getVenue());
+        }
+
+        return details.isEmpty() ? "Live activity option from Ticketmaster." : String.join(" · ", details);
     }
 
     private String fallback(String value, String fallback) {

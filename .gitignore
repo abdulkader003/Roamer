@@ -1,1 +1,13 @@
+# IntelliJ
 .idea/
+
+# Node dependencies
+node_modules/
+
+# Angular generated files
+frontend/dist/
+frontend/.angular/
+
+# Local environment files
+.env
+.env.*

@@ -301,16 +301,19 @@
   z-index: var(--z-toast, 1400);
   padding: 14px 20px;
   border-radius: 12px;
-  background: var(--accent);
+  background: #16a34a;
+  border: 1px solid rgba(22, 163, 74, 0.35);
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  box-shadow: 0 12px 28px rgba(22, 163, 74, 0.28);
   animation: toast-in 0.22s ease-out;
 }
 
 .save-toast-error {
   background: #dc2626;
+  border-color: rgba(220, 38, 38, 0.35);
+  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.24);
 }
 
 @keyframes toast-in {

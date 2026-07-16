@@ -2,9 +2,11 @@ package com.sep.traveldeals;
 
 import com.sep.activity.ActivityEntity;
 import com.sep.activity.ActivityRepository;
+import com.sep.activity.ActivitiesService;
 import com.sep.flight.entity.flight.FlightOfferEntity;
 import com.sep.flight.entity.flight.FlightSearchEntity;
 import com.sep.flight.repository.flight.FlightOfferRepository;
+import com.sep.hotel.service.HotelService;
 import com.sep.hotel.model.Hotel;
 import com.sep.hotel.repository.HotelRepository;
 import com.sep.trip.Trip;
@@ -45,6 +47,12 @@ class TravelDealsServiceTest {
     @Mock
     private ActivityRepository activityRepository;
 
+    @Mock
+    private HotelService hotelService;
+
+    @Mock
+    private ActivitiesService activitiesService;
+
     private TravelDealsService travelDealsService;
     private AppUser user;
 
@@ -55,7 +63,9 @@ class TravelDealsServiceTest {
                 tripRepository,
                 flightOfferRepository,
                 hotelRepository,
-                activityRepository
+                activityRepository,
+                hotelService,
+                activitiesService
         );
         user = new AppUser();
         user.setId(7L);
@@ -77,7 +87,7 @@ class TravelDealsServiceTest {
             return "Paris".equalsIgnoreCase(city) ? List.of(activity()) : List.of();
         });
 
-        List<TravelDealResponse> deals = travelDealsService.findDealsForUser("traveler@example.com");
+        List<TravelDealResponse> deals = travelDealsService.findDealsForUser("traveler@example.com", "test-refresh-key");
 
         assertThat(deals)
                 .extracting(TravelDealResponse::type)
@@ -95,7 +105,9 @@ class TravelDealsServiceTest {
                 .anySatisfy(deal -> {
                     assertThat(deal.type()).isEqualTo("HOTEL");
                     assertThat(deal.title()).isEqualTo("Paris Stay");
-                    assertThat(deal.price()).isEqualByComparingTo("360");
+                    assertThat(deal.price()).isBetween(BigDecimal.valueOf(240), BigDecimal.valueOf(600));
+                    assertThat(deal.actionRoute()).contains("checkIn=");
+                    assertThat(deal.actionRoute()).contains("checkOut=");
                 });
         assertThat(deals)
                 .anySatisfy(deal -> {

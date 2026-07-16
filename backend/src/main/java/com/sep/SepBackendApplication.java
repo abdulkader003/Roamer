@@ -1,16 +1,15 @@
 package com.sep;
 
+import com.sep.flight.config.AeroDataBoxProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@ConfigurationPropertiesScan
+@EnableConfigurationProperties(AeroDataBoxProperties.class)
 public class SepBackendApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SepBackendApplication.class, args);
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(SepBackendApplication.class, args);
+    }
 }
-

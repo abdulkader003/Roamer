@@ -144,9 +144,9 @@
   gap: 20px;
   min-height: 64px;
   padding: 0 28px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  background: color-mix(in srgb, var(--surface-primary) 82%, transparent);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-primary) 88%, transparent);
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--card-shadow) 82%, transparent);
   backdrop-filter: blur(18px) saturate(130%);
   -webkit-backdrop-filter: blur(18px) saturate(130%);
 }
@@ -169,9 +169,9 @@
   border-radius: 12px;
   background:
     radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.42), transparent 28%),
-    linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 68%, #0f9d58));
+    linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--gold) 72%, var(--accent)));
   color: #ffffff;
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--gold) 24%, transparent);
 }
 
 .landing-brand__mark svg {
@@ -228,7 +228,8 @@
   font-size: 13px;
   font-weight: 850;
   cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--card-shadow) 42%, transparent);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .landing-actions a:hover,
@@ -238,6 +239,7 @@
   border-color: var(--accent-border);
   color: var(--accent);
   background: color-mix(in srgb, var(--accent-bg) 84%, transparent);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .landing-actions__primary,
@@ -246,6 +248,9 @@
   background: var(--btn-bg) !important;
   border-color: var(--btn-border) !important;
   color: var(--btn-text) !important;
+  box-shadow:
+    0 18px 38px color-mix(in srgb, var(--btn-bg) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .landing-actions__primary:hover,
@@ -253,6 +258,10 @@
 .begin-trip-button:hover {
   background: var(--btn-hover) !important;
   color: var(--btn-text) !important;
+  border-color: var(--btn-border) !important;
+  box-shadow:
+    0 22px 46px color-mix(in srgb, var(--btn-bg) 34%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 .landing-actions__profile {
@@ -385,7 +394,10 @@
 .landing-story,
 .landing-feature-band,
 .landing-flow {
-  background: var(--page-bg);
+  background:
+    radial-gradient(circle at 8% 14%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 32%),
+    radial-gradient(circle at 92% 18%, color-mix(in srgb, #6C8480 13%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-primary) 34%, var(--page-bg)), var(--page-bg));
 }
 
 .landing-story {
@@ -436,9 +448,22 @@
 .flow-steps article {
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: color-mix(in srgb, var(--surface-primary) 92%, transparent);
-  box-shadow: 0 12px 35px var(--card-shadow);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-primary) 96%, #ffffff), color-mix(in srgb, var(--surface-secondary) 88%, var(--surface-primary)));
+  box-shadow:
+    0 18px 44px color-mix(in srgb, var(--card-shadow) 76%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
   transition: background 0.3s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.story-metrics article:hover,
+.feature-grid article:hover,
+.flow-steps article:hover {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--border));
+  box-shadow:
+    0 24px 58px color-mix(in srgb, var(--card-shadow) 88%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  transform: translateY(-2px);
 }
 
 .story-metrics article {
@@ -459,6 +484,7 @@
   border: 1px solid var(--icon-border);
   color: var(--accent);
   font-weight: 950;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44);
 }
 
 .story-metrics span {
@@ -559,7 +585,7 @@
   gap: clamp(26px, 6vw, 86px);
   min-height: 86vh;
   background:
-    linear-gradient(90deg, rgba(6, 11, 22, 0.88), rgba(15, 23, 42, 0.58)),
+    linear-gradient(90deg, rgba(31, 40, 30, 0.88), rgba(64, 78, 59, 0.58)),
     url("/landing/roamer-travel-wallpaper.png") center / cover no-repeat;
   color: #ffffff;
 }
@@ -649,16 +675,16 @@
 
 :host-context([data-theme='dark']) .landing-brand strong {
   color: var(--gold-light);
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 22px;
-  letter-spacing: 2px;
+  font-family: inherit;
+  font-size: 20px;
+  letter-spacing: -0.5px;
 }
 
 :host-context([data-theme='dark']) .landing-actions a,
 :host-context([data-theme='dark']) .landing-theme-toggle,
 :host-context([data-theme='dark']) .begin-trip-button,
 :host-context([data-theme='dark']) .enter-dashboard-button {
-  border-radius: 8px;
+  border-radius: 999px;
 }
 
 :host-context([data-theme='dark']) .story-metrics article,
