@@ -38,14 +38,20 @@ import java.util.Set;
 @Service
 public class TravelDealsService {
 
-    private static final Logger log = LoggerFactory.getLogger(TravelDealsService.class);
-
-    private static final List<String> DEFAULT_DESTINATIONS = List.of(
-            "Barcelona", "Paris", "Rome", "Amsterdam", "Milan", "Lisbon", "Prague", "Vienna",
-            "London", "Berlin", "Madrid", "Athens", "Istanbul", "Zurich", "Copenhagen"
+    private static final List<String> DEFAULT_DESTINATIONS = List.of("Barcelona", "Paris", "Rome", "Amsterdam", "Milan");
+    private static final BigDecimal DEFAULT_FLIGHT_PRICE = BigDecimal.valueOf(99);
+    private static final List<String> DEAL_AIRLINES = List.of(
+            "Lufthansa", "Eurowings", "Air France", "KLM", "Iberia", "easyJet", "Ryanair"
     );
-    private static final int DEAL_ROTATION_POOL_SIZE = 5;
-    private static final int DEALS_PER_TYPE_PER_DESTINATION = 3;
+    private static final List<String> FLIGHT_DEAL_NAMES = List.of(
+            "Flash fare to %s",
+            "Weekend escape to %s",
+            "Smart saver flight to %s",
+            "City break deal to %s",
+            "Last-minute route to %s",
+            "Budget-friendly hop to %s",
+            "Direct flight pick to %s"
+    );
 
     private final AppUserRepository userRepository;
     private final TripRepository tripRepository;
@@ -78,22 +84,21 @@ public class TravelDealsService {
         return findDealsForUser(email, null);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<TravelDealResponse> findDealsForUser(String email, String refreshKey) {
         AppUser user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user was not found."));
 
         List<Trip> trips = tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(user.getId());
-        String rotationKey = StringUtils.hasText(refreshKey)
-                ? refreshKey
-                : String.valueOf(System.nanoTime());
+        boolean freshRefresh = StringUtils.hasText(refreshKey);
+        String rotationKey = freshRefresh ? refreshKey : "initial";
         List<String> destinationCities = rotateList(preferredDestinations(trips), rotationKey + ":destinations");
         List<TravelDealResponse> deals = new ArrayList<>();
 
         for (String destination : destinationCities) {
-            deals.addAll(findFlightDeals(destination, rotationKey));
-            deals.addAll(findHotelDeals(destination, rotationKey));
-            deals.addAll(findActivityDeals(destination, rotationKey));
+            findFlightDeal(user, destination, rotationKey, freshRefresh).ifPresent(deals::add);
+            findHotelDeal(destination).ifPresent(deals::add);
+            findActivityDeal(destination).ifPresent(deals::add);
 
             if (deals.size() >= 9) {
                 break;
@@ -106,29 +111,63 @@ public class TravelDealsService {
                 .toList();
     }
 
-    private List<TravelDealResponse> findFlightDeals(String destination, String rotationKey) {
-        // Keep dashboard deals quota-friendly: use saved flight inventory instead of calling AeroDataBox here.
-        List<FlightOfferEntity> offers = flightOfferRepository.findBySelectedTrue().stream()
-                .filter(offer -> offer.getPrice() != null)
-                .filter(offer -> matchesDestination(offer, destination))
-                .toList();
+    private java.util.Optional<TravelDealResponse> findFlightDeal(
+            AppUser user,
+            String destination,
+            String rotationKey,
+            boolean freshRefresh
+    ) {
+        // Refresh should create fresh local flight deals, not spend AeroDataBox requests or reshuffle old cards.
+        if (!freshRefresh) {
+            java.util.Optional<FlightOfferEntity> cachedOffer = flightOfferRepository.findBySelectedTrue().stream()
+                    .filter(offer -> offer.getPrice() != null)
+                    .filter(offer -> matchesDestination(offer, destination))
+                    .min(Comparator.comparing(FlightOfferEntity::getPrice));
 
-        return rotatingWindow(offers, Comparator.comparing(FlightOfferEntity::getPrice), rotationKey + ":cached-flight:" + destination)
-                .stream()
-                .map(offer -> new TravelDealResponse(
-                    "flight-offer-" + offer.getId(),
-                    "FLIGHT",
-                    fallback(offer.getAirlineName(), "Cached flight") + " to " + fallback(offer.getArrivalCity(), destination),
-                    fallback(offer.getDepartureAirport(), fallback(offer.getDepartureCity(), null)),
-                    fallback(offer.getArrivalCity(), destination),
-                    offer.getPrice().setScale(0, RoundingMode.HALF_UP),
-                    fallback(offer.getCurrency(), "EUR"),
-                    fallback(offer.getAirlineName(), "Flight inventory"),
-                    flightDescription(offer),
-                    "View flight",
-                    cachedFlightDealRoute(offer, destination)
-            ))
-                .toList();
+            if (cachedOffer.isPresent()) {
+                FlightOfferEntity offer = cachedOffer.get();
+                return java.util.Optional.of(new TravelDealResponse(
+                        "flight-offer-" + offer.getId(),
+                        "FLIGHT",
+                        fallback(offer.getAirlineName(), "Cached flight") + " to " + fallback(offer.getArrivalCity(), destination),
+                        fallback(offer.getDepartureAirport(), fallback(offer.getDepartureCity(), null)),
+                        fallback(offer.getArrivalCity(), destination),
+                        offer.getPrice().setScale(0, RoundingMode.HALF_UP),
+                        fallback(offer.getCurrency(), "EUR"),
+                        fallback(offer.getAirlineName(), "Flight inventory"),
+                        flightDescription(offer),
+                        "View flight",
+                        cachedFlightDealRoute(offer, destination)
+                ));
+            }
+        }
+
+        return java.util.Optional.of(suggestedFlightDeal(user, destination, rotationKey));
+    }
+
+    private TravelDealResponse suggestedFlightDeal(AppUser user, String destination, String rotationKey) {
+        String origin = StringUtils.hasText(user.getHomeAirport()) ? user.getHomeAirport() : "Your home airport";
+        int suggestionSeed = stableHash(rotationKey + ":suggested-flight:" + destination);
+        BigDecimal suggestedPrice = DEFAULT_FLIGHT_PRICE.add(BigDecimal.valueOf(Math.floorMod(suggestionSeed, 120)));
+        LocalDate departureDate = LocalDate.now().plusDays(7L + Math.floorMod(suggestionSeed, 45));
+        String airline = DEAL_AIRLINES.get(Math.floorMod(suggestionSeed, DEAL_AIRLINES.size()));
+        String dealName = FLIGHT_DEAL_NAMES.get(Math.floorMod(suggestionSeed / 7, FLIGHT_DEAL_NAMES.size()))
+                .formatted(destination);
+        String duration = (1 + Math.floorMod(suggestionSeed, 3)) + "h " + (10 + Math.floorMod(suggestionSeed, 45)) + "m";
+
+        return new TravelDealResponse(
+                "flight-" + slug(destination) + "-" + Math.floorMod(suggestionSeed, 10_000),
+                "FLIGHT",
+                dealName,
+                origin,
+                destination,
+                suggestedPrice,
+                "EUR",
+                airline,
+                departureDate + " · " + duration + " · " + (Math.floorMod(suggestionSeed, 4) == 0 ? "1 stop" : "Direct"),
+                "Search flights",
+                suggestedFlightDealRoute(origin, destination, departureDate)
+        );
     }
 
     private List<TravelDealResponse> findHotelDeals(String destination, String rotationKey) {
@@ -265,7 +304,7 @@ public class TravelDealsService {
         }
 
         DEFAULT_DESTINATIONS.forEach(city -> addCity(cities, city));
-        return cities.stream().limit(10).toList();
+        return cities.stream().limit(8).toList();
     }
 
     private void addCity(Set<String> cities, String value) {
@@ -351,6 +390,26 @@ public class TravelDealsService {
         return StringUtils.hasText(value) && value.toLowerCase(Locale.ROOT).contains(normalizedNeedle);
     }
 
+    private <T> List<T> rotateList(List<T> items, String rotationKey) {
+        if (items.size() <= 1 || "initial:destinations".equals(rotationKey)) {
+            return items;
+        }
+
+        int startIndex = rotatingIndex(items.size(), rotationKey);
+        List<T> rotated = new ArrayList<>(items.size());
+        rotated.addAll(items.subList(startIndex, items.size()));
+        rotated.addAll(items.subList(0, startIndex));
+        return rotated;
+    }
+
+    private int rotatingIndex(int size, String rotationKey) {
+        return size <= 1 ? 0 : Math.floorMod(stableHash(rotationKey), size);
+    }
+
+    private int stableHash(String value) {
+        return value == null ? 0 : value.hashCode();
+    }
+
     private String flightDescription(FlightOfferEntity offer) {
         List<String> details = new ArrayList<>();
         if (StringUtils.hasText(offer.getFlightNumber())) {
@@ -398,9 +457,13 @@ public class TravelDealsService {
     }
 
     private String suggestedFlightDealRoute(String origin, String destination) {
+        return suggestedFlightDealRoute(origin, destination, LocalDate.now().plusDays(14));
+    }
+
+    private String suggestedFlightDealRoute(String origin, String destination, LocalDate departureDate) {
         return "/flights?from=" + encode(origin)
                 + "&to=" + encode(destination)
-                + "&departureDate=" + LocalDate.now().plusDays(14)
+                + "&departureDate=" + departureDate
                 + "&autoSearch=true";
     }
 

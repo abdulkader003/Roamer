@@ -26,7 +26,6 @@ export class TravelDealsService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
   private readonly apiUrl = '/api/travel-deals';
-  private pageRefreshKey = this.createRefreshKey();
   private cachedDeals: TravelDeal[] | null = null;
 
   getDeals(forceRefresh = false): Observable<TravelDeal[]> {
@@ -34,22 +33,10 @@ export class TravelDealsService {
       return of(this.cachedDeals);
     }
 
-    if (forceRefresh) {
-      this.pageRefreshKey = this.createRefreshKey();
-    }
-
     return this.http.get<TravelDeal[]>(this.apiUrl, {
       headers: this.authService.authHeader(),
-      params: { refreshKey: this.pageRefreshKey },
-    }).pipe(
-      tap((deals) => {
-        this.cachedDeals = deals;
-      })
-    );
-  }
-
-  clearCache(): void {
-    this.cachedDeals = null;
+      params: forceRefresh ? { refreshKey: this.createRefreshKey() } : {},
+    }).pipe(tap((deals) => this.cachedDeals = deals));
   }
 
   private createRefreshKey(): string {
