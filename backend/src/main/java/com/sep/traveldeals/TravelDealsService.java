@@ -38,8 +38,13 @@ import java.util.Set;
 @Service
 public class TravelDealsService {
 
+    private static final Logger log = LoggerFactory.getLogger(TravelDealsService.class);
+
+
     private static final List<String> DEFAULT_DESTINATIONS = List.of("Barcelona", "Paris", "Rome", "Amsterdam", "Milan");
     private static final BigDecimal DEFAULT_FLIGHT_PRICE = BigDecimal.valueOf(99);
+    private static final int DEAL_ROTATION_POOL_SIZE = 5;
+    private static final int DEALS_PER_TYPE_PER_DESTINATION = 3;
     private static final List<String> DEAL_AIRLINES = List.of(
             "Lufthansa", "Eurowings", "Air France", "KLM", "Iberia", "easyJet", "Ryanair"
     );
@@ -97,8 +102,8 @@ public class TravelDealsService {
 
         for (String destination : destinationCities) {
             findFlightDeal(user, destination, rotationKey, freshRefresh).ifPresent(deals::add);
-            findHotelDeal(destination).ifPresent(deals::add);
-            findActivityDeal(destination).ifPresent(deals::add);
+            deals.addAll(findHotelDeals(destination, rotationKey));
+            deals.addAll(findActivityDeals(destination, rotationKey));
 
             if (deals.size() >= 9) {
                 break;
@@ -337,20 +342,6 @@ public class TravelDealsService {
         return rotated.stream()
                 .limit(DEALS_PER_TYPE_PER_DESTINATION)
                 .toList();
-    }
-
-    private <T> List<T> rotateList(List<T> items, String rotationKey) {
-        if (items.size() <= 1) {
-            return items;
-        }
-
-        List<T> rotated = new ArrayList<>(items);
-        Collections.rotate(rotated, -Math.floorMod(stableHash(rotationKey), rotated.size()));
-        return rotated;
-    }
-
-    private int stableHash(String value) {
-        return value == null ? 0 : value.hashCode();
     }
 
     private LocalDate dealDate(String rotationKey, String dealType, String destination) {
