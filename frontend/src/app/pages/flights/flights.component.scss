@@ -1263,6 +1263,27 @@
 .check-label { font-size: 13px; font-weight: 500; color: var(--text); }
 .check-count { font-size: 12px; color: var(--text-muted); }
 
+.airlines-toggle {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 9px 10px;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+
+  &:hover {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    transform: translateY(-1px);
+  }
+}
+
 .time-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

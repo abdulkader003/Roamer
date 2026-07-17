@@ -5,6 +5,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   transition: background 0.3s;
 }
@@ -157,6 +160,8 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .stat-card,
@@ -220,6 +225,8 @@
   grid-template-columns: minmax(280px, 0.95fr) minmax(420px, 1.5fr) minmax(300px, 1fr);
   gap: 16px;
   align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .section-card {
@@ -638,6 +645,8 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-rows: 1fr;
   gap: 14px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .rec-card {
@@ -934,8 +943,10 @@
 
 .bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
   gap: 16px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .quick-actions-card {
@@ -1292,9 +1303,12 @@
 @media (max-width: 980px) {
   .stats-grid,
   .rec-grid,
-  .bottom-grid,
   .deals-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bottom-grid {
+    grid-template-columns: 1fr;
   }
 
   .three-col-grid {
@@ -1345,7 +1359,7 @@
 
   .stats-grid,
   .rec-grid,
-  .bottom-grid
+  .bottom-grid,
   .actions-grid,
   .deals-grid {
     grid-template-columns: 1fr;

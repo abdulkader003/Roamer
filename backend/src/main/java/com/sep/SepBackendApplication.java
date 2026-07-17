@@ -1,5 +1,6 @@
 package com.sep;
 
+import com.sep.flight.config.AeroDataBoxProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -21,5 +22,16 @@ public class SepBackendApplication {
 	Clock clock() {
 		return Clock.systemDefaultZone();
 	}
+
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+
+@SpringBootApplication
+@EnableConfigurationProperties(AeroDataBoxProperties.class)
+public class SepBackendApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SepBackendApplication.class, args);
+    }
 
 }

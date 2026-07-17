@@ -36,7 +36,7 @@ spring:
 
 external:
   aerodatabox:
-    rapidapi-key: 5234bd551amshb9073e130980e33p19aabdjsn69d377281ea2
+    rapidapi-key: f61b5b83b4mshd4c2d605c51d860p1d729fjsn48bf7c653f42
     rapidapi-host: aerodatabox.p.rapidapi.com
     base-url: https://aerodatabox.p.rapidapi.com
 

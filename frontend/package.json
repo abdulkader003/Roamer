@@ -20,7 +20,6 @@
       }
     ]
   },
-
   "private": true,
   "dependencies": {
     "@angular/common": "21.2.11",
@@ -29,8 +28,8 @@
     "@angular/forms": "21.2.11",
     "@angular/platform-browser": "21.2.11",
     "@angular/router": "21.2.11",
-    "html2canvas": "^1.4.1",
     "@stomp/stompjs": "^7.1.1",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "rxjs": "~7.8.0",
     "tailwindcss": "^4.2.4",
@@ -44,6 +43,7 @@
     "@tailwindcss/postcss": "^4.2.4",
     "@types/html2canvas": "^0.5.35",
     "@types/jasmine": "~5.1.0",
+    "baseline-browser-mapping": "^2.10.43",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
