@@ -28,6 +28,7 @@
           class="nav-item"
           [routerLink]="item.route"
           routerLinkActive="active"
+          ariaCurrentWhenActive="page"
           [routerLinkActiveOptions]="{ exact: true }"
           (click)="setActive(item.label)"
         >
