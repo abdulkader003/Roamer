@@ -69,10 +69,11 @@ describe('SettingsComponent calendar view preference', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const activeButton = fixture.nativeElement.querySelector('.theme-option.active') as HTMLButtonElement;
+    const weeklyButton = fixture.nativeElement.querySelector('[data-testid="calendar-view-weekly"]') as HTMLButtonElement;
 
     expect(component.defaultCalendarView).toBe('weekly');
-    expect(activeButton.textContent?.trim()).toBe('Weekly');
+    expect(weeklyButton.classList).toContain('active');
+    expect(weeklyButton.textContent?.trim()).toBe('Weekly');
     expect(settingsService.setDefaultCalendarViewPreference).toHaveBeenCalledWith('weekly');
   });
 });

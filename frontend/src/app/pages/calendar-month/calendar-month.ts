@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChangeDetectorRef } from '@angular/core';
@@ -126,8 +126,9 @@ export class CalendarMonth {
   eventDraft: EventDraft = this.createEmptyEventDraft();
 
   ngOnInit() {
-    this.viewMode = this.settingsService.getDefaultCalendarView();
+    this.viewMode = this.settingsService.defaultCalendarView();
     this.generateCalendar();
+    void this.loadSavedDefaultCalendarView();
     this.loadCalendarEvents();
   }
 
@@ -253,8 +254,7 @@ export class CalendarMonth {
   }
 
   setViewMode(mode: CalendarView) {
-    this.viewMode = mode;
-    this.generateCalendar();
+    this.applyViewMode(mode);
   }
 
   selectDay(day: number) {
@@ -1102,9 +1102,35 @@ export class CalendarMonth {
     }, 2600);
   }
 
+  private async loadSavedDefaultCalendarView(): Promise<void> {
+    try {
+      const view = await this.settingsService.loadDefaultCalendarViewPreference();
+      this.applyViewMode(view);
+      this.cdr.detectChanges();
+    } catch {
+      this.applyViewMode(this.settingsService.getDefaultCalendarView());
+      this.cdr.detectChanges();
+    }
+  }
+
+  private applyViewMode(mode: CalendarView): void {
+    this.viewMode = mode;
+    this.generateCalendar();
+  }
+
   constructor(
     private cdr: ChangeDetectorRef,
     private authService: AuthService,
     private settingsService: SettingsService
-  ) {}
+  ) {
+    effect(() => {
+      const nextView = this.settingsService.defaultCalendarView();
+      if (this.viewMode === nextView) {
+        return;
+      }
+
+      this.applyViewMode(nextView);
+      this.cdr.detectChanges();
+    });
+  }
 }

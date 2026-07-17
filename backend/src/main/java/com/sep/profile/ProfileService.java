@@ -4,8 +4,16 @@ import com.sep.profile.dto.ChangePasswordRequest;
 import com.sep.profile.dto.DeleteAccountRequest;
 import com.sep.profile.dto.ProfileResponse;
 import com.sep.profile.dto.UpdateProfileRequest;
+import com.sep.budget.BudgetAlertNotificationRepository;
+import com.sep.budget.BudgetAlertNotificationService;
+import com.sep.budget.ExpenseRepository;
+import com.sep.event.CalendarEventRepository;
 import com.sep.settings.UserFeedbackRepository;
 import com.sep.settings.UserSettingsRepository;
+import com.sep.trip.Trip;
+import com.sep.trip.TripInvitationRepository;
+import com.sep.trip.TripReminderNotificationRepository;
+import com.sep.trip.TripUpdateNotificationRepository;
 import com.sep.trip.TripRepository;
 import com.sep.tripplanning.TripPlanningRepository;
 import com.sep.user.AppUser;
@@ -19,9 +27,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -54,6 +64,13 @@ public class ProfileService {
     private final TripPlanningRepository tripPlanningRepository;
     private final UserSettingsRepository userSettingsRepository;
     private final UserFeedbackRepository userFeedbackRepository;
+    private final TripReminderNotificationRepository tripReminderNotificationRepository;
+    private final TripUpdateNotificationRepository tripUpdateNotificationRepository;
+    private final BudgetAlertNotificationRepository budgetAlertNotificationRepository;
+    private final CalendarEventRepository calendarEventRepository;
+    private final ExpenseRepository expenseRepository;
+    private final TripInvitationRepository tripInvitationRepository;
+    private final BudgetAlertNotificationService budgetAlertNotificationService;
 
     public ProfileService(
             AppUserRepository userRepository,
@@ -61,7 +78,14 @@ public class ProfileService {
             TripRepository tripRepository,
             TripPlanningRepository tripPlanningRepository,
             UserSettingsRepository userSettingsRepository,
-            UserFeedbackRepository userFeedbackRepository
+            UserFeedbackRepository userFeedbackRepository,
+            TripReminderNotificationRepository tripReminderNotificationRepository,
+            TripUpdateNotificationRepository tripUpdateNotificationRepository,
+            BudgetAlertNotificationRepository budgetAlertNotificationRepository,
+            CalendarEventRepository calendarEventRepository,
+            ExpenseRepository expenseRepository,
+            TripInvitationRepository tripInvitationRepository,
+            BudgetAlertNotificationService budgetAlertNotificationService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -69,6 +93,13 @@ public class ProfileService {
         this.tripPlanningRepository = tripPlanningRepository;
         this.userSettingsRepository = userSettingsRepository;
         this.userFeedbackRepository = userFeedbackRepository;
+        this.tripReminderNotificationRepository = tripReminderNotificationRepository;
+        this.tripUpdateNotificationRepository = tripUpdateNotificationRepository;
+        this.budgetAlertNotificationRepository = budgetAlertNotificationRepository;
+        this.calendarEventRepository = calendarEventRepository;
+        this.expenseRepository = expenseRepository;
+        this.tripInvitationRepository = tripInvitationRepository;
+        this.budgetAlertNotificationService = budgetAlertNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -164,14 +195,44 @@ public class ProfileService {
     public void deleteCurrentAccount(String authenticatedEmail, DeleteAccountRequest request) {
         AppUser user = findCurrentUser(authenticatedEmail);
         assertCurrentPassword(user, request.currentPassword());
+        List<Trip> ownedTrips = tripRepository.findAllByOwnerIdOrderByStartDateAsc(user.getId());
+        List<Long> ownedTripIds = ownedTrips.stream().map(Trip::getId).toList();
+        Map<Long, AppUser> affectedBudgetUsers = affectedBudgetUsersForOwnedTrips(user.getId());
 
         // Remove rows that reference the user before deleting the account itself.
         userFeedbackRepository.deleteAllByOwnerId(user.getId());
+        tripReminderNotificationRepository.deleteAllByRecipientId(user.getId());
+        tripReminderNotificationRepository.deleteAllByTripOwnerId(user.getId());
+        tripUpdateNotificationRepository.deleteAllByRecipientId(user.getId());
+        tripUpdateNotificationRepository.deleteAllByTripOwnerId(user.getId());
+        budgetAlertNotificationRepository.deleteAllByRecipientId(user.getId());
+        if (!ownedTripIds.isEmpty()) {
+            calendarEventRepository.deleteByTripIdIn(ownedTripIds);
+            expenseRepository.deleteAllByTripIdIn(ownedTripIds);
+            tripInvitationRepository.deleteAllByTripIdIn(ownedTripIds);
+        }
+        tripInvitationRepository.deleteAllByInvitedUserId(user.getId());
+        tripInvitationRepository.deleteAllByInvitedById(user.getId());
         userSettingsRepository.deleteByOwnerId(user.getId());
         tripPlanningRepository.deleteAllByUserId(user.getId());
         tripRepository.deleteAllByOwnerId(user.getId());
         userRepository.delete(user);
         userRepository.flush();
+        affectedBudgetUsers.values().forEach(budgetAlertNotificationService::evaluateForUser);
+    }
+
+    private Map<Long, AppUser> affectedBudgetUsersForOwnedTrips(Long ownerId) {
+        Map<Long, AppUser> affectedUsers = new LinkedHashMap<>();
+
+        tripInvitationRepository.findAllByInvitedByIdOrderByCreatedAtDesc(ownerId)
+                .forEach(invitation -> {
+                    AppUser invitedUser = invitation.getInvitedUser();
+                    if (invitedUser != null && invitedUser.getId() != null) {
+                        affectedUsers.putIfAbsent(invitedUser.getId(), invitedUser);
+                    }
+                });
+
+        return affectedUsers;
     }
 
     private AppUser findCurrentUser(String authenticatedEmail) {

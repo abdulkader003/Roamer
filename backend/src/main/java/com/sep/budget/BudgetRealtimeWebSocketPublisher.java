@@ -8,8 +8,12 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.Currency;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -66,6 +70,34 @@ public class BudgetRealtimeWebSocketPublisher {
                         displayName(actor) + " deleted an expense from " + trip.getName() + ".",
                         expenseDetails(expense, actor),
                         actor == null ? null : actor.getEmail()
+                )
+        );
+    }
+
+    public void publishBudgetAlert(BudgetAlertNotification alert) {
+        if (alert == null || alert.getRecipient() == null || alert.getId() == null) {
+            return;
+        }
+
+        java.text.NumberFormat money = java.text.NumberFormat.getCurrencyInstance(Locale.US);
+        money.setCurrency(Currency.getInstance("EUR"));
+        money.setMaximumFractionDigits(0);
+
+        publish(
+                List.of(alert.getRecipient()),
+                new RealtimeNotificationMessage(
+                        "BUDGET_ALERT_OVER_LIMIT",
+                        "BUDGET_ALERT",
+                        alert.getId(),
+                        "Budget alert",
+                        "Your trip spending is over budget.",
+                        "%s spent of %s planned.".formatted(
+                                money.format(alert.getTotalSpent()),
+                                money.format(alert.getTotalBudget())
+                        ),
+                        DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(alert.getUpdatedAt()),
+                        null,
+                        null
                 )
         );
     }

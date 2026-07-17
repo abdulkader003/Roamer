@@ -57,6 +57,7 @@ public class BudgetService {
     private final CategoryBudgetLimitRepository categoryBudgetLimitRepository;
     private final AppUserRepository appUserRepository;
     private final BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher;
+    private final BudgetAlertNotificationService budgetAlertNotificationService;
     private final Clock clock;
 
     private record SpendingEntry(
@@ -74,7 +75,8 @@ public class BudgetService {
             ExpenseRepository expenseRepository,
             CategoryBudgetLimitRepository categoryBudgetLimitRepository,
             AppUserRepository appUserRepository,
-            BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher
+            BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher,
+            BudgetAlertNotificationService budgetAlertNotificationService
     ) {
         this(
                 tripRepository,
@@ -83,6 +85,7 @@ public class BudgetService {
                 categoryBudgetLimitRepository,
                 appUserRepository,
                 budgetRealtimeWebSocketPublisher,
+                budgetAlertNotificationService,
                 Clock.systemDefaultZone()
         );
     }
@@ -94,6 +97,7 @@ public class BudgetService {
             CategoryBudgetLimitRepository categoryBudgetLimitRepository,
             AppUserRepository appUserRepository,
             BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher,
+            BudgetAlertNotificationService budgetAlertNotificationService,
             Clock clock
     ) {
         this.tripRepository = tripRepository;
@@ -102,6 +106,7 @@ public class BudgetService {
         this.categoryBudgetLimitRepository = categoryBudgetLimitRepository;
         this.appUserRepository = appUserRepository;
         this.budgetRealtimeWebSocketPublisher = budgetRealtimeWebSocketPublisher;
+        this.budgetAlertNotificationService = budgetAlertNotificationService;
         this.clock = clock;
     }
 
@@ -207,6 +212,7 @@ public class BudgetService {
 
         Expense saved = expenseRepository.save(expense);
         budgetRealtimeWebSocketPublisher.publishExpenseCreated(trip, owner, sharedTripParticipants(trip), saved);
+        budgetAlertNotificationService.evaluateForTripAudience(trip);
 
         return toExpenseResponse(saved);
     }
@@ -250,6 +256,11 @@ public class BudgetService {
             budgetRealtimeWebSocketPublisher.publishExpenseCreated(trip, owner, sharedTripParticipants(trip), saved);
         }
 
+        budgetAlertNotificationService.evaluateForTripAudience(trip);
+        if (originalTrip != null && originalTrip.getId() != null && !originalTrip.getId().equals(trip.getId())) {
+            budgetAlertNotificationService.evaluateForTripAudience(originalTrip);
+        }
+
         return toExpenseResponse(saved);
     }
 
@@ -260,8 +271,11 @@ public class BudgetService {
         Expense expense = expenseRepository.findByIdAndTripOwnerId(expenseId, owner.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Expense was not found."));
 
-        budgetRealtimeWebSocketPublisher.publishExpenseDeleted(expense.getTrip(), owner, sharedTripParticipants(expense.getTrip()), expense);
+        Trip trip = expense.getTrip();
+        budgetRealtimeWebSocketPublisher.publishExpenseDeleted(trip, owner, sharedTripParticipants(trip), expense);
         expenseRepository.delete(expense);
+        expenseRepository.flush();
+        budgetAlertNotificationService.evaluateForTripAudience(trip);
     }
 
     private ExpenseResponse toExpenseResponse(Expense expense) {

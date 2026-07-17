@@ -59,6 +59,9 @@ class BudgetServiceTest {
     @Mock
     private BudgetRealtimeWebSocketPublisher budgetRealtimeWebSocketPublisher;
 
+    @Mock
+    private BudgetAlertNotificationService budgetAlertNotificationService;
+
     private BudgetService budgetService;
     private AppUser owner;
     private final Clock testClock = Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC);
@@ -72,6 +75,7 @@ class BudgetServiceTest {
                 categoryBudgetLimitRepository,
                 appUserRepository,
                 budgetRealtimeWebSocketPublisher,
+                budgetAlertNotificationService,
                 testClock
         );
         owner = new AppUser();
@@ -322,6 +326,7 @@ class BudgetServiceTest {
         assertThat(response.date()).isEqualTo(LocalDate.of(2026, 7, 16));
         verify(expenseRepository).save(any(Expense.class));
         verify(budgetRealtimeWebSocketPublisher).publishExpenseCreated(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
+        verify(budgetAlertNotificationService).evaluateForTripAudience(trip);
     }
 
     @Test
@@ -380,6 +385,8 @@ class BudgetServiceTest {
         verify(expenseRepository).save(any(Expense.class));
         verify(budgetRealtimeWebSocketPublisher).publishExpenseDeleted(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
         verify(budgetRealtimeWebSocketPublisher).publishExpenseCreated(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
+        verify(budgetAlertNotificationService).evaluateForTripAudience(newTrip);
+        verify(budgetAlertNotificationService).evaluateForTripAudience(oldTrip);
     }
 
     @Test
@@ -413,6 +420,7 @@ class BudgetServiceTest {
         assertThat(response.date()).isEqualTo(LocalDate.of(2026, 7, 20));
         verify(expenseRepository).save(any(Expense.class));
         verify(budgetRealtimeWebSocketPublisher).publishExpenseUpdated(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
+        verify(budgetAlertNotificationService).evaluateForTripAudience(trip);
     }
 
     @Test
@@ -497,7 +505,9 @@ class BudgetServiceTest {
         budgetService.deleteExpense("traveler@example.com", 44L);
 
         verify(expenseRepository).delete(expense);
+        verify(expenseRepository).flush();
         verify(budgetRealtimeWebSocketPublisher).publishExpenseDeleted(any(Trip.class), any(AppUser.class), any(), any(Expense.class));
+        verify(budgetAlertNotificationService).evaluateForTripAudience(trip);
     }
 
     @Test

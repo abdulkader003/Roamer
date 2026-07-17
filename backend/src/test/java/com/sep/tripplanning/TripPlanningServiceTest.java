@@ -1,5 +1,6 @@
 package com.sep.tripplanning;
 
+import com.sep.budget.BudgetAlertNotificationService;
 import com.sep.tripplanning.dto.CreateTripBudgetRequest;
 import com.sep.tripplanning.dto.SelectTripActivitiesRequest;
 import com.sep.tripplanning.dto.SelectTripHotelRequest;
@@ -47,11 +48,20 @@ class TripPlanningServiceTest {
     @Mock
     private HotelRepository hotelRepository;
 
+    @Mock
+    private BudgetAlertNotificationService budgetAlertNotificationService;
+
     private TripPlanningService tripPlanningService;
 
     @BeforeEach
     void setUp() {
-        tripPlanningService = new TripPlanningService(tripPlanningRepository, tripRepository, appUserRepository, hotelRepository);
+        tripPlanningService = new TripPlanningService(
+                tripPlanningRepository,
+                tripRepository,
+                appUserRepository,
+                hotelRepository,
+                budgetAlertNotificationService
+        );
     }
 
     @Test
@@ -124,6 +134,32 @@ class TripPlanningServiceTest {
     }
 
     @Test
+    void reevaluatesBudgetAlertsWhenHotelSelectionBelongsToLinkedTrip() {
+        AppUser user = new AppUser();
+        user.setId(42L);
+        user.setEmail("traveler@example.com");
+
+        TripPlanning tripPlanning = new TripPlanning();
+        tripPlanning.setId(10L);
+        tripPlanning.setUser(user);
+        Trip trip = new Trip();
+        trip.setId(11L);
+
+        Hotel hotel = new Hotel();
+        ReflectionTestUtils.setField(hotel, "id", 77L);
+        hotel.setName("Barcelona Grand");
+
+        when(tripPlanningRepository.findById(10L)).thenReturn(Optional.of(tripPlanning));
+        when(hotelRepository.findById(77L)).thenReturn(Optional.of(hotel));
+        when(tripPlanningRepository.save(tripPlanning)).thenReturn(tripPlanning);
+        when(tripRepository.findAccessibleByTripPlanningIdAndUserId(10L, 42L)).thenReturn(Optional.of(trip));
+
+        tripPlanningService.saveHotel(10L, new SelectTripHotelRequest(77L, null), "traveler@example.com");
+
+        verify(budgetAlertNotificationService).evaluateForTripAudience(trip);
+    }
+
+    @Test
     void rejectsMissingTripPlanningRecordWhenSavingHotel() {
         when(tripPlanningRepository.findById(404L)).thenReturn(Optional.empty());
 
@@ -176,6 +212,31 @@ class TripPlanningServiceTest {
         assertThat(tripPlanning.getSelectedActivities()).hasSize(2);
         assertThat(response.selectedActivitiesCount()).isEqualTo(2);
         assertThat(response.totalActivitiesCost()).isEqualByComparingTo("92.00");
+    }
+
+    @Test
+    void reevaluatesBudgetAlertsWhenActivitySelectionBelongsToLinkedTrip() {
+        AppUser user = new AppUser();
+        user.setId(42L);
+        user.setEmail("traveler@example.com");
+
+        TripPlanning tripPlanning = new TripPlanning();
+        tripPlanning.setId(10L);
+        tripPlanning.setUser(user);
+        Trip trip = new Trip();
+        trip.setId(11L);
+
+        SelectTripActivitiesRequest request = new SelectTripActivitiesRequest(List.of(
+                new SelectedTripActivity("Food Walk", "Tours", new BigDecimal("64.00"), "3 hours", "Barcelona")
+        ));
+
+        when(tripPlanningRepository.findById(10L)).thenReturn(Optional.of(tripPlanning));
+        when(tripPlanningRepository.save(tripPlanning)).thenReturn(tripPlanning);
+        when(tripRepository.findAccessibleByTripPlanningIdAndUserId(10L, 42L)).thenReturn(Optional.of(trip));
+
+        tripPlanningService.saveActivities(10L, request, "traveler@example.com");
+
+        verify(budgetAlertNotificationService).evaluateForTripAudience(trip);
     }
 
     @Test

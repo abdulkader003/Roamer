@@ -133,6 +133,26 @@
   }
 }
 
+.trip-card--completed {
+  border-color: var(--border);
+  background: var(--surface-primary);
+
+  .trip-icon {
+    background: var(--surface-secondary);
+    color: var(--text-muted);
+  }
+}
+
+.trip-card--selected {
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--surface-primary) 90%, var(--accent));
+
+  .trip-icon {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+}
+
 .trip-icon {
   width: 44px;
   height: 44px;
@@ -184,6 +204,10 @@
 
   .draft {
     color: #b45309;
+  }
+
+  .completed {
+    color: var(--accent);
   }
 }
 

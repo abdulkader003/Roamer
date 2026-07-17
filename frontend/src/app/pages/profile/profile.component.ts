@@ -29,6 +29,7 @@ import {
 } from '../../services/profile.service';
 import { ProfileStateService } from '../../services/profile-state.service';
 import { TripPlanningService, TripResponse } from '../../services/trip-planning.service';
+import { isTripUpcomingOrActive } from '../../services/trip-status.util';
 import { WorldTravelMapComponent } from './world-travel-map.component';
 
 type TravelAchievementOption = {
@@ -827,15 +828,7 @@ export class ProfileComponent implements OnInit {
   }
 
   private isUpcomingTrip(trip: TripResponse): boolean {
-    if (trip.status === 'UPCOMING') {
-      return true;
-    }
-
-    const startDate = new Date(`${trip.startDate}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return !Number.isNaN(startDate.getTime()) && startDate >= today;
+    return isTripUpcomingOrActive(trip);
   }
 
   private tripDestinationCandidates(trip: TripResponse): string[] {

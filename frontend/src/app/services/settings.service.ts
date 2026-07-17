@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth';
 
@@ -28,7 +28,7 @@ export interface FeedbackPayload {
 
 const SETTINGS_STORAGE_KEY = 'roamer-settings';
 const FEEDBACK_STORAGE_KEY = 'roamer-feedback-drafts';
-const DEFAULT_SETTINGS_PREFERENCES: SettingsPreferences = {
+export const DEFAULT_SETTINGS_PREFERENCES: SettingsPreferences = {
   notifications: {
     tripReminders: true,
     budgetAlerts: true,
@@ -47,6 +47,7 @@ export class SettingsService {
   private readonly authService = inject(AuthService);
   private readonly settingsApiUrl = '/api/settings';
   private readonly feedbackApiUrl = '/api/feedback';
+  readonly defaultCalendarView = signal<CalendarView>(this.getDefaultCalendarView());
 
   async loadPreferences(defaults: SettingsPreferences): Promise<SettingsPreferences> {
     try {
@@ -69,6 +70,7 @@ export class SettingsService {
           headers: this.authService.authHeader()
         })
       );
+      this.savePreferencesLocally(preferences);
     } catch (error) {
       console.error('Settings API PUT /api/settings failed; saved settings to localStorage fallback only.', error);
       this.savePreferencesLocally(preferences);
@@ -92,6 +94,12 @@ export class SettingsService {
 
   getDefaultCalendarView(): CalendarView {
     return this.toCalendarView(this.loadPreferencesLocally(DEFAULT_SETTINGS_PREFERENCES).defaultCalendarView);
+  }
+
+  async loadDefaultCalendarViewPreference(): Promise<CalendarView> {
+    const preferences = await this.loadPreferences(DEFAULT_SETTINGS_PREFERENCES);
+    this.savePreferencesLocally(preferences);
+    return this.toCalendarView(preferences.defaultCalendarView);
   }
 
   setDefaultCalendarViewPreference(view: CalendarViewPreference): void {
@@ -120,6 +128,7 @@ export class SettingsService {
 
   private savePreferencesLocally(preferences: SettingsPreferences): void {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences));
+    this.defaultCalendarView.set(this.toCalendarView(preferences.defaultCalendarView));
   }
 
   private saveFeedbackLocally(payload: FeedbackPayload): void {

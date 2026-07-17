@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { TripTempService } from '../trip-temp.service';
+import { TripTemp, TripTempService } from '../trip-temp.service';
 
 interface WizardStep {
   number: number;
@@ -33,6 +33,11 @@ interface CalendarDay {
   isRangeEnd: boolean;
   isInRange: boolean;
   isToday: boolean;
+}
+
+interface DestinationStepResult {
+  tripTemp: TripTemp;
+  queryParams: Record<string, string | number>;
 }
 
 @Component({
@@ -145,6 +150,7 @@ export class TripDestinationComponent implements OnInit {
   manualDateError = '';
   activeAirportPicker: 'origin' | 'destination' | null = null;
   activeMultiCityAirportPicker: { index: number; key: 'fromText' | 'toText' } | null = null;
+  isSaving = false;
   readonly weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   multiCitySegments: MultiCitySegment[] = [
     { fromText: '', toText: '', date: '' },
@@ -166,6 +172,18 @@ export class TripDestinationComponent implements OnInit {
 
   stepQueryParams(): Record<string, string | number> {
     return this.withTripPlanningQueryParams(this.route.snapshot.queryParams);
+  }
+
+  get isEditingSavedTrip(): boolean {
+    return Boolean(this.tripTempService.getTripTemp().draftTripId);
+  }
+
+  get primaryActionLabel(): string {
+    if (this.isSaving) {
+      return 'Saving...';
+    }
+
+    return 'Continue - Search Flights →';
   }
 
   setTripType(tripType: TripType): void {
@@ -486,6 +504,26 @@ export class TripDestinationComponent implements OnInit {
   }
 
   continueToFlights(form: NgForm): void {
+    const result = this.updateDestinationStep(form);
+
+    if (!result) {
+      return;
+    }
+
+    this.navigateToFlights(result.queryParams);
+  }
+
+  continueEditing(form: NgForm): void {
+    const result = this.updateDestinationStep(form);
+
+    if (!result) {
+      return;
+    }
+
+    this.navigateToFlights(result.queryParams);
+  }
+
+  private updateDestinationStep(form: NgForm): DestinationStepResult | null {
     this.formError = '';
 
     if (this.tripType === 'multi-city') {
@@ -497,10 +535,10 @@ export class TripDestinationComponent implements OnInit {
 
       if (segments.some((segment) => !segment.fromText || !segment.toText || !segment.date)) {
         this.formError = 'Complete each multi-city origin, destination, and date to continue.';
-        return;
+        return null;
       }
 
-      this.tripTempService.updateTripTemp({
+      const nextTripTemp = this.tripTempService.updateTripTemp({
         origin: segments[0].fromText,
         destination: segments[segments.length - 1].toText,
         destinationCities: this.uniqueCities(segments.map((segment) => segment.toText)),
@@ -509,26 +547,26 @@ export class TripDestinationComponent implements OnInit {
         travelers: this.travelers,
       });
 
-      void this.router.navigate(['/trips/create/flights'], {
+      return {
+        tripTemp: nextTripTemp,
         queryParams: this.withTripPlanningQueryParams({
           tripType: this.tripType,
           travelers: this.travelers,
           multiCitySegments: JSON.stringify(segments),
         }),
-      });
-      return;
+      };
     }
 
     if (form.invalid || !this.origin.trim() || !this.destination.trim() || !this.departureDate || (this.tripType === 'round-trip' && !this.returnDate)) {
       this.formError = 'Complete the origin, destination, and travel dates to continue.';
-      return;
+      return null;
     }
 
     const returnDate = this.tripType === 'round-trip' ? this.returnDate : '';
     const origin = this.normalizeAirportText(this.origin);
     const destination = this.normalizeAirportText(this.destination);
 
-    this.tripTempService.updateTripTemp({
+    const nextTripTemp = this.tripTempService.updateTripTemp({
       origin,
       destination,
       destinationCities: this.uniqueCities([destination]),
@@ -537,7 +575,8 @@ export class TripDestinationComponent implements OnInit {
       travelers: this.travelers,
     });
 
-    void this.router.navigate(['/trips/create/flights'], {
+    return {
+      tripTemp: nextTripTemp,
       queryParams: this.withTripPlanningQueryParams({
         from: origin,
         to: destination,
@@ -546,7 +585,11 @@ export class TripDestinationComponent implements OnInit {
         travelers: this.travelers,
         tripType: this.tripType,
       }),
-    });
+    };
+  }
+
+  private navigateToFlights(queryParams: Record<string, string | number>): void {
+    void this.router.navigate(['/trips/create/flights'], { queryParams });
   }
 
   private withTripPlanningQueryParams(queryParams: Record<string, string | number>): Record<string, string | number> {

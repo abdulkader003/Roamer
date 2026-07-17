@@ -482,6 +482,11 @@
   min-width: 0;
 }
 
+.week-day,
+.week-day-box {
+  min-width: 0;
+}
+
 .week-day-name {
   text-align: center;
   font-size: 13px;
