@@ -36,6 +36,11 @@ export class RealtimeWebSocketService {
       },
       { allowSignalWrites: true }
     );
+
+    const initialToken = (this.authService.token?.() ?? '').trim();
+    if (initialToken) {
+      this.connect(initialToken);
+    }
   }
 
   observe<T>(destination: string): Observable<T> {
@@ -123,24 +128,28 @@ export class RealtimeWebSocketService {
   }
 
   private ensureSubscription(destination: string): void {
-    if (!this.stompClient?.active || this.activeSubscriptions.has(destination)) {
+    if (!this.stompClient || this.state() !== 'connected' || this.activeSubscriptions.has(destination)) {
       return;
     }
 
-    const subscription = this.stompClient.subscribe(destination, (message: IMessage) => {
-      const stream = this.destinationStreams.get(destination);
-      if (!stream) {
-        return;
-      }
+    try {
+      const subscription = this.stompClient.subscribe(destination, (message: IMessage) => {
+        const stream = this.destinationStreams.get(destination);
+        if (!stream) {
+          return;
+        }
 
-      try {
-        stream.next(JSON.parse(message.body) as unknown);
-      } catch {
-        stream.next(message.body as unknown);
-      }
-    });
+        try {
+          stream.next(JSON.parse(message.body) as unknown);
+        } catch {
+          stream.next(message.body as unknown);
+        }
+      });
 
-    this.activeSubscriptions.set(destination, subscription);
+      this.activeSubscriptions.set(destination, subscription);
+    } catch {
+      // STOMP can report an active client before the connection is ready; onConnect retries all destinations.
+    }
   }
 
   private resubscribeAll(): void {

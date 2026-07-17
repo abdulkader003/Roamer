@@ -97,7 +97,11 @@
                 </svg>
                 {{ trip.dates }}
               </p>
-              <span [class]="trip.status === 'confirmed' ? 'badge badge-confirmed' : 'badge badge-pending'">
+              <span
+                class="badge"
+                [class.badge-confirmed]="trip.statusKind === 'confirmed'"
+                [class.badge-pending]="trip.statusKind === 'pending'"
+                [class.badge-completed]="trip.statusKind === 'completed'">
                 {{ trip.status }}
               </span>
               @if (trip.shared) {

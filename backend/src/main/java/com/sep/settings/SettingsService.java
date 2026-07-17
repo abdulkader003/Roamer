@@ -1,11 +1,13 @@
 package com.sep.settings;
 
+import com.sep.budget.BudgetAlertNotificationService;
 import com.sep.settings.dto.FeedbackRequest;
 import com.sep.settings.dto.FeedbackResponse;
 import com.sep.settings.dto.NotificationSettingsResponse;
 import com.sep.settings.dto.PrivacySettingsResponse;
 import com.sep.settings.dto.SettingsPreferencesResponse;
 import com.sep.settings.dto.UpdateSettingsRequest;
+import com.sep.trip.TripReminderService;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
 import org.springframework.stereotype.Service;
@@ -21,15 +23,21 @@ public class SettingsService {
     private final AppUserRepository userRepository;
     private final UserSettingsRepository settingsRepository;
     private final UserFeedbackRepository feedbackRepository;
+    private final BudgetAlertNotificationService budgetAlertNotificationService;
+    private final TripReminderService tripReminderService;
 
     public SettingsService(
             AppUserRepository userRepository,
             UserSettingsRepository settingsRepository,
-            UserFeedbackRepository feedbackRepository
+            UserFeedbackRepository feedbackRepository,
+            BudgetAlertNotificationService budgetAlertNotificationService,
+            TripReminderService tripReminderService
     ) {
         this.userRepository = userRepository;
         this.settingsRepository = settingsRepository;
         this.feedbackRepository = feedbackRepository;
+        this.budgetAlertNotificationService = budgetAlertNotificationService;
+        this.tripReminderService = tripReminderService;
     }
 
     @Transactional
@@ -42,6 +50,7 @@ public class SettingsService {
     public SettingsPreferencesResponse updateSettings(String authenticatedEmail, UpdateSettingsRequest request) {
         AppUser user = findCurrentUser(authenticatedEmail);
         UserSettings settings = findOrCreateSettings(user);
+        boolean wasTripRemindersEnabled = settings.isTripReminders();
 
         settings.setTripReminders(request.notifications().tripReminders());
         settings.setBudgetAlerts(request.notifications().budgetAlerts());
@@ -50,7 +59,12 @@ public class SettingsService {
         settings.setShareTripData(request.privacy().shareTripData());
         settings.setAllowAnalytics(request.privacy().allowAnalytics());
 
-        return toResponse(settingsRepository.save(settings));
+        UserSettings savedSettings = settingsRepository.save(settings);
+        budgetAlertNotificationService.evaluateForUser(user);
+        if (!wasTripRemindersEnabled && savedSettings.isTripReminders()) {
+            tripReminderService.evaluateForUser(user);
+        }
+        return toResponse(savedSettings);
     }
 
     @Transactional

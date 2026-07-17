@@ -50,6 +50,9 @@ class TripInvitationServiceTest {
     @Mock
     private TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
 
+    @Mock
+    private TripReminderService tripReminderService;
+
     private TripInvitationService tripInvitationService;
     private AppUser owner;
     private AppUser invitedUser;
@@ -63,7 +66,8 @@ class TripInvitationServiceTest {
                 appUserRepository,
                 friendRequestRepository,
                 tripNotificationWebSocketPublisher,
-                tripRealtimeWebSocketPublisher
+                tripRealtimeWebSocketPublisher,
+                tripReminderService
         );
 
         owner = user(7L, "owner@example.com", "owner");
@@ -197,6 +201,7 @@ class TripInvitationServiceTest {
 
         assertThat(response.message()).isEqualTo("Trip invitation accepted.");
         assertThat(invitation.getStatus()).isEqualTo(TripInvitationStatus.ACCEPTED);
+        verify(tripReminderService).evaluateTripForRecipientToday(trip, invitedUser);
         verify(tripNotificationWebSocketPublisher).publishTripInvitationAccepted(invitation);
         ArgumentCaptor<Collection<AppUser>> recipientsCaptor = ArgumentCaptor.forClass(Collection.class);
         verify(tripRealtimeWebSocketPublisher).publishTripParticipantJoined(eq(trip), eq(invitedUser), recipientsCaptor.capture());

@@ -1,15 +1,21 @@
 package com.sep.trip;
 
+import com.sep.event.CalendarEvent;
 import com.sep.event.CalendarEventRepository;
-import com.sep.trip.dto.CreateTripRequest;
 import com.sep.auth.dto.MessageResponse;
+import com.sep.budget.BudgetAlertNotificationService;
+import com.sep.budget.ExpenseRepository;
+import com.sep.trip.dto.CreateTripRequest;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Applies trip ownership and business validation between the HTTP and database layers.
@@ -22,19 +28,34 @@ public class TripService {
     private final AppUserRepository appUserRepository;
     private final CalendarEventRepository calendarEventRepository;
     private final TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
+    private final TripReminderNotificationRepository tripReminderNotificationRepository;
+    private final TripReminderService tripReminderService;
+    private final BudgetAlertNotificationService budgetAlertNotificationService;
+    private final ExpenseRepository expenseRepository;
+    private final TripUpdateNotificationRepository tripUpdateNotificationRepository;
 
     public TripService(
             TripRepository tripRepository,
             TripInvitationRepository tripInvitationRepository,
             AppUserRepository appUserRepository,
             CalendarEventRepository calendarEventRepository,
-            TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher
+            TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher,
+            TripReminderNotificationRepository tripReminderNotificationRepository,
+            TripReminderService tripReminderService,
+            BudgetAlertNotificationService budgetAlertNotificationService,
+            ExpenseRepository expenseRepository,
+            TripUpdateNotificationRepository tripUpdateNotificationRepository
     ) {
         this.tripRepository = tripRepository;
         this.tripInvitationRepository = tripInvitationRepository;
         this.appUserRepository = appUserRepository;
         this.calendarEventRepository = calendarEventRepository;
         this.tripRealtimeWebSocketPublisher = tripRealtimeWebSocketPublisher;
+        this.tripReminderNotificationRepository = tripReminderNotificationRepository;
+        this.tripReminderService = tripReminderService;
+        this.budgetAlertNotificationService = budgetAlertNotificationService;
+        this.expenseRepository = expenseRepository;
+        this.tripUpdateNotificationRepository = tripUpdateNotificationRepository;
     }
 
     /**
@@ -73,7 +94,10 @@ public class TripService {
         trip.setOwner(findOwner(userEmail));
 
         AppUser owner = trip.getOwner();
-        return toResponse(tripRepository.save(trip), owner.getId());
+        Trip savedTrip = tripRepository.save(trip);
+        tripReminderService.evaluateTripForToday(savedTrip);
+        budgetAlertNotificationService.evaluateForTripAudience(savedTrip);
+        return toResponse(savedTrip, owner.getId());
     }
 
     /**
@@ -83,16 +107,24 @@ public class TripService {
     public TripResponse updateTrip(String userEmail, Long tripId, CreateTripRequest request) {
         AppUser currentUser = findOwner(userEmail);
         Trip trip = findAccessibleTrip(tripId, currentUser);
+        LocalDate previousStartDate = trip.getStartDate();
+        LocalDate previousEndDate = trip.getEndDate();
+        TripStatus previousStatus = trip.getStatus();
+        BookingSnapshot previousBooking = BookingSnapshot.from(trip);
 
         applyEditableFields(trip, request);
 
         Trip savedTrip = tripRepository.save(trip);
+        boolean bookingChanged = previousBooking.changed(savedTrip);
+        syncTripCalendarBookingDates(savedTrip, previousStartDate, previousEndDate);
+        tripReminderService.refreshTripForToday(savedTrip);
+        budgetAlertNotificationService.evaluateForTripAudience(savedTrip);
         tripRealtimeWebSocketPublisher.publishTripDetailsUpdated(
                 savedTrip,
                 currentUser,
-                tripUpdateRecipients(savedTrip, currentUser.getId(), !savedTrip.getOwner().getId().equals(currentUser.getId()))
+                tripUpdateRecipients(savedTrip, currentUser.getId(), !savedTrip.getOwner().getId().equals(currentUser.getId())),
+                bookingChanged
         );
-        tripRealtimeWebSocketPublisher.publishTripDetailsUpdatedTopic(savedTrip, currentUser);
 
         return toResponse(savedTrip, currentUser.getId());
     }
@@ -106,8 +138,13 @@ public class TripService {
         Trip trip = findOwnedTrip(tripId, owner);
 
         calendarEventRepository.deleteByTripId(trip.getId());
+        tripReminderNotificationRepository.deleteAllByTripId(trip.getId());
+        tripUpdateNotificationRepository.deleteAllByTripId(trip.getId());
         tripInvitationRepository.deleteAllByTripId(trip.getId());
+        expenseRepository.deleteAllByTripId(trip.getId());
         tripRepository.delete(trip);
+        tripRepository.flush();
+        budgetAlertNotificationService.evaluateForUser(owner);
     }
 
     /**
@@ -210,6 +247,53 @@ public class TripService {
         return value.trim();
     }
 
+    private record BookingSnapshot(
+            String flightId,
+            String flightTitle,
+            String flightAirline,
+            String flightNumber,
+            String flightDepartureTime,
+            String flightArrivalTime,
+            String flightDuration,
+            String flightStops,
+            String flightDetails,
+            java.math.BigDecimal flightTotal,
+            String flightSegmentsJson,
+            String hotelName,
+            String hotelCity,
+            Integer hotelStars,
+            String hotelDetails,
+            java.math.BigDecimal hotelTotal,
+            String hotelStaysJson
+    ) {
+        static BookingSnapshot from(Trip trip) {
+            return new BookingSnapshot(
+                    trip.getFlightId(),
+                    trip.getFlightTitle(),
+                    trip.getFlightAirline(),
+                    trip.getFlightNumber(),
+                    trip.getFlightDepartureTime(),
+                    trip.getFlightArrivalTime(),
+                    trip.getFlightDuration(),
+                    trip.getFlightStops(),
+                    trip.getFlightDetails(),
+                    trip.getFlightTotal(),
+                    trip.getFlightSegmentsJson(),
+                    trip.getHotelName(),
+                    trip.getHotelCity(),
+                    trip.getHotelStars(),
+                    trip.getHotelDetails(),
+                    trip.getHotelTotal(),
+                    trip.getHotelStaysJson()
+            );
+        }
+
+        boolean changed(Trip trip) {
+            BookingSnapshot next = from(trip);
+            return !Objects.equals(this, next);
+        }
+    }
+
     private List<AppUser> tripUpdateRecipients(Trip trip, Long actorId, boolean includeOwner) {
         var recipients = new java.util.LinkedHashMap<Long, AppUser>();
 
@@ -224,6 +308,175 @@ public class TripService {
                 .forEach(user -> recipients.putIfAbsent(user.getId(), user));
 
         return new java.util.ArrayList<>(recipients.values());
+    }
+
+    private void syncTripCalendarBookingDates(Trip trip, LocalDate previousStartDate, LocalDate previousEndDate) {
+        if (
+                trip.getId() == null
+                        || previousStartDate == null
+                        || previousEndDate == null
+                        || (previousStartDate.equals(trip.getStartDate()) && previousEndDate.equals(trip.getEndDate()))
+        ) {
+            return;
+        }
+
+        List<CalendarEvent> tripEvents = calendarEventRepository.findAllByTripId(trip.getId());
+        if (tripEvents == null || tripEvents.isEmpty()) {
+            return;
+        }
+
+        List<CalendarEvent> bookingEvents = tripEvents.stream()
+                .filter(this::isTripBookingEvent)
+                .toList();
+
+        if (bookingEvents.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (CalendarEvent event : bookingEvents) {
+            boolean outbound = isOutboundBookingEvent(event, trip);
+            boolean returning = isReturnBookingEvent(event, trip);
+            boolean hotel = isHotelBookingEvent(event);
+            LocalDateTime syncedStart = syncBoundaryDate(event.getStartDateTime(), previousStartDate, previousEndDate, trip.getStartDate(), trip.getEndDate(), outbound, returning, hotel);
+            LocalDateTime syncedEnd = syncBoundaryDate(event.getEndDateTime(), previousStartDate, previousEndDate, trip.getStartDate(), trip.getEndDate(), outbound, returning, hotel);
+
+            if (!sameDateTime(event.getStartDateTime(), syncedStart)) {
+                event.setStartDateTime(syncedStart);
+                changed = true;
+            }
+
+            if (!sameDateTime(event.getEndDateTime(), syncedEnd)) {
+                event.setEndDateTime(syncedEnd);
+                changed = true;
+            }
+
+            if (hotel) {
+                String syncedDescription = syncHotelDescription(event.getDescription(), trip.getStartDate(), trip.getEndDate());
+                if (!sameText(event.getDescription(), syncedDescription)) {
+                    event.setDescription(syncedDescription);
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed) {
+            calendarEventRepository.saveAll(bookingEvents);
+        }
+    }
+
+    private boolean isTripBookingEvent(CalendarEvent event) {
+        return isFlightBookingEvent(event) || isHotelBookingEvent(event);
+    }
+
+    private boolean isFlightBookingEvent(CalendarEvent event) {
+        if (event.getCategory() == null || event.getTitle() == null) {
+            return false;
+        }
+
+        String category = event.getCategory().trim();
+        return category.equalsIgnoreCase("Flight") && event.getTitle().trim().startsWith("Flight:");
+    }
+
+    private boolean isHotelBookingEvent(CalendarEvent event) {
+        if (event.getCategory() == null || event.getTitle() == null) {
+            return false;
+        }
+
+        String category = event.getCategory().trim();
+        return category.equalsIgnoreCase("Hotel") && event.getTitle().trim().startsWith("Hotel:");
+    }
+
+    private LocalDateTime syncBoundaryDate(
+            LocalDateTime value,
+            LocalDate previousStartDate,
+            LocalDate previousEndDate,
+            LocalDate nextStartDate,
+            LocalDate nextEndDate,
+            boolean outbound,
+            boolean returning,
+            boolean hotel
+    ) {
+        if (value == null) {
+            return null;
+        }
+
+        LocalDate currentDate = value.toLocalDate();
+        if (currentDate.equals(previousStartDate) && (hotel || outbound)) {
+            return value.with(nextStartDate);
+        }
+
+        if (currentDate.equals(previousEndDate) && (hotel || returning)) {
+            return value.with(nextEndDate);
+        }
+
+        return value;
+    }
+
+    private boolean isOutboundBookingEvent(CalendarEvent event, Trip trip) {
+        String searchable = bookingSearchText(event);
+        return searchable.contains("outbound")
+                || searchable.contains("departure")
+                || routeStartsAtOrigin(event, trip);
+    }
+
+    private boolean isReturnBookingEvent(CalendarEvent event, Trip trip) {
+        String searchable = bookingSearchText(event);
+        return searchable.contains("return") || routeEndsAtOrigin(event, trip);
+    }
+
+    private String bookingSearchText(CalendarEvent event) {
+        return ((event.getTitle() == null ? "" : event.getTitle()) + " " + (event.getDescription() == null ? "" : event.getDescription()))
+                .toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private boolean routeStartsAtOrigin(CalendarEvent event, Trip trip) {
+        String origin = normalizedCity(trip.getOrigin());
+        String location = normalizedText(event.getLocation());
+
+        return origin != null && location.startsWith(origin);
+    }
+
+    private boolean routeEndsAtOrigin(CalendarEvent event, Trip trip) {
+        String origin = normalizedCity(trip.getOrigin());
+        String location = normalizedText(event.getLocation());
+
+        return origin != null && location.endsWith(origin);
+    }
+
+    private String normalizedCity(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return normalizedText(value.replaceAll("\\s*\\([A-Za-z]{3}\\)\\s*$", ""));
+    }
+
+    private String normalizedText(String value) {
+        return value == null ? "" : value.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    }
+
+    private String syncHotelDescription(String description, LocalDate startDate, LocalDate endDate) {
+        long nights = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
+        String nightsLabel = Math.max(0, nights) + " night" + (Math.max(0, nights) == 1 ? "" : "s");
+
+        if (description == null || description.isBlank()) {
+            return nightsLabel;
+        }
+
+        if (description.matches("(?is).*\\b\\d+\\s+nights?\\b.*")) {
+            return description.replaceFirst("(?i)\\b\\d+\\s+nights?\\b", nightsLabel);
+        }
+
+        return description + " · " + nightsLabel;
+    }
+
+    private boolean sameText(String left, String right) {
+        return left == null ? right == null : left.equals(right);
+    }
+
+    private boolean sameDateTime(LocalDateTime left, LocalDateTime right) {
+        return left == null ? right == null : left.equals(right);
     }
 
     private TripResponse toResponse(Trip trip, Long currentUserId) {

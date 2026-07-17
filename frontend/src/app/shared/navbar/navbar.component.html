@@ -67,6 +67,34 @@
           }
         </button>
 
+        @if (!isNotificationMenuOpen() && budgetAlertToast(); as alert) {
+          <aside
+            class="budget-alert-popover"
+            role="alert"
+            aria-live="assertive"
+            (click)="$event.stopPropagation()">
+            <div class="budget-alert-popover__icon" aria-hidden="true">
+              @if (alert.type === 'BUDGET_ALERT') {
+                BG
+              } @else {
+                TR
+              }
+            </div>
+            <div class="budget-alert-popover__copy">
+              <strong>{{ alert.title }}</strong>
+              <span>{{ alert.details || alert.description }}</span>
+            </div>
+            <button
+              type="button"
+              class="budget-alert-popover__close"
+              aria-label="Dismiss budget alert popup"
+              title="Dismiss"
+              (click)="dismissBudgetAlertToast($event)">
+              ×
+            </button>
+          </aside>
+        }
+
         @if (isNotificationMenuOpen()) {
           <div class="notification-menu" role="menu" aria-label="Notifications">
             <div class="notification-menu-header">
@@ -89,6 +117,8 @@
                     <div class="notification-item__icon" aria-hidden="true">
                       @if (notification.type === 'FRIEND_REQUEST') {
                         FR
+                      } @else if (notification.type === 'BUDGET_ALERT') {
+                        BG
                       } @else {
                         TR
                       }
@@ -121,6 +151,15 @@
                     role="menuitem"
                     (click)="closeNotificationMenu()">
                     Open trips
+                  </a>
+                }
+                @if (hasBudgetNotifications()) {
+                  <a
+                    routerLink="/budget-tracker"
+                    class="notification-menu-footer"
+                    role="menuitem"
+                    (click)="closeNotificationMenu()">
+                    Open budget
                   </a>
                 }
                 @if (hasFriendNotifications()) {

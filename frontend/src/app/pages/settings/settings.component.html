@@ -40,7 +40,7 @@
         <div class="toggle-row">
           <div class="toggle-info">
             <span class="toggle-label">Budget Alerts</span>
-            <span class="toggle-desc">Get notified when nearing your budget limit</span>
+            <span class="toggle-desc">Get notified when exceeding your budget limit</span>
           </div>
 	          <button
 	            type="button"
@@ -106,10 +106,10 @@
       <div class="pref-group">
         <span class="pref-label">Default Calendar View</span>
         <div class="theme-options">
-          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'monthly'" (click)="selectCalendarView('monthly')">
+          <button type="button" class="theme-option" data-testid="calendar-view-monthly" [class.active]="defaultCalendarView === 'monthly'" (click)="selectCalendarView('monthly')">
             Monthly
           </button>
-          <button type="button" class="theme-option" [class.active]="defaultCalendarView === 'weekly'" (click)="selectCalendarView('weekly')">
+          <button type="button" class="theme-option" data-testid="calendar-view-weekly" [class.active]="defaultCalendarView === 'weekly'" (click)="selectCalendarView('weekly')">
             Weekly
           </button>
         </div>

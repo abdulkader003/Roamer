@@ -34,9 +34,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
   avatarImageUrl = computed(() => this.profileState.pictureUrl());
   accountDisplayName = computed(() => this.profileState.displayName());
   notificationItems = this.friendNotificationService.items;
+  budgetAlertToast = this.friendNotificationService.budgetAlertToast;
   unreadNotificationCount = this.friendNotificationService.unreadCount;
   hasFriendNotifications = computed(() => this.notificationItems().some((notification) => notification.type === 'FRIEND_REQUEST'));
-  hasTripNotifications = computed(() => this.notificationItems().some((notification) => notification.type !== 'FRIEND_REQUEST'));
+  hasBudgetNotifications = computed(() => this.notificationItems().some((notification) => notification.type === 'BUDGET_ALERT'));
+  hasTripNotifications = computed(() => this.notificationItems().some((notification) => notification.type !== 'FRIEND_REQUEST' && notification.type !== 'BUDGET_ALERT'));
 
   ngOnInit(): void {
     this.syncProfileState();
@@ -83,15 +85,21 @@ export class NavbarComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.friendNotificationService.refresh();
     this.friendNotificationService.markAllAsRead();
   }
 
-  dismissNotification(event: MouseEvent, notification: { type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT'; requestId: number }): void {
+  dismissNotification(event: MouseEvent, notification: { type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT' | 'TRIP_REMINDER' | 'BUDGET_ALERT'; requestId: number }): void {
     event.stopPropagation();
     const item = this.notificationItems().find((entry) => entry.type === notification.type && entry.requestId === notification.requestId);
     if (item) {
       this.friendNotificationService.dismissNotification(item);
     }
+  }
+
+  dismissBudgetAlertToast(event: MouseEvent): void {
+    event.stopPropagation();
+    this.friendNotificationService.dismissBudgetAlertToast();
   }
 
   toggleAccountMenu(event: MouseEvent): void {

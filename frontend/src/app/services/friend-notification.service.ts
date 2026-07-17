@@ -1,4 +1,5 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService, FriendRequestItem } from './friend-community.service';
@@ -7,7 +8,7 @@ import { TripPlanningService, TripInvitationResponse, TripRealtimeEvent, TripRes
 
 export interface FriendNotificationItem {
   id: number;
-  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT';
+  type: 'FRIEND_REQUEST' | 'TRIP_INVITATION' | 'TRIP_INVITATION_RESPONSE' | 'TRIP_UPDATE' | 'TRIP_BUDGET_UPDATE' | 'TRIP_PARTICIPANT_JOINED' | 'TRIP_PARTICIPANT_LEFT' | 'TRIP_REMINDER' | 'BUDGET_ALERT';
   requestId: number;
   title: string;
   description: string;
@@ -35,6 +36,7 @@ export class FriendNotificationService {
   private readonly authService = inject(AuthService);
   private readonly friendCommunityService = inject(FriendCommunityService);
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly http = inject(HttpClient, { optional: true });
   private readonly realtimeWebSocketService = inject(RealtimeWebSocketService, { optional: true });
   private dismissedNotificationsStorageKey = this.buildDismissedNotificationsStorageKey();
   private notificationsStorageKey = this.buildNotificationsStorageKey();
@@ -42,10 +44,13 @@ export class FriendNotificationService {
   private readonly dismissedNotificationKeys = signal<string[]>(this.loadDismissedNotificationKeys());
   private readNotificationKeysStorageKey = this.buildReadNotificationsStorageKey();
   private readonly readNotificationKeys = signal<string[]>(this.loadReadNotificationKeys());
+  private readonly budgetAlertToastNotification = signal<FriendNotificationItem | null>(null);
   private readonly tripTopicSubscriptions = new Map<number, Subscription>();
+  private budgetAlertToastTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   readonly items = this.notifications.asReadonly();
-  readonly unreadCount = computed(() => this.notifications().filter((notification) => !notification.read && !this.isRead(notification.type, notification.requestId) && !this.isDismissed(notification.type, notification.requestId)).length);
+  readonly budgetAlertToast = this.budgetAlertToastNotification.asReadonly();
+  readonly unreadCount = computed(() => this.notifications().filter((notification) => !notification.read && !this.isReadNotification(notification) && !this.isDismissed(notification.type, notification.requestId)).length);
   readonly hasNotifications = computed(() => this.notifications().length > 0);
 
   constructor() {
@@ -76,12 +81,11 @@ export class FriendNotificationService {
       requests: this.friendCommunityService.listIncomingRequests().pipe(catchError(() => of(null))),
       invitations: this.tripPlanningService.listIncomingTripInvitations().pipe(catchError(() => of(null))),
       sentInvitations: this.tripPlanningService.listSentTripInvitations().pipe(catchError(() => of(null))),
+      persistedNotifications: this.listPersistedNotifications().pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ requests, invitations, sentInvitations }) => {
+      next: ({ requests, invitations, sentInvitations, persistedNotifications }) => {
         if (requests && invitations && sentInvitations) {
           this.syncNotifications(requests, invitations, sentInvitations);
-          this.refreshTripTopicSubscriptions();
-          return;
         }
 
         if (requests) {
@@ -94,6 +98,10 @@ export class FriendNotificationService {
 
         if (sentInvitations) {
           this.syncSentTripInvitationResponses(sentInvitations);
+        }
+
+        if (persistedNotifications) {
+          this.syncPersistedNotifications(persistedNotifications);
         }
 
         this.refreshTripTopicSubscriptions();
@@ -224,13 +232,18 @@ export class FriendNotificationService {
   dismissNotification(notification: FriendNotificationItem): void {
     this.ensureNotificationsLoaded();
     this.ensureDismissedNotificationsLoaded();
-    const key = this.notificationKey(notification.type, notification.requestId);
+    const key = this.dismissedNotificationKey(notification);
     this.dismissedNotificationKeys.update((keys) => (keys.includes(key) ? keys : [...keys, key]));
     this.persistDismissedNotifications();
     this.notifications.update((notifications) =>
-      notifications.filter((item) => this.notificationKey(item.type, item.requestId) !== key)
+      notifications.filter((item) => this.dismissedNotificationKey(item) !== key)
     );
     this.persistNotifications();
+  }
+
+  dismissBudgetAlertToast(): void {
+    this.clearBudgetAlertToastTimeout();
+    this.budgetAlertToastNotification.set(null);
   }
 
   dismissTripInvitation(invitationId: number): void {
@@ -255,7 +268,7 @@ export class FriendNotificationService {
   markAllAsRead(): void {
     this.ensureNotificationsLoaded();
     this.ensureReadNotificationsLoaded();
-    const keys = this.notifications().map((notification) => this.notificationKey(notification.type, notification.requestId));
+    const keys = this.notifications().map((notification) => this.readNotificationKey(notification));
     this.readNotificationKeys.set(Array.from(new Set([...this.readNotificationKeys(), ...keys])));
     this.persistReadNotifications();
     this.notifications.update((notifications) => notifications.map((notification) => ({ ...notification, read: true })));
@@ -264,6 +277,7 @@ export class FriendNotificationService {
 
   clear(): void {
     this.notifications.set([]);
+    this.dismissBudgetAlertToast();
     this.clearTripTopicSubscriptions();
   }
 
@@ -474,8 +488,32 @@ export class FriendNotificationService {
     return this.dismissedNotificationKeys().includes(this.notificationKey(type, requestId));
   }
 
+  private isDismissedNotification(notification: FriendNotificationItem): boolean {
+    return this.dismissedNotificationKeys().includes(this.dismissedNotificationKey(notification));
+  }
+
+  private dismissedNotificationKey(notification: FriendNotificationItem): string {
+    if (notification.type === 'BUDGET_ALERT') {
+      return `${notification.type}:${notification.requestId}:${notification.createdAt}`;
+    }
+
+    return this.notificationKey(notification.type, notification.requestId);
+  }
+
   private isRead(type: FriendNotificationItem['type'], requestId: number): boolean {
     return this.readNotificationKeys().includes(this.notificationKey(type, requestId));
+  }
+
+  private isReadNotification(notification: FriendNotificationItem): boolean {
+    return this.readNotificationKeys().includes(this.readNotificationKey(notification));
+  }
+
+  private readNotificationKey(notification: FriendNotificationItem): string {
+    if (notification.type === 'BUDGET_ALERT') {
+      return `${notification.type}:${notification.requestId}:${notification.createdAt}`;
+    }
+
+    return this.notificationKey(notification.type, notification.requestId);
   }
 
   private mergeNotifications(nextNotifications: FriendNotificationItem[]): void {
@@ -487,25 +525,86 @@ export class FriendNotificationService {
     );
 
     nextNotifications.forEach((notification) => {
-      if (this.isDismissed(notification.type, notification.requestId)) {
+      if (this.isDismissedNotification(notification)) {
         return;
       }
 
       const key = this.notificationKey(notification.type, notification.requestId);
       const existing = existingNotifications.get(key);
+      const isNewPopoverNotificationVersion = (notification.type === 'BUDGET_ALERT' || notification.type === 'TRIP_REMINDER')
+        && !this.isReadNotification(notification)
+        && (!existing || this.readNotificationKey(existing) !== this.readNotificationKey(notification));
+      const existingReadStillApplies = existing
+        ? this.readNotificationKey(existing) === this.readNotificationKey(notification) && existing.read
+        : false;
       existingNotifications.set(key, {
         ...existing,
         ...notification,
-        read: this.isRead(notification.type, notification.requestId) || existing?.read || notification.read,
+        read: this.isReadNotification(notification) || existingReadStillApplies || notification.read,
       });
+
+      if (isNewPopoverNotificationVersion && !notification.read) {
+        this.showBudgetAlertToast(notification);
+      }
     });
 
     const merged = [...existingNotifications.values()]
-      .filter((notification) => !this.isDismissed(notification.type, notification.requestId))
+      .filter((notification) => !this.isDismissedNotification(notification))
       .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 
     this.notifications.set(merged);
     this.persistNotifications();
+  }
+
+  private listPersistedNotifications() {
+    if (!this.http) {
+      return of([] as RealtimeNotificationMessage[]);
+    }
+
+    const authHeaders = typeof this.authService.authHeader === 'function' ? this.authService.authHeader() : {};
+    if (!authHeaders['Authorization']) {
+      return of([] as RealtimeNotificationMessage[]);
+    }
+
+    return this.http.get<RealtimeNotificationMessage[]>('/api/notifications', {
+      headers: authHeaders,
+    });
+  }
+
+  private syncPersistedNotifications(messages: RealtimeNotificationMessage[]): void {
+    const persistedItems = messages
+      .map((message) => this.toPersistedNotificationItem(message))
+      .filter((item): item is FriendNotificationItem => item !== null);
+    const persistedKeys = new Set(persistedItems.map((item) => this.notificationKey(item.type, item.requestId)));
+    const persistedTypes: FriendNotificationItem['type'][] = ['TRIP_REMINDER', 'BUDGET_ALERT', 'TRIP_UPDATE'];
+
+    this.notifications.update((notifications) =>
+      notifications.filter((notification) =>
+        !persistedTypes.includes(notification.type) || persistedKeys.has(this.notificationKey(notification.type, notification.requestId))
+      )
+    );
+    this.mergeNotifications(persistedItems);
+  }
+
+  private toPersistedNotificationItem(message: RealtimeNotificationMessage): FriendNotificationItem | null {
+    if (!message?.notificationId || !message.notificationType) {
+      return null;
+    }
+
+    if (message.notificationType !== 'TRIP_REMINDER' && message.notificationType !== 'BUDGET_ALERT' && message.notificationType !== 'TRIP_UPDATE') {
+      return null;
+    }
+
+    return {
+      id: message.notificationId,
+      type: message.notificationType,
+      requestId: message.notificationId,
+      title: message.title,
+      description: message.description,
+      details: message.details ?? undefined,
+      createdAt: message.createdAt,
+      read: false,
+    };
   }
 
   private ingestRealtimeNotification(message: RealtimeNotificationMessage): void {
@@ -529,6 +628,24 @@ export class FriendNotificationService {
         read: false,
       },
     ]);
+  }
+
+  private showBudgetAlertToast(notification: FriendNotificationItem): void {
+    this.clearBudgetAlertToastTimeout();
+    this.budgetAlertToastNotification.set(notification);
+    this.budgetAlertToastTimeoutId = setTimeout(() => {
+      this.budgetAlertToastNotification.set(null);
+      this.budgetAlertToastTimeoutId = null;
+    }, 8000);
+  }
+
+  private clearBudgetAlertToastTimeout(): void {
+    if (!this.budgetAlertToastTimeoutId) {
+      return;
+    }
+
+    clearTimeout(this.budgetAlertToastTimeoutId);
+    this.budgetAlertToastTimeoutId = null;
   }
 
   private refreshTripTopicSubscriptions(): void {

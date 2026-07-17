@@ -17,6 +17,7 @@ import { TripPlanningService, TripResponse } from '../../services/trip-planning.
 import { WeatherDto, WeatherService } from '../../services/weather.service';
 import { TripTempService } from '../trips/create/trip-temp.service';
 import { BudgetApiService, BudgetCategoryResponse, BudgetSummaryResponse } from '../../services/budget-api.service';
+import { isTripCompleted } from '../../services/trip-status.util';
 import { ActivitiesService, Activity } from '../../services/activities';
 import {
   RECOMMENDED_EXPERIENCE_CITY_BATCH_SIZE,
@@ -83,7 +84,8 @@ interface Trip {
   name: string;
   dates: string;
   budget: string;
-  status: 'confirmed' | 'pending';
+  status: 'Confirmed' | 'Draft' | 'Completed';
+  statusKind: 'confirmed' | 'pending' | 'completed';
   image: string;
   shared: boolean;
 }
@@ -268,6 +270,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tripPlanningService.listSavedTrips().subscribe({
       next: (savedTrips) => {
         const plannedTrips = [...savedTrips]
+          .filter((trip) => !isTripCompleted(trip))
           .sort((first, second) => this.tripSortValue(first) - this.tripSortValue(second));
 
         this.upcomingTripCount.set(plannedTrips.length);
@@ -339,7 +342,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         ];
         const merged = this.toRecommendedExperiences(received, refresh, previousExperienceIds);
 
-        if (merged.length >= RECOMMENDED_EXPERIENCE_LIMIT || fallbackCities.length === 0) {
+        if (
+          (merged.length >= RECOMMENDED_EXPERIENCE_LIMIT && this.hasRecommendedExperienceDiversity(merged)) ||
+          fallbackCities.length === 0
+        ) {
           this.applyRecommendedExperiences(received, merged, refresh, previousExperienceIds);
           return;
         }
@@ -705,6 +711,24 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.experiences.set(nextExperiences);
     this.isExperiencesLoading.set(false);
     this.cdr.detectChanges();
+  }
+
+  private hasRecommendedExperienceDiversity(experiences: Experience[]): boolean {
+    if (experiences.length < RECOMMENDED_EXPERIENCE_LIMIT) {
+      return false;
+    }
+
+    const countryCounts = new Map<string, number>();
+    const categoryCounts = new Map<string, number>();
+
+    for (const experience of experiences) {
+      const country = this.normalizeRecommendationKey(experience.country || experience.city);
+      const category = this.normalizeRecommendationKey(this.selectionCategoryBucket(experience.activity));
+      countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
+      categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+    }
+
+    return Math.max(...countryCounts.values()) <= 2 && Math.max(...categoryCounts.values()) <= 2;
   }
 
   private toRecommendedExperiences(activities: Activity[], refresh = false, previousExperienceIds = new Set<string>()): Experience[] {
@@ -1123,12 +1147,15 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private toDashboardTrip(trip: TripResponse): Trip {
+    const statusKind = this.tripStatusKind(trip);
+
     return {
       id: trip.id,
       name: trip.name,
       dates: this.formatTripDates(trip),
       budget: this.formatTripBudget(trip),
-      status: trip.status === 'UPCOMING' ? 'confirmed' : 'pending',
+      status: statusKind === 'completed' ? 'Completed' : trip.status === 'UPCOMING' ? 'Confirmed' : 'Draft',
+      statusKind,
       image: this.tripImageFor(trip),
       shared: trip.accessRole === 'PARTICIPANT'
     };
@@ -1198,6 +1225,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private tripSortValue(trip: TripResponse): number {
     return this.parseDateOnly(trip.startDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  private tripStatusKind(trip: TripResponse): Trip['statusKind'] {
+    if (isTripCompleted(trip)) {
+      return 'completed';
+    }
+
+    return trip.status === 'UPCOMING' ? 'confirmed' : 'pending';
   }
 
   get budgetCenterLabel(): string {

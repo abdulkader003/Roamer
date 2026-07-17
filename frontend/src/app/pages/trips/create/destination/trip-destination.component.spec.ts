@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
+import { TripPlanningService } from '../../../../services/trip-planning.service';
 import { TripTemp, TripTempService } from '../trip-temp.service';
 import { TripDestinationComponent } from './trip-destination.component';
 
@@ -9,6 +10,7 @@ describe('TripDestinationComponent', () => {
   let fixture: ComponentFixture<TripDestinationComponent>;
   let router: Router;
   let tripTempService: jasmine.SpyObj<TripTempService>;
+  let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
 
   const tripTemp: TripTemp = {
     tripName: 'Summer in Barcelona',
@@ -44,12 +46,21 @@ describe('TripDestinationComponent', () => {
       'updateTripTemp',
     ]);
     tripTempService.getTripTemp.and.returnValue(tripTemp);
+    tripTempService.updateTripTemp.and.callFake((updates) => ({
+      ...tripTempService.getTripTemp(),
+      ...updates,
+    }));
+    tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', [
+      'getTrip',
+      'updateTrip',
+    ]);
 
     await TestBed.configureTestingModule({
       imports: [TripDestinationComponent],
       providers: [
         provideRouter([]),
         { provide: TripTempService, useValue: tripTempService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
       ],
     }).compileComponents();
 
@@ -234,4 +245,76 @@ describe('TripDestinationComponent', () => {
       },
     });
   });
+
+  it('continues saved-trip date edits to Flights instead of saving directly', () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const savedTripTemp: TripTemp = {
+      ...tripTemp,
+      draftTripId: 42,
+    };
+
+    tripTempService.getTripTemp.and.returnValue(savedTripTemp);
+    component.departureDate = '2026-08-01';
+    component.returnDate = '2026-08-08';
+
+    component.continueToFlights({ invalid: false } as never);
+
+    expect(tripPlanningService.getTrip).not.toHaveBeenCalled();
+    expect(tripPlanningService.updateTrip).not.toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/trips/create/flights'], {
+      queryParams: {
+        from: 'Frankfurt (FRA)',
+        to: 'Barcelona (BCN)',
+        departureDate: '2026-08-01',
+        returnDate: '2026-08-08',
+        travelers: 2,
+        tripType: 'round-trip',
+      },
+    });
+  });
+
+  it('continues saved-trip date edits through the wizard without saving immediately', () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const savedTripTemp: TripTemp = {
+      ...tripTemp,
+      draftTripId: 42,
+      selectedFlightId: 'LH-1182|LH-1183',
+      selectedFlightAirline: 'Lufthansa + Lufthansa',
+      selectedFlightNumber: 'LH 1182 / LH 1183',
+      selectedFlightTotal: 756,
+      selectedHotelName: 'Barcelona Grand',
+      selectedHotelTotal: 1200,
+    };
+
+    tripTempService.getTripTemp.and.returnValue(savedTripTemp);
+    component.departureDate = '2026-08-01';
+    component.returnDate = '2026-08-08';
+
+    component.continueEditing({ invalid: false } as never);
+
+    expect(tripPlanningService.getTrip).not.toHaveBeenCalled();
+    expect(tripPlanningService.updateTrip).not.toHaveBeenCalled();
+    expect(tripTempService.updateTripTemp).toHaveBeenCalledWith({
+      origin: 'Frankfurt (FRA)',
+      destination: 'Barcelona (BCN)',
+      destinationCities: ['Barcelona'],
+      departureDate: '2026-08-01',
+      returnDate: '2026-08-08',
+      travelers: 2,
+    });
+    expect(navigateSpy).toHaveBeenCalledWith(['/trips/create/flights'], {
+      queryParams: {
+        from: 'Frankfurt (FRA)',
+        to: 'Barcelona (BCN)',
+        departureDate: '2026-08-01',
+        returnDate: '2026-08-08',
+        travelers: 2,
+        tripType: 'round-trip',
+      },
+    });
+    const continuedTripTemp = tripTempService.updateTripTemp.calls.mostRecent().returnValue;
+    expect(continuedTripTemp.selectedFlightId).toBe('LH-1182|LH-1183');
+    expect(continuedTripTemp.selectedHotelName).toBe('Barcelona Grand');
+  });
+
 });

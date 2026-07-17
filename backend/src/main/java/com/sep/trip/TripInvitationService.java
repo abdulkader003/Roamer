@@ -26,6 +26,7 @@ public class TripInvitationService {
     private final FriendRequestRepository friendRequestRepository;
     private final TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher;
     private final TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
+    private final TripReminderService tripReminderService;
 
     public TripInvitationService(
             TripRepository tripRepository,
@@ -33,7 +34,8 @@ public class TripInvitationService {
             AppUserRepository appUserRepository,
             FriendRequestRepository friendRequestRepository,
             TripNotificationWebSocketPublisher tripNotificationWebSocketPublisher,
-            TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher
+            TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher,
+            TripReminderService tripReminderService
     ) {
         this.tripRepository = tripRepository;
         this.tripInvitationRepository = tripInvitationRepository;
@@ -41,6 +43,7 @@ public class TripInvitationService {
         this.friendRequestRepository = friendRequestRepository;
         this.tripNotificationWebSocketPublisher = tripNotificationWebSocketPublisher;
         this.tripRealtimeWebSocketPublisher = tripRealtimeWebSocketPublisher;
+        this.tripReminderService = tripReminderService;
     }
 
     @Transactional
@@ -110,6 +113,7 @@ public class TripInvitationService {
         TripInvitation invitation = findPendingInvitationForCurrentUser(authenticatedEmail, invitationId);
         invitation.setStatus(TripInvitationStatus.ACCEPTED);
         TripInvitation savedInvitation = tripInvitationRepository.save(invitation);
+        tripReminderService.evaluateTripForRecipientToday(savedInvitation.getTrip(), savedInvitation.getInvitedUser());
         tripNotificationWebSocketPublisher.publishTripInvitationAccepted(savedInvitation);
         tripRealtimeWebSocketPublisher.publishTripParticipantJoined(
                 savedInvitation.getTrip(),

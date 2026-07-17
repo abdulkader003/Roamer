@@ -1,16 +1,24 @@
-import { ComponentFixture, TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { AuthService } from '../../services/auth';
-import { SettingsService } from '../../services/settings.service';
+import { CalendarView, SettingsService } from '../../services/settings.service';
 import { CalendarMonth } from './calendar-month';
 
 describe('CalendarMonth default view preference', () => {
   let fixture: ComponentFixture<CalendarMonth>;
   let component: CalendarMonth;
   let settingsService: jasmine.SpyObj<SettingsService>;
+  let defaultCalendarView: ReturnType<typeof signal<CalendarView>>;
 
   beforeEach(async () => {
-    settingsService = jasmine.createSpyObj<SettingsService>('SettingsService', ['getDefaultCalendarView']);
+    defaultCalendarView = signal<CalendarView>('month');
+    settingsService = jasmine.createSpyObj<SettingsService>(
+      'SettingsService',
+      ['getDefaultCalendarView', 'loadDefaultCalendarViewPreference'],
+      { defaultCalendarView }
+    );
     settingsService.getDefaultCalendarView.and.returnValue('month');
+    settingsService.loadDefaultCalendarViewPreference.and.resolveTo('month');
     spyOn(window, 'fetch').and.resolveTo(new Response('[]', { status: 200 }));
 
     await TestBed.configureTestingModule({
@@ -22,31 +30,86 @@ describe('CalendarMonth default view preference', () => {
     }).compileComponents();
   });
 
-  function createComponent(): CalendarMonth {
+  async function createComponent(): Promise<CalendarMonth> {
     fixture = TestBed.createComponent(CalendarMonth);
     component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
     return component;
   }
 
-  it('initializes in Month view when the preference is month', () => {
-    createComponent();
+  it('initializes in Month view when the backend preference is monthly', async () => {
+    settingsService.loadDefaultCalendarViewPreference.and.resolveTo('month');
+
+    await createComponent();
 
     expect(component.viewMode).toBe('month');
     expect(fixture.nativeElement.querySelector('.month-view')).toBeTruthy();
   });
 
-  it('initializes in Week view when the preference is week', () => {
-    settingsService.getDefaultCalendarView.and.returnValue('week');
+  it('initializes in Week view when the backend preference is weekly', async () => {
+    settingsService.loadDefaultCalendarViewPreference.and.resolveTo('week');
 
-    createComponent();
+    await createComponent();
 
     expect(component.viewMode).toBe('week');
     expect(fixture.nativeElement.querySelector('.week-view')).toBeTruthy();
   });
 
-  it('keeps manual Week and Month switching temporary after initialization', () => {
-    createComponent();
+  it('lets the backend preference override stale local calendar storage', async () => {
+    settingsService.getDefaultCalendarView.and.returnValue('month');
+    settingsService.loadDefaultCalendarViewPreference.and.resolveTo('week');
+
+    await createComponent();
+
+    expect(component.viewMode).toBe('week');
+    expect(settingsService.loadDefaultCalendarViewPreference).toHaveBeenCalled();
+  });
+
+  it('uses the backend preference in a fresh browser with no local calendar storage', async () => {
+    settingsService.getDefaultCalendarView.and.returnValue('month');
+    settingsService.loadDefaultCalendarViewPreference.and.resolveTo('week');
+
+    await createComponent();
+
+    expect(component.viewMode).toBe('week');
+  });
+
+  it('uses the backend preference after page refresh and login recreation', async () => {
+    settingsService.loadDefaultCalendarViewPreference.and.resolveTo('week');
+
+    await createComponent();
+    expect(component.viewMode).toBe('week');
+
+    fixture.destroy();
+    await createComponent();
+    expect(component.viewMode).toBe('week');
+    expect(settingsService.loadDefaultCalendarViewPreference).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back safely when the backend preference request fails', async () => {
+    settingsService.getDefaultCalendarView.and.returnValue('month');
+    settingsService.loadDefaultCalendarViewPreference.and.rejectWith(new Error('settings unavailable'));
+
+    await createComponent();
+
+    expect(component.viewMode).toBe('month');
+    expect(fixture.nativeElement.querySelector('.month-view')).toBeTruthy();
+  });
+
+  it('updates the open Calendar when the saved preference changes', async () => {
+    await createComponent();
+
+    defaultCalendarView.set('week');
+    fixture.detectChanges();
+
+    expect(component.viewMode).toBe('week');
+    expect(fixture.nativeElement.querySelector('.week-view')).toBeTruthy();
+  });
+
+  it('keeps manual Week and Month switching temporary after initialization', async () => {
+    await createComponent();
 
     component.setViewMode('week');
     fixture.detectChanges();
@@ -57,11 +120,11 @@ describe('CalendarMonth default view preference', () => {
     fixture.detectChanges();
     expect(component.viewMode).toBe('month');
     expect(fixture.nativeElement.querySelector('.month-view')).toBeTruthy();
-    expect(settingsService.getDefaultCalendarView).toHaveBeenCalledTimes(1);
+    expect(settingsService.loadDefaultCalendarViewPreference).toHaveBeenCalledTimes(1);
   });
 
-  it('still renders loaded calendar events', fakeAsync(() => {
-    (window.fetch as jasmine.Spy).and.resolveTo(new Response(JSON.stringify([
+  it('still renders loaded calendar events', async () => {
+    (window.fetch as jasmine.Spy).and.callFake(() => Promise.resolve(new Response(JSON.stringify([
       {
         id: 1,
         title: 'Museum Visit',
@@ -73,12 +136,12 @@ describe('CalendarMonth default view preference', () => {
         budgetCost: 28,
         notes: null
       }
-    ]), { status: 200 }));
+    ]), { status: 200 })));
 
-    createComponent();
-    flushMicrotasks();
+    await createComponent();
+    await component.loadCalendarEvents();
     fixture.detectChanges();
 
     expect(component.events.map((event) => event.title)).toContain('Museum Visit');
-  }));
+  });
 });

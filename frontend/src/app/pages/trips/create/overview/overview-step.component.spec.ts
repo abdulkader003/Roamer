@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
+import { FriendNotificationService } from '../../../../services/friend-notification.service';
 import { TripPlanningService } from '../../../../services/trip-planning.service';
 import { CalendarService } from '../../../hotels/services/calendar.service';
 import { TripTempService } from '../trip-temp.service';
@@ -21,6 +22,7 @@ describe('OverviewStepComponent', () => {
   beforeEach(async () => {
     tripPlanningService = jasmine.createSpyObj<TripPlanningService>('TripPlanningService', [
       'getOverview',
+      'getTrip',
       'createTrip',
       'updateTrip',
     ]);
@@ -54,6 +56,16 @@ describe('OverviewStepComponent', () => {
     }));
     tripPlanningService.createTrip.and.returnValue(of({
       id: 99,
+      name: 'Summer in Barcelona',
+      destination: 'Barcelona',
+      startDate: '2026-07-14',
+      endDate: '2026-07-21',
+      budget: 2000,
+      status: 'UPCOMING',
+      createdAt: '2026-06-20T18:00:00Z',
+    }));
+    tripPlanningService.getTrip.and.returnValue(of({
+      id: 44,
       name: 'Summer in Barcelona',
       destination: 'Barcelona',
       startDate: '2026-07-14',
@@ -140,6 +152,7 @@ describe('OverviewStepComponent', () => {
         },
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: CalendarService, useValue: calendarService },
+        { provide: FriendNotificationService, useValue: { refresh: jasmine.createSpy('refresh') } },
       ],
     }).compileComponents();
 
@@ -171,6 +184,21 @@ describe('OverviewStepComponent', () => {
 
   it('shows the Export Trip Summary button', () => {
     expect(fixture.nativeElement.textContent).toContain('Export Trip Summary');
+  });
+
+  it('shows Save Changes on the overview for an existing trip', () => {
+    fixture.destroy();
+    tripTempService.getTripTemp.and.returnValue({
+      ...tripTempService.getTripTemp(),
+      draftTripId: 44,
+    });
+
+    fixture = TestBed.createComponent(OverviewStepComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Save Changes');
+    expect(fixture.nativeElement.textContent).not.toContain('Save Later');
   });
 
   it('exports the current overview data as a PDF', async () => {
@@ -440,6 +468,32 @@ describe('OverviewStepComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/trips']);
   });
 
+  it('saves existing trip changes from the overview without changing its status', async () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    component.tripTemp.draftTripId = 44;
+    tripPlanningService.getTrip.and.returnValue(of({
+      id: 44,
+      name: 'Summer in Barcelona',
+      destination: 'Barcelona',
+      startDate: '2026-07-14',
+      endDate: '2026-07-21',
+      budget: 2000,
+      status: 'PLANNING',
+      createdAt: '2026-06-20T18:00:00Z',
+    }));
+
+    await component.saveChanges();
+
+    expect(tripPlanningService.getTrip).toHaveBeenCalledWith(44);
+    expect(tripPlanningService.updateTrip).toHaveBeenCalledWith(44, jasmine.objectContaining({
+      status: 'PLANNING',
+      startDate: '2026-07-14',
+      endDate: '2026-07-21',
+    }));
+    expect(calendarService.deleteEventsForTrip).not.toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/trips']);
+  });
+
   it('exports multi-city calendar events with item-specific dates only', async () => {
     spyOn(router, 'navigate').and.resolveTo(true);
     component.tripTemp.travelers = 1;
@@ -647,6 +701,7 @@ describe('OverviewStepComponent', () => {
         },
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: CalendarService, useValue: calendarService },
+        { provide: FriendNotificationService, useValue: { refresh: jasmine.createSpy('refresh') } },
       ],
     }).compileComponents();
 
@@ -755,6 +810,7 @@ describe('OverviewStepComponent', () => {
         },
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: CalendarService, useValue: calendarService },
+        { provide: FriendNotificationService, useValue: { refresh: jasmine.createSpy('refresh') } },
       ],
     }).compileComponents();
 
@@ -882,6 +938,7 @@ describe('OverviewStepComponent', () => {
         },
         { provide: TripPlanningService, useValue: tripPlanningService },
         { provide: CalendarService, useValue: calendarService },
+        { provide: FriendNotificationService, useValue: { refresh: jasmine.createSpy('refresh') } },
       ],
     }).compileComponents();
 

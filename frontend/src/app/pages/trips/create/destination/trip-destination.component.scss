@@ -695,6 +695,19 @@
   color: var(--btn-text);
 }
 
+.continue-button--secondary {
+  border-color: var(--border);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
 @media (max-width: 900px) {
   .destination-card,
   .multi-city-actions {
@@ -735,7 +748,12 @@
   }
 
   .back-button,
-  .continue-button {
+  .continue-button,
+  .edit-actions {
     width: 100%;
+  }
+
+  .edit-actions {
+    flex-direction: column;
   }
 }

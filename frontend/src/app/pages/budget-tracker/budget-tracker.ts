@@ -5,6 +5,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { TripPlanningService, TripRealtimeEvent } from '../../services/trip-planning.service';
+import { FriendNotificationService } from '../../services/friend-notification.service';
 
 type SpendingPoint = { label: string; amount: number };
 type DistributionCategory = { name: string; amount: number; color: string };
@@ -85,6 +86,7 @@ type BudgetReport = {
 export class BudgetTracker implements OnInit, OnDestroy {
   private readonly apiBase = '/api/budget';
   private readonly tripPlanningService = inject(TripPlanningService);
+  private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly tripTopicSubscriptions = new Map<number, Subscription>();
 
   isLoading = true;
@@ -547,6 +549,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
       next: () => {
         this.closeExpenseForm();
         this.loadAllData();
+        this.friendNotificationService.refresh();
         this.cdr.detectChanges();
       },
       error: () => {
@@ -585,6 +588,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
         this.deleteConfirmationExpense = null;
         this.closeExpenseForm();
         this.loadAllData();
+        this.friendNotificationService.refresh();
         this.cdr.detectChanges();
       },
       error: () => {

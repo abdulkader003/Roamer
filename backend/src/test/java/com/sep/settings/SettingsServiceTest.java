@@ -1,11 +1,13 @@
 package com.sep.settings;
 
+import com.sep.budget.BudgetAlertNotificationService;
 import com.sep.settings.dto.FeedbackRequest;
 import com.sep.settings.dto.FeedbackResponse;
 import com.sep.settings.dto.NotificationSettingsRequest;
 import com.sep.settings.dto.PrivacySettingsRequest;
 import com.sep.settings.dto.SettingsPreferencesResponse;
 import com.sep.settings.dto.UpdateSettingsRequest;
+import com.sep.trip.TripReminderService;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,11 +39,23 @@ class SettingsServiceTest {
     @Mock
     private UserFeedbackRepository feedbackRepository;
 
+    @Mock
+    private BudgetAlertNotificationService budgetAlertNotificationService;
+
+    @Mock
+    private TripReminderService tripReminderService;
+
     private SettingsService settingsService;
 
     @BeforeEach
     void setUp() {
-        settingsService = new SettingsService(userRepository, settingsRepository, feedbackRepository);
+        settingsService = new SettingsService(
+                userRepository,
+                settingsRepository,
+                feedbackRepository,
+                budgetAlertNotificationService,
+                tripReminderService
+        );
     }
 
     @Test
@@ -113,6 +127,29 @@ class SettingsServiceTest {
         assertThat(settings.isAllowAnalytics()).isFalse();
         assertThat(response.defaultCalendarView()).isEqualTo("weekly");
         verify(settingsRepository).save(settings);
+        verify(budgetAlertNotificationService).evaluateForUser(user);
+        verifyNoInteractions(tripReminderService);
+    }
+
+    @Test
+    void updateSettingsEvaluatesTripRemindersWhenTurnedBackOn() {
+        AppUser user = user("traveler@example.com");
+        UserSettings settings = settings(user);
+        settings.setTripReminders(false);
+        when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
+        when(settingsRepository.findByOwnerEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(settings));
+        when(settingsRepository.save(settings)).thenReturn(settings);
+
+        UpdateSettingsRequest request = new UpdateSettingsRequest(
+                new NotificationSettingsRequest(true, true, true),
+                "monthly",
+                new PrivacySettingsRequest(false, true)
+        );
+
+        settingsService.updateSettings("traveler@example.com", request);
+
+        verify(tripReminderService).evaluateForUser(user);
+        verify(budgetAlertNotificationService).evaluateForUser(user);
     }
 
     @Test
@@ -134,6 +171,7 @@ class SettingsServiceTest {
         assertThat(settings.getDefaultCalendarView()).isEqualTo("monthly");
         assertThat(response.defaultCalendarView()).isEqualTo("monthly");
         verify(settingsRepository).save(settings);
+        verify(budgetAlertNotificationService).evaluateForUser(user);
     }
 
     @Test

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 
@@ -554,6 +555,7 @@ describe('TripComponent', () => {
       endDate: '2026-07-22',
       budget: 2800,
       status: 'UPCOMING',
+      durationNights: 7,
     });
     expect(component.trips()[0].name).toBe('Updated Name');
     expect(component.isEditing()).toBeFalse();
@@ -640,6 +642,25 @@ describe('TripComponent', () => {
     expect(component.selectedTrip()).toBeNull();
   });
 
+  it('shows the backend delete error message when trip deletion fails', () => {
+    const trip = savedTrip({ id: 15, name: 'Delete Me', status: 'UPCOMING' });
+    tripPlanningService.listSavedTrips.and.returnValue(of([trip]));
+    tripPlanningService.deleteTrip.and.returnValue(throwError(() => new HttpErrorResponse({
+      status: 409,
+      error: { message: 'Trip still has dependent records.' },
+    })));
+
+    fixture = TestBed.createComponent(TripComponent);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.openTrip(trip);
+    component.deleteSelectedTrip();
+
+    expect(component.actionError()).toBe('Trip still has dependent records.');
+    expect(component.trips()).toEqual([trip]);
+  });
+
   it('opens and cancels the delete confirmation dialog', () => {
     const trip = savedTrip({ id: 16, name: 'Dialog Trip', status: 'UPCOMING' });
     tripPlanningService.listSavedTrips.and.returnValue(of([trip]));
@@ -666,6 +687,39 @@ describe('TripComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.confirm-dialog')).toBeNull();
     expect(tripPlanningService.deleteTrip).not.toHaveBeenCalled();
+  });
+
+  it('does not keep a completed trip visually selected after closing and reloading details', () => {
+    const completedTrip = savedTrip({
+      id: 88,
+      name: 'Past Rome',
+      startDate: '2026-07-01',
+      endDate: '2026-07-05',
+      status: 'UPCOMING',
+    });
+    tripPlanningService.listSavedTrips.and.returnValue(of([completedTrip]));
+
+    fixture = TestBed.createComponent(TripComponent);
+    fixture.detectChanges();
+
+    let tripCard = fixture.nativeElement.querySelector('.trip-card') as HTMLElement;
+    expect(tripCard.classList).toContain('trip-card--completed');
+    expect(tripCard.classList).not.toContain('trip-card--selected');
+
+    tripCard.click();
+    fixture.detectChanges();
+
+    tripCard = fixture.nativeElement.querySelector('.trip-card') as HTMLElement;
+    expect(tripCard.classList).toContain('trip-card--completed');
+    expect(tripCard.classList).toContain('trip-card--selected');
+
+    fixture.componentInstance.closeTripModal();
+    fixture.componentInstance.loadTrips();
+    fixture.detectChanges();
+
+    tripCard = fixture.nativeElement.querySelector('.trip-card') as HTMLElement;
+    expect(tripCard.classList).toContain('trip-card--completed');
+    expect(tripCard.classList).not.toContain('trip-card--selected');
   });
 
   function savedTrip(overrides: Partial<{

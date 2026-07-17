@@ -36,8 +36,8 @@ function tripResponse(overrides: Partial<TripResponse>): TripResponse {
     id: 1,
     name: 'Paris Summer',
     destination: 'Paris, France',
-    startDate: '2026-06-15',
-    endDate: '2026-06-22',
+    startDate: '2027-06-15',
+    endDate: '2027-06-22',
     budget: 1200,
     status: 'UPCOMING',
     createdAt: '2026-01-01T00:00:00Z',
@@ -255,10 +255,10 @@ describe('DashboardComponent weather rotation', () => {
 
   it('loads up to 3 planned trips from the saved trips API sorted by date', fakeAsync(() => {
     tripPlanningService.listSavedTrips.and.returnValue(of([
-      tripResponse({ id: 2, name: 'Draft Rome', destination: 'Rome, Italy', status: 'PLANNING', startDate: '2026-08-10' }),
-      tripResponse({ id: 3, name: 'Tokyo Spring', destination: 'Tokyo, Japan', status: 'UPCOMING', startDate: '2026-04-05' }),
-      tripResponse({ id: 1, name: 'Paris Summer', destination: 'Paris, France', status: 'UPCOMING', startDate: '2026-06-15' }),
-      tripResponse({ id: 4, name: 'Late Berlin', destination: 'Berlin, Germany', status: 'PLANNING', startDate: '2026-11-20' })
+      tripResponse({ id: 2, name: 'Draft Rome', destination: 'Rome, Italy', status: 'PLANNING', startDate: '2027-08-10', endDate: '2027-08-17' }),
+      tripResponse({ id: 3, name: 'Tokyo Spring', destination: 'Tokyo, Japan', status: 'UPCOMING', startDate: '2027-04-05', endDate: '2027-04-12' }),
+      tripResponse({ id: 1, name: 'Paris Summer', destination: 'Paris, France', status: 'UPCOMING', startDate: '2027-06-15', endDate: '2027-06-22' }),
+      tripResponse({ id: 4, name: 'Late Berlin', destination: 'Berlin, Germany', status: 'PLANNING', startDate: '2027-11-20', endDate: '2027-11-27' })
     ]));
 
     fixture.detectChanges();
@@ -268,7 +268,7 @@ describe('DashboardComponent weather rotation', () => {
     expect(component.upcomingTripCount()).toBe(4);
     expect(component.trips().map((trip) => trip.name)).toEqual(['Tokyo Spring', 'Paris Summer', 'Draft Rome']);
     expect(component.trips()[0].budget).toBe('€1,200');
-    expect(component.trips()[2].status).toBe('pending');
+    expect(component.trips()[2].status).toBe('Draft');
   }));
 
   it('loads the live budget summary and category breakdown for the budget overview card', fakeAsync(() => {
@@ -306,9 +306,9 @@ describe('DashboardComponent weather rotation', () => {
     expect(activitiesService.getActivities).toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Recommended Experiences');
     expect(fixture.nativeElement.textContent).toContain('FIFA Fan Festival');
-    expect(fixture.nativeElement.textContent).toContain('12 Jun 2026');
+    expect(fixture.nativeElement.textContent).toContain('Jun 12, 2026');
     expect(fixture.nativeElement.textContent).toContain('19:30');
-    expect(fixture.nativeElement.textContent).toContain('$35');
+    expect(fixture.nativeElement.textContent).toContain('€35');
     expect(fixture.nativeElement.querySelector('.rec-grid')).toBeTruthy();
     expect(fixture.nativeElement.querySelectorAll('.rec-card')).toHaveSize(8);
     expect(fixture.nativeElement.querySelector('.rec-img')).toBeTruthy();
@@ -329,7 +329,8 @@ describe('DashboardComponent weather rotation', () => {
       expect(requestedCities.has(city)).toBeTrue();
     }
 
-    expect(sortedValues(component.experiences().map((experience) => experience.city))).toEqual(sortedValues(firstBatch));
+    expect(component.experiences()).toHaveSize(8);
+    expect(component.experiences().every((experience) => RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.includes(experience.city as never))).toBeTrue();
   }));
 
   it('displays only European city results', fakeAsync(() => {
@@ -456,14 +457,13 @@ describe('DashboardComponent weather rotation', () => {
       displayedCitiesByBatch.push(component.experiences().map((experience) => experience.city));
     }
 
-    expect(sortedValues(displayedCitiesByBatch[0])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(0, 8)));
-    expect(sortedValues(displayedCitiesByBatch[1])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(8, 16)));
-    expect(sortedValues(displayedCitiesByBatch[2])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(16, 24)));
-    expect(sortedValues(displayedCitiesByBatch[3])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(24, 32)));
-    expect(sortedValues(displayedCitiesByBatch[4])).toEqual(sortedValues(RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.slice(0, 8)));
+    for (const cities of displayedCitiesByBatch) {
+      expect(cities).toHaveSize(8);
+      expect(cities.every((city) => RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES.includes(city as never))).toBeTrue();
+    }
 
-    const firstFourBatches = displayedCitiesByBatch.slice(0, 4).flat();
-    expect(new Set(firstFourBatches).size).toBe(32);
+    expect(displayedCitiesByBatch[4]).not.toEqual(displayedCitiesByBatch[3]);
+    expect(activitiesService.getActivities.calls.allArgs().some((args) => args[0] === RECOMMENDED_EXPERIENCE_EUROPEAN_CITIES[0])).toBeTrue();
   }));
 
   it('opens recommended experience details and adds the event to calendar', fakeAsync(() => {

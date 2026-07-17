@@ -1,5 +1,6 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Subject, of } from 'rxjs';
 import { AuthService } from './auth';
 import { FriendCommunityService } from './friend-community.service';
@@ -401,6 +402,58 @@ describe('FriendNotificationService', () => {
     expect(service.items()[0].details).toContain('€2,000');
   });
 
+  it('merges persisted trip update notifications from the notifications endpoint', () => {
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+    const httpClient = {
+      get: jasmine.createSpy('get').and.returnValue(of([
+        {
+          eventType: 'TRIP_BOOKING_UPDATED',
+          notificationType: 'TRIP_UPDATE',
+          notificationId: 501,
+          title: 'Booking updated',
+          description: 'Ada Lovelace updated booking details for Shared Rome.',
+          details: 'Rome · 14 Jul 2026 → 21 Jul 2026 · €2,000 · Ada Lovelace',
+          createdAt: '2026-07-03T08:15:30Z',
+          relatedEntityId: 20,
+          actorEmail: 'ada@example.com',
+        },
+      ])),
+    };
+    const authWithHeader = {
+      email: () => 'traveler@example.com',
+      authHeader: () => ({ Authorization: 'Bearer token' }),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithHeader },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: HttpClient, useValue: httpClient },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
+
+    expect(httpClient.get).toHaveBeenCalledWith('/api/notifications', {
+      headers: { Authorization: 'Bearer token' },
+    });
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].type).toBe('TRIP_UPDATE');
+    expect(service.items()[0].title).toBe('Booking updated');
+    expect(service.items()[0].description).toContain('booking details');
+  });
+
   it('ingests trip topic updates into the notification bell for the current user', () => {
     const topicUpdates = new Subject<{
       eventType: string;
@@ -452,6 +505,8 @@ describe('FriendNotificationService', () => {
     });
 
     const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
 
     topicUpdates.next({
       eventType: 'TRIP_DETAILS_UPDATED',
@@ -522,6 +577,8 @@ describe('FriendNotificationService', () => {
     });
 
     const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
 
     topicUpdates.next({
       eventType: 'TRIP_DETAILS_UPDATED',
@@ -958,4 +1015,225 @@ describe('FriendNotificationService', () => {
     service.refresh();
     expect(service.items().length).toBe(0);
   });
+
+  it('refreshes an updated persisted budget alert without creating a duplicate item', () => {
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const firstAlert = {
+      eventType: 'BUDGET_ALERT',
+      notificationType: 'BUDGET_ALERT' as const,
+      notificationId: 50,
+      title: 'Budget alert',
+      description: 'You are over budget.',
+      details: 'Spent EUR 1,200 of EUR 1,000.',
+      createdAt: '2026-07-15T08:00:00Z',
+    };
+    const updatedAlert = {
+      ...firstAlert,
+      details: 'Spent EUR 1,350 of EUR 1,000.',
+      createdAt: '2026-07-15T09:00:00Z',
+    };
+    const httpClient = {
+      get: jasmine.createSpy('get').and.returnValues(of([firstAlert]), of([updatedAlert])),
+    };
+    const authWithToken = {
+      email: () => 'traveler@example.com',
+      authHeader: () => ({ Authorization: 'Bearer token' }),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithToken },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: HttpClient, useValue: httpClient },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
+    expect(service.items().length).toBe(1);
+    expect(service.unreadCount()).toBe(1);
+
+    service.markAllAsRead();
+    expect(service.unreadCount()).toBe(0);
+
+    service.refresh();
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].details).toBe('Spent EUR 1,350 of EUR 1,000.');
+    expect(service.unreadCount()).toBe(1);
+  });
+
+  it('shows an updated persisted budget alert after the previous version was dismissed', () => {
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const firstAlert = {
+      eventType: 'BUDGET_ALERT',
+      notificationType: 'BUDGET_ALERT' as const,
+      notificationId: 50,
+      title: 'Budget alert',
+      description: 'You are over budget.',
+      details: 'Spent EUR 1,200 of EUR 1,000.',
+      createdAt: '2026-07-15T08:00:00Z',
+    };
+    const updatedAlert = {
+      ...firstAlert,
+      details: 'Spent EUR 1,350 of EUR 1,000.',
+      createdAt: '2026-07-15T09:00:00Z',
+    };
+    const httpClient = {
+      get: jasmine.createSpy('get').and.returnValues(of([firstAlert]), of([updatedAlert])),
+    };
+    const authWithToken = {
+      email: () => 'traveler@example.com',
+      authHeader: () => ({ Authorization: 'Bearer token' }),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithToken },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: HttpClient, useValue: httpClient },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
+    service.dismissNotification(service.items()[0]);
+    expect(service.items().length).toBe(0);
+
+    service.refresh();
+
+    expect(service.items().length).toBe(1);
+    expect(service.items()[0].details).toBe('Spent EUR 1,350 of EUR 1,000.');
+  });
+
+  it('exposes a visible toast when a persisted budget alert is new or updated', fakeAsync(() => {
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const firstAlert = {
+      eventType: 'BUDGET_ALERT',
+      notificationType: 'BUDGET_ALERT' as const,
+      notificationId: 50,
+      title: 'Budget alert',
+      description: 'You are over budget.',
+      details: 'Spent EUR 1,200 of EUR 1,000.',
+      createdAt: '2026-07-15T08:00:00Z',
+    };
+    const updatedAlert = {
+      ...firstAlert,
+      details: 'Spent EUR 1,350 of EUR 1,000.',
+      createdAt: '2026-07-15T09:00:00Z',
+    };
+    const httpClient = {
+      get: jasmine.createSpy('get').and.returnValues(of([firstAlert]), of([updatedAlert])),
+    };
+    const authWithToken = {
+      email: () => 'traveler@example.com',
+      authHeader: () => ({ Authorization: 'Bearer token' }),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithToken },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: HttpClient, useValue: httpClient },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
+    expect(service.budgetAlertToast()?.details).toBe('Spent EUR 1,200 of EUR 1,000.');
+
+    service.markAllAsRead();
+    service.refresh();
+
+    expect(service.items().length).toBe(1);
+    expect(service.budgetAlertToast()?.details).toBe('Spent EUR 1,350 of EUR 1,000.');
+
+    tick(8000);
+    expect(service.budgetAlertToast()).toBeNull();
+  }));
+
+  it('exposes a visible toast when a persisted trip reminder is new', fakeAsync(() => {
+    const friendCommunityService = {
+      listIncomingRequests: () => of([]),
+    };
+
+    const tripPlanningService = {
+      listIncomingTripInvitations: () => of([]),
+      listSentTripInvitations: () => of([]),
+    };
+
+    const reminder = {
+      eventType: 'TRIP_REMINDER_DUE',
+      notificationType: 'TRIP_REMINDER' as const,
+      notificationId: 61,
+      title: 'Trip reminder',
+      description: 'One Night in Dubai starts in 10 days.',
+      details: 'Dubai · 2026-07-26 → 2026-07-30',
+      createdAt: '2026-07-15T23:33:00Z',
+    };
+    const httpClient = {
+      get: jasmine.createSpy('get').and.returnValue(of([reminder])),
+    };
+    const authWithToken = {
+      email: () => 'traveler@example.com',
+      authHeader: () => ({ Authorization: 'Bearer token' }),
+    };
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        FriendNotificationService,
+        { provide: AuthService, useValue: authWithToken },
+        { provide: FriendCommunityService, useValue: friendCommunityService },
+        { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: HttpClient, useValue: httpClient },
+      ],
+    });
+
+    const service = TestBed.inject(FriendNotificationService);
+
+    service.refresh();
+
+    expect(service.budgetAlertToast()?.type).toBe('TRIP_REMINDER');
+    expect(service.budgetAlertToast()?.description).toContain('starts in 10 days');
+
+    tick(8000);
+    expect(service.budgetAlertToast()).toBeNull();
+  }));
 });

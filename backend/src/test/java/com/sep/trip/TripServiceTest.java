@@ -1,6 +1,9 @@
 package com.sep.trip;
 
+import com.sep.event.CalendarEvent;
 import com.sep.event.CalendarEventRepository;
+import com.sep.budget.BudgetAlertNotificationService;
+import com.sep.budget.ExpenseRepository;
 import com.sep.trip.dto.CreateTripRequest;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
@@ -19,10 +22,12 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 
 @ExtendWith(MockitoExtension.class)
 class TripServiceTest {
@@ -42,6 +47,21 @@ class TripServiceTest {
     @Mock
     private TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
 
+    @Mock
+    private TripReminderNotificationRepository tripReminderNotificationRepository;
+
+    @Mock
+    private TripReminderService tripReminderService;
+
+    @Mock
+    private BudgetAlertNotificationService budgetAlertNotificationService;
+
+    @Mock
+    private ExpenseRepository expenseRepository;
+
+    @Mock
+    private TripUpdateNotificationRepository tripUpdateNotificationRepository;
+
     private TripService tripService;
     private AppUser owner;
 
@@ -52,7 +72,12 @@ class TripServiceTest {
                 tripInvitationRepository,
                 appUserRepository,
                 calendarEventRepository,
-                tripRealtimeWebSocketPublisher
+                tripRealtimeWebSocketPublisher,
+                tripReminderNotificationRepository,
+                tripReminderService,
+                budgetAlertNotificationService,
+                expenseRepository,
+                tripUpdateNotificationRepository
         );
         owner = new AppUser();
         owner.setId(7L);
@@ -107,6 +132,8 @@ class TripServiceTest {
         assertThat(response.budget()).isEqualByComparingTo("2400.00");
         assertThat(response.status()).isEqualTo(TripStatus.UPCOMING);
         assertThat(response.accessRole()).isEqualTo(TripAccessRole.OWNER);
+        verify(tripReminderService).evaluateTripForToday(any(Trip.class));
+        verify(budgetAlertNotificationService).evaluateForTripAudience(any(Trip.class));
     }
 
     @Test
@@ -166,8 +193,23 @@ class TripServiceTest {
         assertThat(response.status()).isEqualTo(TripStatus.PLANNING);
         assertThat(response.accessRole()).isEqualTo(TripAccessRole.OWNER);
         verify(tripRepository).findAccessibleByIdAndUserId(11L, 7L);
-        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection());
-        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdatedTopic(any(Trip.class), any(AppUser.class));
+        verify(tripReminderService).refreshTripForToday(trip);
+        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection(), anyBoolean());
+        verify(budgetAlertNotificationService).evaluateForTripAudience(trip);
+    }
+
+    @Test
+    void updateTripRefreshesReminderEvenWhenStartDateAndStatusAreUnchanged() {
+        Trip trip = trip("Existing Trip");
+        CreateTripRequest request = request(trip.getStartDate(), trip.getEndDate());
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        tripService.updateTrip("traveler@example.com", 11L, request);
+
+        verify(tripReminderService).refreshTripForToday(trip);
     }
 
     @Test
@@ -197,7 +239,13 @@ class TripServiceTest {
         tripService.deleteTrip("traveler@example.com", 11L);
 
         verify(tripInvitationRepository).deleteAllByTripId(11L);
+        verify(tripReminderNotificationRepository).deleteAllByTripId(11L);
+        verify(tripUpdateNotificationRepository).deleteAllByTripId(11L);
+        verify(calendarEventRepository).deleteByTripId(11L);
+        verify(expenseRepository).deleteAllByTripId(11L);
         verify(tripRepository).delete(trip);
+        verify(tripRepository).flush();
+        verify(budgetAlertNotificationService).evaluateForUser(owner);
     }
 
     @Test
@@ -255,7 +303,88 @@ class TripServiceTest {
         TripResponse response = tripService.updateTrip("traveler@example.com", 11L, request);
 
         assertThat(response.accessRole()).isEqualTo(TripAccessRole.PARTICIPANT);
-        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection());
+        verify(tripRealtimeWebSocketPublisher).publishTripDetailsUpdated(any(Trip.class), any(AppUser.class), anyCollection(), anyBoolean());
+    }
+
+    @Test
+    void updateTripSynchronizesNormalRoundTripBookingCalendarEvents() {
+        Trip trip = trip("Rome");
+        trip.setOrigin("Paris");
+        CalendarEvent outbound = flightEvent("Paris → Rome", LocalDate.of(2026, 7, 15));
+        CalendarEvent returning = flightEvent("Rome → Paris", LocalDate.of(2026, 7, 22));
+        CreateTripRequest request = requestWithOrigin(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 8), "Paris");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+        when(calendarEventRepository.findAllByTripId(11L)).thenReturn(List.of(outbound, returning));
+
+        tripService.updateTrip("traveler@example.com", 11L, request);
+
+        assertThat(outbound.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+        assertThat(returning.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 8));
+        verify(calendarEventRepository).saveAll(argThat(events -> {
+            List<CalendarEvent> saved = (List<CalendarEvent>) events;
+            return saved.contains(outbound) && saved.contains(returning);
+        }));
+    }
+
+    @Test
+    void updateTripHandlesOneDayTripOutboundAndReturnSegmentsSeparately() {
+        Trip trip = trip("Rome");
+        trip.setOrigin("Paris");
+        trip.setEndDate(LocalDate.of(2026, 7, 15));
+        CalendarEvent outbound = flightEvent("Paris → Rome", LocalDate.of(2026, 7, 15));
+        CalendarEvent returning = flightEvent("Rome → Paris", LocalDate.of(2026, 7, 15));
+        CreateTripRequest request = requestWithOrigin(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 1), "Paris");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+        when(calendarEventRepository.findAllByTripId(11L)).thenReturn(List.of(outbound, returning));
+
+        tripService.updateTrip("traveler@example.com", 11L, request);
+
+        assertThat(outbound.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+        assertThat(returning.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+        verify(calendarEventRepository).saveAll(anyCollection());
+    }
+
+    @Test
+    void updateTripDoesNotMoveMultiCityMiddleFlightSegment() {
+        Trip trip = trip("Rome");
+        trip.setOrigin("Paris");
+        CalendarEvent outbound = flightEvent("Paris → Milan", LocalDate.of(2026, 7, 15));
+        CalendarEvent middle = flightEvent("Milan → Rome", LocalDate.of(2026, 7, 22));
+        CreateTripRequest request = requestWithOrigin(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 8), "Paris");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+        when(calendarEventRepository.findAllByTripId(11L)).thenReturn(List.of(outbound, middle));
+
+        tripService.updateTrip("traveler@example.com", 11L, request);
+
+        assertThat(outbound.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+        assertThat(middle.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 7, 22));
+    }
+
+    @Test
+    void updateTripSynchronizesHotelDatesAndDescriptionNights() {
+        Trip trip = trip("Rome");
+        CalendarEvent hotel = hotelEvent(LocalDate.of(2026, 7, 15), LocalDate.of(2026, 7, 22), "Hotel Roamer in Rome · 7 nights");
+        CreateTripRequest request = requestWithOrigin(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 4), "Paris");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findAccessibleByIdAndUserId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+        when(calendarEventRepository.findAllByTripId(11L)).thenReturn(List.of(hotel));
+
+        tripService.updateTrip("traveler@example.com", 11L, request);
+
+        assertThat(hotel.getStartDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+        assertThat(hotel.getEndDateTime().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 4));
+        assertThat(hotel.getDescription()).contains("3 nights");
     }
 
     @Test
@@ -282,6 +411,30 @@ class TripServiceTest {
         return trip;
     }
 
+    private CalendarEvent flightEvent(String route, LocalDate date) {
+        CalendarEvent event = new CalendarEvent();
+        event.setTripId(11L);
+        event.setTitle("Flight: Test Air TA123");
+        event.setCategory("Flight");
+        event.setLocation(route);
+        event.setDescription(route + " · Test Air · TA123");
+        event.setStartDateTime(date.atTime(9, 0));
+        event.setEndDateTime(date.atTime(11, 0));
+        return event;
+    }
+
+    private CalendarEvent hotelEvent(LocalDate startDate, LocalDate endDate, String description) {
+        CalendarEvent event = new CalendarEvent();
+        event.setTripId(11L);
+        event.setTitle("Hotel: Hotel Roamer");
+        event.setCategory("Hotel");
+        event.setLocation("Rome");
+        event.setDescription(description);
+        event.setStartDateTime(startDate.atTime(15, 0));
+        event.setEndDateTime(endDate.atTime(11, 0));
+        return event;
+    }
+
     private CreateTripRequest request(LocalDate startDate, LocalDate endDate) {
         return new CreateTripRequest(
                 "Summer Getaway",
@@ -290,6 +443,45 @@ class TripServiceTest {
                 endDate,
                 new BigDecimal("2400.00"),
                 TripStatus.UPCOMING
+        );
+    }
+
+    private CreateTripRequest requestWithOrigin(LocalDate startDate, LocalDate endDate, String origin) {
+        return new CreateTripRequest(
+                "Summer Getaway",
+                "Rome, Italy",
+                startDate,
+                endDate,
+                new BigDecimal("2400.00"),
+                TripStatus.UPCOMING,
+                null,
+                origin,
+                null,
+                "EUR",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
         );
     }
 }

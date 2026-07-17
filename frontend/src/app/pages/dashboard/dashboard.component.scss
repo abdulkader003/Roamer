@@ -350,6 +350,12 @@
   border-color: var(--badge-pending-border);
 }
 
+.badge-completed {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
 .badge-shared {
   background: var(--accent-bg);
   color: var(--accent);
