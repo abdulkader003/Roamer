@@ -2,6 +2,7 @@ package com.sep.traveldeals;
 
 import com.sep.activity.ActivityEntity;
 import com.sep.activity.ActivityRepository;
+import com.sep.activity.ActivitySearchResponse;
 import com.sep.activity.ActivitiesService;
 import com.sep.flight.entity.flight.FlightOfferEntity;
 import com.sep.flight.entity.flight.FlightSearchEntity;
@@ -27,6 +28,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,6 +81,10 @@ class TravelDealsServiceTest {
         when(userRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(user));
         when(tripRepository.findAllAccessibleByUserIdOrderByStartDateAsc(7L)).thenReturn(List.of(savedTrip()));
         when(flightOfferRepository.findBySelectedTrue()).thenReturn(List.of(flightOffer()));
+        when(hotelService.searchHotels(eq("Paris"), anyString(), anyString(), eq(2), eq(0)))
+                .thenReturn(List.of());
+        when(activitiesService.getActivities(eq("Paris"), isNull(), eq(0), eq(12)))
+                .thenReturn(new ActivitySearchResponse(List.of(), 0, 12, false));
         when(hotelRepository.findByCityContainingIgnoreCase(anyString())).thenAnswer(invocation -> {
             String city = invocation.getArgument(0);
             return "Paris".equalsIgnoreCase(city) ? List.of(hotel()) : List.of();
@@ -87,7 +94,7 @@ class TravelDealsServiceTest {
             return "Paris".equalsIgnoreCase(city) ? List.of(activity()) : List.of();
         });
 
-        List<TravelDealResponse> deals = travelDealsService.findDealsForUser("traveler@example.com", "test-refresh-key");
+        List<TravelDealResponse> deals = travelDealsService.findDealsForUser("traveler@example.com", null);
 
         assertThat(deals)
                 .extracting(TravelDealResponse::type)
