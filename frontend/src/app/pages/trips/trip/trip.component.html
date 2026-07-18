@@ -281,17 +281,111 @@
             }
           </form>
         } @else {
+          <section class="trip-hero" aria-label="Trip destination summary">
+            <div class="trip-hero__content">
+              <div class="trip-hero__eyebrow-row">
+                <span class="trip-hero__eyebrow">{{ tripAccessLabel(trip) }}</span>
+                <span class="trip-hero__status">{{ tripCountdownLabel(trip) }}</span>
+              </div>
+
+              <h3>{{ trip.name }}</h3>
+              <p class="trip-hero__lede">{{ modalRouteSummary(trip) }} · {{ nightsFor(trip) }} nights · {{ modalTravelerLabel(trip) }}</p>
+              <p class="trip-hero__subtle">{{ formatDateRange(trip) }}</p>
+
+              <div class="trip-hero__badges">
+                <span class="trip-badge">{{ statusFor(trip) }}</span>
+                <span class="trip-badge">{{ modalTravelerLabel(trip) }}</span>
+                <span class="trip-badge">{{ nightsFor(trip) }} nights</span>
+              </div>
+
+              <div class="trip-route-rail" aria-label="Trip route summary">
+                @for (stop of tripRouteStops(trip); track stop; let index = $index; let first = $first; let last = $last; let count = $count) {
+                  <div class="trip-route-stop">
+                    <span class="trip-route-stop__marker" aria-hidden="true"></span>
+                    <div>
+                      <strong>
+                        @if (first) {
+                          Origin
+                        } @else if (last && count > 2 && stop === tripRouteStops(trip)[0]) {
+                          Return
+                        } @else if (last) {
+                          Destination
+                        } @else {
+                          Stop {{ index + 1 }}
+                        }
+                      </strong>
+                      <span>{{ stop }}</span>
+                    </div>
+                    @if (!last) {
+                      <span class="trip-route-stop__line" aria-hidden="true"></span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (showTripWeather(trip)) {
+              <article class="destination-weather-card destination-weather-card--hero" aria-label="Destination weather">
+                <div class="destination-weather-card__header">
+                  <div>
+                    <span class="destination-weather-eyebrow">Weather</span>
+                    <h3>{{ tripWeatherTitle(trip) }}</h3>
+                  </div>
+                  <span class="destination-weather-updated">{{ tripWeatherLoading() ? 'Loading...' : tripWeatherUpdatedLabel() }}</span>
+                </div>
+
+                @if (tripWeatherLoading()) {
+                  <div class="destination-weather-skeleton" aria-live="polite">
+                    <span class="skeleton-line skeleton-line--title"></span>
+                    <span class="skeleton-line skeleton-line--text"></span>
+                    <span class="skeleton-line skeleton-line--text"></span>
+                  </div>
+                } @else if (tripWeatherError() && !tripWeather()) {
+                  <div class="destination-weather-empty">
+                    <div class="destination-weather-empty__icon" aria-hidden="true">☁</div>
+                    <div>
+                      <strong>Weather unavailable</strong>
+                      <p>{{ tripWeatherError() }}</p>
+                    </div>
+                  </div>
+                } @else if (tripWeather()) {
+                  <div class="destination-weather-body">
+                    <div class="destination-weather-main">
+                      <div class="destination-weather-icon" aria-hidden="true">{{ tripWeatherIcon() }}</div>
+                      <div class="destination-weather-temp">{{ tripWeatherTemperature() }}</div>
+                    </div>
+
+                    <div class="destination-weather-summary">
+                      <p class="destination-weather-condition">{{ tripWeatherDescription(trip) }}</p>
+                      <p class="destination-weather-note">{{ tripWeatherLabel(trip) }}</p>
+                    </div>
+
+                    <div class="destination-weather-details" aria-label="Weather details">
+                      @for (metric of tripWeatherMetrics(trip); track metric.label) {
+                        <div class="destination-weather-metric">
+                          <span>{{ metric.label }}</span>
+                          <strong>{{ metric.value }}</strong>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                } @else {
+                  <div class="destination-weather-empty">
+                    <div class="destination-weather-empty__icon" aria-hidden="true">⛅</div>
+                    <div>
+                      <strong>Destination unavailable</strong>
+                      <p>We could not resolve the trip destination for weather.</p>
+                    </div>
+                  </div>
+                }
+              </article>
+            }
+          </section>
+
           <div class="trip-overview-modal" aria-label="Trip overview summary">
             <section class="overview-left">
-              <article class="overview-hero">
-                <span>Trip name</span>
-                <h3>{{ trip.name }}</h3>
-                <p>{{ modalRouteSummary(trip) }} · {{ nightsFor(trip) }} nights · {{ modalTravelerLabel(trip) }}</p>
-                <p>{{ formatDateRange(trip) }}</p>
-              </article>
-
               @if (modalHasFlightData(trip)) {
-                <article class="overview-summary-card overview-summary-card--detailed">
+                <article class="overview-summary-card overview-summary-card--detailed overview-summary-card--flight">
                   <div class="overview-card-header">
                     <div>
                       <span class="overview-eyebrow">→ Flights</span>
@@ -323,7 +417,7 @@
               }
 
               @if (modalHasHotelData(trip)) {
-                <article class="overview-summary-card overview-summary-card--detailed">
+                <article class="overview-summary-card overview-summary-card--detailed overview-summary-card--hotel">
                   <div class="overview-card-header">
                     <div>
                       <span class="overview-eyebrow">⌂ Hotels</span>
@@ -367,7 +461,7 @@
               }
 
               @if (modalHasActivitiesData(trip)) {
-                <article class="overview-summary-card overview-summary-card--detailed">
+                <article class="overview-summary-card overview-summary-card--detailed overview-summary-card--activity">
                   <div class="overview-card-header">
                     <div>
                       <span class="overview-eyebrow">● Activities</span>
@@ -376,35 +470,36 @@
                     <strong>€{{ modalActivitiesTotal(trip) | number:'1.0-0' }}</strong>
                   </div>
 
-                  <div class="detail-list">
-                    @for (group of modalActivityGroups(trip); track group.city) {
-                      <section class="detail-group">
-                        <h4>{{ group.city }}</h4>
-                        @for (activity of group.activities; track activity.name) {
-                          <section class="detail-item detail-item--priced">
-                            <div class="detail-item-title">
-                              <span>{{ activity.category }}</span>
-                              <strong>{{ activity.name }}</strong>
+                  <div class="activity-timeline">
+                    @for (activity of modalActivityTimeline(trip); track activity.name + activity.city + (activity.date || '') + (activity.time || '')) {
+                      <article class="activity-timeline-item">
+                        <div class="activity-timeline-item__rail" aria-hidden="true">
+                          <span class="activity-timeline-item__dot"></span>
+                          <span class="activity-timeline-item__line"></span>
+                        </div>
+
+                        <div class="activity-timeline-item__content">
+                          <div class="activity-timeline-item__header">
+                            <div>
+                              <span class="activity-timeline-item__category">{{ activity.category }}</span>
+                              <h4>{{ activity.name }}</h4>
                             </div>
-
-                            <dl class="detail-grid">
-                              @for (row of modalActivityDetailRows(activity); track row.label) {
-                                <div>
-                                  <dt>{{ row.label }}</dt>
-                                  <dd>{{ row.value }}</dd>
-                                </div>
-                              }
-                            </dl>
-
                             @if (activity.price) {
-                              <strong class="detail-item-price">
-                                €{{ modalActivityTotal(trip, activity) | number:'1.0-0' }}
-                                <small>Total for {{ modalTravelerLabel(trip) }}</small>
-                              </strong>
+                              <strong>€{{ modalActivityTotal(trip, activity) | number:'1.0-0' }}</strong>
                             }
-                          </section>
-                        }
-                      </section>
+                          </div>
+
+                          <div class="activity-timeline-item__meta">
+                            <span>{{ activity.city }}</span>
+                            @if (activity.date) {
+                              <span>{{ formatDisplayDate(activity.date) }}</span>
+                            }
+                            @if (activity.time) {
+                              <span>{{ activity.time }}</span>
+                            }
+                          </div>
+                        </div>
+                      </article>
                     }
                   </div>
                 </article>
@@ -485,6 +580,7 @@
                   <div class="participant-list">
                     @for (participant of tripParticipants(); track participant.user.id) {
                       <div class="participant-row">
+                        <div class="participant-avatar" aria-hidden="true">{{ userInitials(participant.user) }}</div>
                         <div class="participant-copy">
                           <strong>{{ participantDisplayName(participant) }}</strong>
                           <span>@{{ participant.user.username }}</span>
@@ -499,7 +595,7 @@
               </section>
 
               @if (trip.accessRole !== 'PARTICIPANT') {
-                <section class="overview-support-card">
+                <section class="overview-support-card overview-support-card--invites">
                   <div class="overview-card-header">
                     <div>
                       <span class="overview-eyebrow">• Pending invites</span>
@@ -515,6 +611,7 @@
                     <div class="participant-list">
                       @for (invitation of pendingSentInvitations(trip); track invitation.id) {
                         <div class="participant-row participant-row--invite">
+                          <div class="participant-avatar" aria-hidden="true">{{ userInitials(invitation.invitedUser) }}</div>
                           <div class="participant-copy">
                             <strong>{{ inviteSummaryLabel(invitation) }}</strong>
                             <span>@{{ invitation.invitedUser.username }}</span>

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { Subscription } from 'rxjs';
-import { TripPlanningService, TripRealtimeEvent } from '../../services/trip-planning.service';
+import { TripPlanningService, TripRealtimeEvent, TripResponse as SavedTripResponse } from '../../services/trip-planning.service';
 
 type SpendingPoint = { label: string; amount: number };
 type DistributionCategory = { name: string; amount: number; color: string };
@@ -16,6 +16,7 @@ type CategoryBudget = {
   percentage: number;
   status: 'Normal' | 'Near Limit' | 'Over Budget';
   statusClass: 'normal' | 'near-limit' | 'over-limit';
+  color: string;
 };
 type CategoryBudgetDraft = {
   categoryKey: string;
@@ -36,6 +37,8 @@ type TripBudget = {
   tripId: number;
   name: string;
   destination: string;
+  startDate?: string | null;
+  endDate?: string | null;
   budget: number;
   spent: number;
   remaining: number;
@@ -75,6 +78,14 @@ type BudgetReport = {
   trips: TripBudget[];
 };
 
+type TimeRangeFilter = 'ALL' | '3M' | '6M' | '12M';
+type SpendingEntry = {
+  tripId: number;
+  category: string;
+  amount: number;
+  date: string;
+};
+
 @Component({
   selector: 'app-budget-tracker',
   standalone: true,
@@ -90,10 +101,20 @@ export class BudgetTracker implements OnInit, OnDestroy {
   isLoading = true;
   loadError = '';
   isExporting = false;
+  timeRangeFilter: TimeRangeFilter = 'ALL';
+  readonly timeRangeOptions: Array<{ value: TimeRangeFilter; label: string; shortLabel: string }> = [
+    { value: '3M', label: 'Last 3 months', shortLabel: '3M' },
+    { value: '6M', label: 'Last 6 months', shortLabel: '6M' },
+    { value: '12M', label: 'Last 12 months', shortLabel: '12M' },
+    { value: 'ALL', label: 'All time', shortLabel: 'All' }
+  ];
 
   // ── User Story #1 — Budget Summary ──
   totalBudget = 0;
   totalSpent = 0;
+  private allTrips: TripBudget[] = [];
+  private allExpenses: ManualExpense[] = [];
+  private savedTrips: SavedTripResponse[] = [];
 
   get remainingBalance(): number {
     return this.totalBudget - this.totalSpent;
@@ -134,7 +155,6 @@ export class BudgetTracker implements OnInit, OnDestroy {
 
   setChartView(view: 'monthly' | 'yearly'): void {
     this.chartView = view;
-    this.loadSpendingChart(view);
   }
 
   get chartData() {
@@ -215,11 +235,11 @@ export class BudgetTracker implements OnInit, OnDestroy {
   categories: DistributionCategory[] = [];
 
   private readonly categoryColors: Record<string, string> = {
-    FLIGHTS: 'var(--budget-chart-flights)',
-    HOTELS: 'var(--budget-chart-hotels)',
-    FOOD: 'var(--budget-chart-food)',
-    ACTIVITIES: 'var(--budget-chart-activities)',
-    OTHERS: 'var(--budget-chart-others)'
+    FLIGHTS: '#2E67C8',
+    HOTELS: '#2EA44F',
+    FOOD: '#F59E0B',
+    ACTIVITIES: '#EC4899',
+    OTHERS: '#8B95A7'
   };
 
   private readonly categoryNames: Record<string, string> = {
@@ -278,11 +298,19 @@ export class BudgetTracker implements OnInit, OnDestroy {
   selectedTripDetails: TripBudget | null = null;
 
   get categoryBudgetRows() {
-    return this.categoryBudgets;
+    return this.buildCategoryBudgetRows();
   }
 
   get categoryBudgetFormTitle(): string {
     return 'Edit Category Budgets';
+  }
+
+  get filteredTrips(): TripBudget[] {
+    return this.allTrips.filter(trip => this.isTripVisibleInRange(trip.tripId));
+  }
+
+  get filteredExpenses(): ManualExpense[] {
+    return this.allExpenses.filter(expense => this.isTripVisibleInRange(expense.tripId));
   }
 
   openCategoryBudgetForm(): void {
@@ -371,7 +399,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
   }
 
   get selectedExpenseTripLabel(): string {
-    const trip = this.trips.find(t => t.tripId === this.expenseDraft.tripId);
+    const trip = this.allTrips.find(t => t.tripId === this.expenseDraft.tripId);
     return trip ? `${trip.name} - ${trip.destination}` : 'Select trip';
   }
 
@@ -424,7 +452,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
       category: expense ? expense.category : 'Flights',
       description: expense ? (expense.description ?? '') : '',
       date: expense ? expense.date : this.formatDateValue(new Date()),
-      tripId: expense ? expense.tripId : this.trips[0]?.tripId ?? null
+      tripId: expense ? expense.tripId : this.allTrips[0]?.tripId ?? null
     };
     this.isExpenseCategoryMenuOpen = false;
     this.isExpenseDatePickerOpen = false;
@@ -562,7 +590,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
       return;
     }
 
-    const expense = this.manualExpenses.find(item => item.id === this.editingExpenseId) ?? null;
+    const expense = this.allExpenses.find(item => item.id === this.editingExpenseId) ?? null;
     if (!expense) {
       return;
     }
@@ -650,10 +678,12 @@ export class BudgetTracker implements OnInit, OnDestroy {
     this.isTripFilterOpen = false;
   }
 
-  trips: TripBudget[] = [];
+  get trips(): TripBudget[] {
+    return this.allTrips;
+  }
 
   get tripLookup(): Map<number, TripBudget> {
-    return new Map(this.trips.map(trip => [trip.tripId, trip]));
+    return new Map(this.allTrips.map(trip => [trip.tripId, trip]));
   }
 
   get tripBreakdownRows() {
@@ -683,7 +713,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
   }
 
   get tripRows() {
-    return this.trips.map(t => ({
+    return this.filteredTrips.map(t => ({
       ...t,
       statusClass: t.status === 'Over Budget' ? 'over-limit' : t.status === 'Near Limit' ? 'near-limit' : 'normal'
     }));
@@ -858,28 +888,22 @@ export class BudgetTracker implements OnInit, OnDestroy {
     this.loadError = '';
 
     forkJoin({
-      summary: this.http.get<any>(`${this.apiBase}/summary`, { headers: this.getHeaders() }),
-      monthly: this.http.get<any[]>(`${this.apiBase}/spending-over-time?view=monthly`, { headers: this.getHeaders() }),
-      yearly: this.http.get<any[]>(`${this.apiBase}/spending-over-time?view=yearly`, { headers: this.getHeaders() }),
-      distribution: this.http.get<any[]>(`${this.apiBase}/distribution`, { headers: this.getHeaders() }),
       categories: this.http.get<any[]>(`${this.apiBase}/categories`, { headers: this.getHeaders() }),
       trips: this.http.get<TripBudget[]>(`${this.apiBase}/trips`, { headers: this.getHeaders() }),
-      expenses: this.http.get<any[]>(`${this.apiBase}/expenses`, { headers: this.getHeaders() })
+      expenses: this.http.get<any[]>(`${this.apiBase}/expenses`, { headers: this.getHeaders() }),
+      savedTrips: this.tripPlanningService.listSavedTrips()
     }).subscribe({
       next: data => {
         const tripLookup = new Map(data.trips.map((trip: TripBudget) => [trip.tripId, trip]));
-        this.totalBudget = Number(data.summary.totalBudget);
-        this.totalSpent = Number(data.summary.totalSpent);
-        this.monthlySpending = this.mapSpendingPoints(data.monthly);
-        this.yearlySpending = this.mapSpendingPoints(data.yearly);
-        this.categories = this.mapDistribution(data.distribution);
+        this.allTrips = this.mapTrips(data.trips);
+        this.savedTrips = Array.isArray(data.savedTrips) ? data.savedTrips : [];
+        this.allExpenses = this.mapExpenses(data.expenses, tripLookup);
         this.categoryBudgets = this.mapCategoryBudgets(data.categories);
-        this.trips = this.mapTrips(data.trips);
-        this.syncTripTopicSubscriptions(this.trips.map((trip) => trip.tripId));
-        this.manualExpenses = this.mapExpenses(data.expenses, tripLookup);
-        this.expenseDraft.tripId = this.trips.some(trip => trip.tripId === this.expenseDraft.tripId)
+        this.syncTripTopicSubscriptions(this.allTrips.map((trip) => trip.tripId));
+        this.expenseDraft.tripId = this.allTrips.some(trip => trip.tripId === this.expenseDraft.tripId)
           ? this.expenseDraft.tripId
-          : this.trips[0]?.tripId ?? null;
+          : this.allTrips[0]?.tripId ?? null;
+        this.recalculateBudgetState();
         this.isLoading = false;
         this.cdr.detectChanges();
       },
@@ -960,7 +984,8 @@ export class BudgetTracker implements OnInit, OnDestroy {
         budget: Number(d.budget),
         percentage: Math.min(Math.max(percentage, 0), 100),
         status,
-        statusClass
+        statusClass,
+        color: this.categoryColors[this.normalizeCategoryKey(String(d.category ?? ''))] ?? '#8B95A7'
       };
     });
   }
@@ -1002,6 +1027,8 @@ export class BudgetTracker implements OnInit, OnDestroy {
       tripId: t.tripId,
       name: t.name,
       destination: t.destination,
+      startDate: (t as TripBudget).startDate ?? null,
+      endDate: (t as TripBudget).endDate ?? null,
       budget: Number(t.budget),
       spent: Number(t.spent),
       remaining: Number(t.remaining),
@@ -1028,6 +1055,225 @@ export class BudgetTracker implements OnInit, OnDestroy {
         date: String(expense.date ?? '')
       };
     });
+  }
+
+  selectTimeRangeFilter(range: TimeRangeFilter): void {
+    if (this.timeRangeFilter === range) {
+      return;
+    }
+
+    this.timeRangeFilter = range;
+    this.recalculateBudgetState();
+    this.cdr.detectChanges();
+  }
+
+  private recalculateBudgetState(): void {
+    const visibleTrips = this.filteredTrips;
+    const visibleExpenses = this.filteredExpenses;
+    const spendingEntries = this.buildSpendingEntries(visibleTrips, visibleExpenses);
+
+    this.totalBudget = visibleTrips.reduce((sum, trip) => sum + Number(trip.budget ?? 0), 0);
+    this.totalSpent = spendingEntries.reduce((sum, entry) => sum + Number(entry.amount ?? 0), 0);
+    this.monthlySpending = this.buildSpendingChart(spendingEntries, 'monthly');
+    this.yearlySpending = this.buildSpendingChart(spendingEntries, 'yearly');
+    this.categories = this.buildDistribution(spendingEntries);
+    this.manualExpenses = visibleExpenses;
+
+    if (!visibleTrips.length) {
+      this.totalBudget = 0;
+      this.totalSpent = 0;
+    }
+
+    if (this.chartView === 'monthly') {
+      this.monthlySpending = this.buildSpendingChart(spendingEntries, 'monthly');
+    } else {
+      this.yearlySpending = this.buildSpendingChart(spendingEntries, 'yearly');
+    }
+  }
+
+  private buildCategoryBudgetRows(): CategoryBudget[] {
+    const visibleTrips = this.filteredTrips;
+    const visibleExpenses = this.filteredExpenses;
+    const spendingEntries = this.buildSpendingEntries(visibleTrips, visibleExpenses);
+    const spentByCategory = this.groupSpentByCategory(spendingEntries);
+
+    return this.categoryBudgets.map(category => {
+      const spent = spentByCategory.get(category.categoryKey) ?? 0;
+      const budget = visibleTrips.length ? category.budget : 0;
+      const percentage = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0;
+      const status: CategoryBudget['status'] = spent > budget ? 'Over Budget' : spent >= budget * 0.8 && budget > 0 ? 'Near Limit' : 'Normal';
+      const statusClass: CategoryBudget['statusClass'] = status === 'Over Budget' ? 'over-limit' : status === 'Near Limit' ? 'near-limit' : 'normal';
+
+      return {
+        ...category,
+        spent,
+        budget,
+        percentage,
+        status,
+        statusClass
+      };
+    });
+  }
+
+  private buildSpendingEntries(trips: TripBudget[], expenses: ManualExpense[]): SpendingEntry[] {
+    const entries: SpendingEntry[] = [];
+
+    for (const trip of trips) {
+      const tripDate = this.getTripStartDate(trip.tripId);
+      if (!tripDate) {
+        continue;
+      }
+
+      this.addTripEntry(entries, trip.tripId, 'FLIGHTS', trip.flightTotal ?? 0, tripDate);
+      this.addTripEntry(entries, trip.tripId, 'HOTELS', trip.hotelTotal ?? 0, tripDate);
+      this.addTripEntry(entries, trip.tripId, 'ACTIVITIES', trip.activitiesTotal ?? 0, tripDate);
+    }
+
+    for (const expense of expenses) {
+      const amount = Number(expense.amount ?? 0);
+      if (amount <= 0) {
+        continue;
+      }
+
+      entries.push({
+        tripId: expense.tripId,
+        category: this.normalizeCategoryKey(expense.category),
+        amount,
+        date: expense.date
+      });
+    }
+
+    return entries;
+  }
+
+  private addTripEntry(entries: SpendingEntry[], tripId: number, category: string, amount: number, date: string): void {
+    const normalizedAmount = Number(amount ?? 0);
+    if (normalizedAmount <= 0) {
+      return;
+    }
+
+    entries.push({
+      tripId,
+      category: this.normalizeCategoryKey(category),
+      amount: normalizedAmount,
+      date
+    });
+  }
+
+  private buildDistribution(entries: SpendingEntry[]): DistributionCategory[] {
+    const totalSpent = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    const spentByCategory = this.groupSpentByCategory(entries);
+
+    return ['FLIGHTS', 'HOTELS', 'FOOD', 'ACTIVITIES', 'OTHERS'].map(categoryKey => {
+      const amount = spentByCategory.get(categoryKey) ?? 0;
+      const percentage = totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0;
+
+      return {
+        name: this.categoryNames[categoryKey] ?? categoryKey,
+        amount,
+        color: this.categoryColors[categoryKey] ?? '#8B95A7',
+        percentage
+      };
+    });
+  }
+
+  private groupSpentByCategory(entries: SpendingEntry[]): Map<string, number> {
+    return entries.reduce((map, entry) => {
+      const key = this.normalizeCategoryKey(entry.category);
+      map.set(key, (map.get(key) ?? 0) + entry.amount);
+      return map;
+    }, new Map<string, number>());
+  }
+
+  private buildSpendingChart(entries: SpendingEntry[], view: 'monthly' | 'yearly'): SpendingPoint[] {
+    if (view === 'yearly') {
+      const currentYear = new Date().getFullYear();
+      const grouped = new Map<number, number>([
+        [currentYear - 1, 0],
+        [currentYear, 0],
+        [currentYear + 1, 0]
+      ]);
+
+      for (const entry of entries) {
+        const date = this.parseDateOnly(entry.date);
+        if (!date) {
+          continue;
+        }
+
+        const year = date.getFullYear();
+        if (!grouped.has(year)) {
+          continue;
+        }
+
+        grouped.set(year, (grouped.get(year) ?? 0) + entry.amount);
+      }
+
+      return Array.from(grouped.entries()).map(([year, amount]) => ({
+        label: String(year),
+        amount
+      }));
+    }
+
+    const currentYear = new Date().getFullYear();
+    const monthlyLabels = new Intl.DateTimeFormat('en-US', { month: 'short' });
+    const grouped = new Map<number, number>();
+
+    for (let month = 0; month < 12; month += 1) {
+      grouped.set(month, 0);
+    }
+
+    for (const entry of entries) {
+      const date = this.parseDateOnly(entry.date);
+      if (!date || date.getFullYear() !== currentYear) {
+        continue;
+      }
+
+      const month = date.getMonth();
+      grouped.set(month, (grouped.get(month) ?? 0) + entry.amount);
+    }
+
+    return Array.from(grouped.entries()).map(([month, amount]) => ({
+      label: monthlyLabels.format(new Date(currentYear, month, 1)),
+      amount
+    }));
+  }
+
+  private getTripStartDate(tripId: number): string | null {
+    return this.savedTrips.find(trip => trip.id === tripId)?.startDate ?? null;
+  }
+
+  private isTripVisibleInRange(tripId: number): boolean {
+    if (this.timeRangeFilter === 'ALL') {
+      return true;
+    }
+
+    const startDate = this.getTripStartDate(tripId);
+    if (!startDate) {
+      return false;
+    }
+
+    const parsed = this.parseDateOnly(startDate);
+    if (!parsed) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const monthsBack = this.timeRangeFilter === '3M' ? 3 : this.timeRangeFilter === '6M' ? 6 : 12;
+    const threshold = new Date(today);
+    threshold.setMonth(threshold.getMonth() - monthsBack);
+
+    return parsed >= threshold && parsed <= today;
+  }
+
+  private parseDateOnly(value: string): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(`${value.trim()}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   private expenseCategoryLabel(category: string): string {

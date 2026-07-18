@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 
 import { FriendCommunityService, FriendItem } from '../../../services/friend-community.service';
 import { FriendNotificationService } from '../../../services/friend-notification.service';
+import { TripDestinationWeatherService } from '../../../services/trip-destination-weather.service';
 import {
   CreateTripRequest,
   TripInvitationResponse,
@@ -15,6 +16,8 @@ import {
   TripResponse,
 } from '../../../services/trip-planning.service';
 import { RealtimeWebSocketService } from '../../../services/realtime-websocket.service';
+import { WeatherDto } from '../../../services/weather.service';
+import { formatWeatherTemperature, formatWeatherUpdatedAt, weatherIconFor } from '../../../services/weather-display.util';
 import { TripTemp, TripTempActivity, TripTempFlightSegment, TripTempHotelStay, TripTempService } from '../create/trip-temp.service';
 import type { TripSummaryPdfSource } from '../create/overview/trip-summary-pdf.exporter';
 
@@ -52,9 +55,11 @@ export class TripComponent implements OnInit, OnDestroy {
   private readonly realtimeWebSocketService = inject(RealtimeWebSocketService);
   private readonly friendCommunityService = inject(FriendCommunityService);
   private readonly friendNotificationService = inject(FriendNotificationService);
+  private readonly tripDestinationWeatherService = inject(TripDestinationWeatherService);
   private readonly tripTempService = inject(TripTempService);
   private readonly router = inject(Router);
   private readonly tripTopicSubscriptions = new Map<number, Subscription>();
+  private tripWeatherSubscription: Subscription | null = null;
 
   readonly trips = signal<TripResponse[]>([]);
   readonly incomingInvitations = signal<TripInvitationResponse[]>([]);
@@ -87,6 +92,10 @@ export class TripComponent implements OnInit, OnDestroy {
   readonly editManualDateText = signal('');
   readonly editManualDateError = signal('');
   readonly editDatePickerMonth = signal(this.firstDayOfMonth(new Date()));
+  readonly tripWeather = signal<WeatherDto | null>(null);
+  readonly tripWeatherLoading = signal(false);
+  readonly tripWeatherError = signal('');
+  readonly tripWeatherUpdatedAt = signal<Date | null>(null);
   editTripForm: TripEditForm | null = null;
 
   ngOnInit(): void {
@@ -101,6 +110,7 @@ export class TripComponent implements OnInit, OnDestroy {
     }
 
     this.tripTopicSubscriptions.clear();
+    this.tripWeatherSubscription?.unsubscribe();
   }
 
   loadTrips(): void {
@@ -147,6 +157,7 @@ export class TripComponent implements OnInit, OnDestroy {
 
           this.loadTripParticipants(updatedTrip.id);
           this.loadTripSentInvitations(updatedTrip.id);
+          this.loadTripWeather(updatedTrip);
         }
       },
       error: () => {
@@ -306,6 +317,7 @@ export class TripComponent implements OnInit, OnDestroy {
     this.syncTripTopicSubscriptions([...this.trips().map((entry) => entry.id), trip.id]);
     this.loadTripParticipants(trip.id);
     this.loadTripSentInvitations(trip.id);
+    this.loadTripWeather(trip);
     this.editTripForm = this.toEditForm(trip);
   }
 
@@ -338,6 +350,11 @@ export class TripComponent implements OnInit, OnDestroy {
     this.tripSentInvitations.set([]);
     this.participantsError.set('');
     this.sentInvitationsError.set('');
+    this.tripWeatherSubscription?.unsubscribe();
+    this.tripWeather.set(null);
+    this.tripWeatherLoading.set(false);
+    this.tripWeatherError.set('');
+    this.tripWeatherUpdatedAt.set(null);
     this.closeEditDatePicker();
     this.editTripForm = null;
   }
@@ -749,6 +766,11 @@ export class TripComponent implements OnInit, OnDestroy {
     return this.modalDestinationName(trip);
   }
 
+  tripRouteStops(trip: TripResponse): string[] {
+    const routeSummary = this.modalRouteSummary(trip);
+    return this.routeStopsFromText(routeSummary, [this.cityOnly(trip.origin || ''), this.cityOnly(trip.destination || '')]);
+  }
+
   modalTravelerLabel(trip: TripResponse): string {
     const travelers = this.travelerCountFor(trip);
     return `${travelers} traveler${travelers === 1 ? '' : 's'}`;
@@ -762,6 +784,28 @@ export class TripComponent implements OnInit, OnDestroy {
     return trip.accessRole === 'PARTICIPANT'
       ? 'Shared trip. You can edit it or leave it.'
       : 'Owned trip. You can edit it, invite friends, or delete it.';
+  }
+
+  tripCountdownLabel(trip: TripResponse): string {
+    const startDate = this.parseDateOnly(trip.startDate);
+
+    if (!startDate) {
+      return 'Dates to be confirmed';
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((startDate.getTime() - today.getTime()) / 86400000);
+
+    if (days < 0) {
+      return `Started ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`;
+    }
+
+    if (days === 0) {
+      return 'Starts today';
+    }
+
+    return `Starts in ${days} day${days === 1 ? '' : 's'}`;
   }
 
   modalFlightTotal(trip: TripResponse): number {
@@ -875,6 +919,10 @@ export class TripComponent implements OnInit, OnDestroy {
     }
 
     return this.activitiesTempFromTrip(trip, null).selectedActivities ?? [];
+  }
+
+  modalActivityTimeline(trip: TripResponse): TripTempActivity[] {
+    return [...this.modalActivities(trip)].sort((left, right) => this.compareActivityTimeline(left, right));
   }
 
   modalActivityGroups(trip: TripResponse): Array<{ city: string; activities: TripTempActivity[] }> {
@@ -1212,6 +1260,116 @@ export class TripComponent implements OnInit, OnDestroy {
     return sameSummary ? tripTemp : null;
   }
 
+  private loadTripWeather(trip: TripResponse): void {
+    const destination = this.tripWeatherCity(trip);
+
+    if (!destination) {
+      this.tripWeatherSubscription?.unsubscribe();
+      this.tripWeather.set(null);
+      this.tripWeatherLoading.set(false);
+      this.tripWeatherError.set('Destination could not be resolved.');
+      this.tripWeatherUpdatedAt.set(null);
+      return;
+    }
+
+    if (this.isPastTripWeather(trip)) {
+      this.tripWeatherSubscription?.unsubscribe();
+      this.tripWeather.set(null);
+      this.tripWeatherLoading.set(false);
+      this.tripWeatherError.set('');
+      this.tripWeatherUpdatedAt.set(null);
+      return;
+    }
+
+    this.tripWeatherLoading.set(true);
+    this.tripWeatherError.set('');
+    this.tripWeather.set(null);
+    this.tripWeatherSubscription?.unsubscribe();
+    this.tripWeatherSubscription = this.tripDestinationWeatherService.loadDestinationWeather(destination).subscribe({
+      next: (weather) => {
+        this.tripWeather.set(weather);
+        this.tripWeatherUpdatedAt.set(new Date());
+        this.tripWeatherLoading.set(false);
+      },
+      error: () => {
+        this.tripWeather.set(null);
+        this.tripWeatherLoading.set(false);
+        this.tripWeatherError.set('Weather unavailable right now.');
+        this.tripWeatherUpdatedAt.set(null);
+      },
+    });
+  }
+
+  private isPastTripWeather(trip: TripResponse): boolean {
+    const tripEnd = this.parseDateOnly(trip.endDate || trip.startDate);
+
+    if (!tripEnd) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return tripEnd.getTime() < today.getTime();
+  }
+
+  private tripDaysUntilStart(trip: TripResponse): number | null {
+    const startDate = this.parseDateOnly(trip.startDate);
+
+    if (!startDate) {
+      return null;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((startDate.getTime() - today.getTime()) / 86400000);
+  }
+
+  private parseDateOnly(value: string | undefined | null): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private routeStopsFromText(routeText: string, fallback: string[]): string[] {
+    const stops = routeText
+      .split('→')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (stops.length > 1) {
+      return stops.filter((stop, index) => stop !== stops[index - 1]);
+    }
+
+    return fallback.filter(Boolean);
+  }
+
+  private compareActivityTimeline(left: TripTempActivity, right: TripTempActivity): number {
+    const leftDate = this.timelineDateTime(left.date, left.time);
+    const rightDate = this.timelineDateTime(right.date, right.time);
+
+    return leftDate.getTime() - rightDate.getTime();
+  }
+
+  private timelineDateTime(date: string | undefined | null, time: string | undefined | null): Date {
+    const parsedDate = this.parseDateOnly(date);
+
+    if (!parsedDate) {
+      return new Date(0);
+    }
+
+    if (time) {
+      const parsedDateTime = new Date(`${date}T${time}`);
+      if (!Number.isNaN(parsedDateTime.getTime())) {
+        return parsedDateTime;
+      }
+    }
+
+    return parsedDate;
+  }
+
   private destinationCitiesFor(trip: TripResponse, tripTemp: TripTemp, canResumeStoredDraft: boolean): string[] {
     const savedCities = this.parseJsonArray<string>(trip.destinationCities);
 
@@ -1295,6 +1453,63 @@ export class TripComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
   }
 
+  tripWeatherCity(trip: TripResponse): string {
+    return this.cityOnly(trip.destination);
+  }
+
+  tripWeatherTitle(trip: TripResponse): string {
+    return this.tripWeatherCity(trip) || 'Destination weather';
+  }
+
+  tripWeatherLabel(trip: TripResponse): string {
+    const startInDays = this.tripDaysUntilStart(trip);
+
+    if (startInDays !== null && startInDays > 7) {
+      return 'Current weather — trip forecast not available yet';
+    }
+
+    return 'Current destination weather';
+  }
+
+  tripWeatherDescription(trip: TripResponse): string {
+    const weather = this.tripWeather();
+    return weather?.error || weather?.condition || (this.tripWeatherCity(trip) ? 'Current weather' : 'Destination unavailable');
+  }
+
+  tripWeatherTemperature(): string {
+    return formatWeatherTemperature(this.tripWeather()?.temperatureC ?? null);
+  }
+
+  tripWeatherIcon(): string {
+    return weatherIconFor(this.tripWeather());
+  }
+
+  tripWeatherUpdatedLabel(): string {
+    return formatWeatherUpdatedAt(this.tripWeatherUpdatedAt());
+  }
+
+  tripWeatherMetrics(trip: TripResponse): Array<{ label: string; value: string }> {
+    const weather = this.tripWeather() ?? {
+      city: this.tripWeatherCity(trip),
+      temperatureC: null,
+      condition: null,
+      icon: null,
+      humidity: null,
+      windKph: null,
+      error: null,
+    };
+
+    return [
+      { label: 'Humidity', value: weather.humidity === null ? '--' : `${weather.humidity}%` },
+      { label: 'Wind', value: weather.windKph === null ? '--' : `${Math.round(weather.windKph)} km/h` },
+      { label: 'Forecast', value: this.tripWeatherLabel(trip) },
+    ];
+  }
+
+  showTripWeather(trip: TripResponse): boolean {
+    return !this.isPastTripWeather(trip);
+  }
+
   canInvite(trip: TripResponse | null): boolean {
     return Boolean(trip && trip.accessRole !== 'PARTICIPANT');
   }
@@ -1309,6 +1524,20 @@ export class TripComponent implements OnInit, OnDestroy {
 
   participantDisplayName(participant: TripParticipantResponse): string {
     return this.userLabel(participant.user);
+  }
+
+  userInitials(user: { username: string; firstName?: string | null; lastName?: string | null }): string {
+    const initials = [user.firstName, user.lastName]
+      .filter(Boolean)
+      .map((part) => part!.trim().charAt(0))
+      .join('')
+      .toUpperCase();
+
+    if (initials) {
+      return initials.slice(0, 2);
+    }
+
+    return user.username.slice(0, 2).toUpperCase();
   }
 
   inviteSummaryLabel(invitation: TripInvitationResponse): string {

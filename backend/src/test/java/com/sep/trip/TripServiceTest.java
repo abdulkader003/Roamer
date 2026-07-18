@@ -1,6 +1,7 @@
 package com.sep.trip;
 
 import com.sep.event.CalendarEventRepository;
+import com.sep.budget.ExpenseRepository;
 import com.sep.trip.dto.CreateTripRequest;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
@@ -23,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class TripServiceTest {
@@ -40,6 +42,9 @@ class TripServiceTest {
     private CalendarEventRepository calendarEventRepository;
 
     @Mock
+    private ExpenseRepository expenseRepository;
+
+    @Mock
     private TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
 
     private TripService tripService;
@@ -52,6 +57,7 @@ class TripServiceTest {
                 tripInvitationRepository,
                 appUserRepository,
                 calendarEventRepository,
+                expenseRepository,
                 tripRealtimeWebSocketPublisher
         );
         owner = new AppUser();
@@ -192,12 +198,52 @@ class TripServiceTest {
         Trip trip = trip("Summer Getaway");
 
         when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
-        when(tripRepository.findByIdAndOwnerId(11L, 7L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findById(11L)).thenReturn(Optional.of(trip));
 
         tripService.deleteTrip("traveler@example.com", 11L);
 
+        verify(expenseRepository).deleteAllByTripId(11L);
+        verify(calendarEventRepository).deleteByTripId(11L);
         verify(tripInvitationRepository).deleteAllByTripId(11L);
         verify(tripRepository).delete(trip);
+    }
+
+    @Test
+    void deleteTripRemovesOwnedTripWithParticipantsAndPendingInvitations() {
+        Trip trip = trip("Shared Trip");
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findById(11L)).thenReturn(Optional.of(trip));
+
+        tripService.deleteTrip("traveler@example.com", 11L);
+
+        verify(expenseRepository).deleteAllByTripId(11L);
+        verify(calendarEventRepository).deleteByTripId(11L);
+        verify(tripInvitationRepository).deleteAllByTripId(11L);
+        verify(tripRepository).delete(trip);
+    }
+
+    @Test
+    void deleteTripRejectsNonOwnersWithForbidden() {
+        Trip trip = trip("Shared Trip");
+        AppUser sharedOwner = new AppUser();
+        sharedOwner.setId(99L);
+        trip.setOwner(sharedOwner);
+
+        when(appUserRepository.findByEmailIgnoreCase("traveler@example.com")).thenReturn(Optional.of(owner));
+        when(tripRepository.findById(11L)).thenReturn(Optional.of(trip));
+
+        assertThatThrownBy(() -> tripService.deleteTrip("traveler@example.com", 11L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> {
+                    ResponseStatusException responseStatusException = (ResponseStatusException) error;
+                    assertThat(responseStatusException.getStatusCode().value()).isEqualTo(403);
+                });
+
+        verify(expenseRepository, never()).deleteAllByTripId(any());
+        verify(calendarEventRepository, never()).deleteByTripId(any());
+        verify(tripInvitationRepository, never()).deleteAllByTripId(any());
+        verify(tripRepository, never()).delete(any(Trip.class));
     }
 
     @Test

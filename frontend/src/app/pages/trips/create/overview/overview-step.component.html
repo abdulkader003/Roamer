@@ -59,12 +59,106 @@
 
       <div class="overview-grid">
         <section class="left-column">
-          <article class="hero-summary">
-            <span>Trip Name</span>
-            <h2>{{ tripName() }}</h2>
-            <p>{{ tripRouteSummary() }} · {{ nights() }} nights · {{ travelerLabel() }}</p>
-            <p>{{ dateRange() }}</p>
+          <article class="trip-hero trip-hero--overview">
+            <div class="trip-hero__content">
+              <div class="trip-hero__eyebrow-row">
+                <span class="trip-hero__eyebrow">Trip overview</span>
+                <strong class="trip-hero__status">{{ overviewCountdownLabel() }}</strong>
+              </div>
+
+              <h2>{{ tripName() }}</h2>
+              <p class="trip-hero__lede">{{ tripRouteSummary() }} · {{ nights() }} nights · {{ travelerLabel() }}</p>
+              <p class="trip-hero__subtle">{{ dateRange() }}</p>
+
+              <div class="trip-hero__badges">
+                <span class="trip-badge">{{ tripTypeLabel() }}</span>
+                <span class="trip-badge">{{ travelerLabel() }}</span>
+                <span class="trip-badge">{{ nights() }} nights</span>
+              </div>
+
+              <div class="trip-route-rail" aria-label="Trip route summary">
+                @for (stop of overviewRouteStops(); track stop; let index = $index; let first = $first; let last = $last; let count = $count) {
+                  <div class="trip-route-stop">
+                    <span class="trip-route-stop__marker" aria-hidden="true"></span>
+                    <div>
+                      <strong>
+                        @if (first) {
+                          Origin
+                        } @else if (last && count > 2 && stop === overviewRouteStops()[0]) {
+                          Return
+                        } @else if (last) {
+                          Destination
+                        } @else {
+                          Stop {{ index + 1 }}
+                        }
+                      </strong>
+                      <span>{{ stop }}</span>
+                    </div>
+                    @if (!last) {
+                      <span class="trip-route-stop__line" aria-hidden="true"></span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
           </article>
+
+          @if (showDestinationWeather()) {
+            <article class="destination-weather-card" aria-label="Destination weather">
+                <div class="destination-weather-card__header">
+                  <div>
+                    <span class="destination-weather-eyebrow">Weather</span>
+                    <h3>{{ destinationWeatherTitle() }}</h3>
+                  </div>
+                <span class="destination-weather-updated">{{ destinationWeatherLoading() ? 'Loading...' : destinationWeatherUpdatedLabel() }}</span>
+                </div>
+
+              @if (destinationWeatherLoading()) {
+                <div class="destination-weather-skeleton" aria-live="polite">
+                  <span class="skeleton-line skeleton-line--title"></span>
+                  <span class="skeleton-line skeleton-line--text"></span>
+                  <span class="skeleton-line skeleton-line--text"></span>
+                </div>
+              } @else if (destinationWeatherError() && !destinationWeather()) {
+                <div class="destination-weather-empty">
+                  <div class="destination-weather-empty__icon" aria-hidden="true">☁</div>
+                  <div>
+                    <strong>Weather unavailable</strong>
+                    <p>{{ destinationWeatherError() }}</p>
+                  </div>
+                </div>
+              } @else if (destinationWeather()) {
+                <div class="destination-weather-body">
+                  <div class="destination-weather-main">
+                    <div class="destination-weather-icon" aria-hidden="true">{{ destinationWeatherIcon() }}</div>
+                    <div class="destination-weather-temp">{{ destinationWeatherTemperature() }}</div>
+                  </div>
+
+                  <div class="destination-weather-summary">
+                    <p class="destination-weather-condition">{{ destinationWeatherDescription() }}</p>
+                    <p class="destination-weather-note">{{ destinationWeatherLabel() }}</p>
+                  </div>
+
+                  <div class="destination-weather-details" aria-label="Weather details">
+                    @for (metric of destinationWeatherMetrics(); track metric.label) {
+                      <div class="destination-weather-metric">
+                        <span>{{ metric.label }}</span>
+                        <strong>{{ metric.value }}</strong>
+                      </div>
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div class="destination-weather-empty">
+                  <div class="destination-weather-empty__icon" aria-hidden="true">⛅</div>
+                  <div>
+                    <strong>Destination unavailable</strong>
+                    <p>We could not resolve the trip destination for weather.</p>
+                  </div>
+                </div>
+              }
+            </article>
+          }
 
           <article class="summary-card summary-card--detailed">
             <div class="summary-card-header">
@@ -211,45 +305,36 @@
               <strong>{{ currencySymbol() }}{{ activitiesTotal() | number:'1.0-0' }}</strong>
             </div>
 
-            <div class="detail-list">
-              @for (group of activityGroups(); track group.city) {
-                <section class="detail-group">
-                  <h4>{{ group.city }}</h4>
-                  @for (activity of group.activities; track activity.name) {
-                    <section class="detail-item detail-item--priced">
-                      <div class="detail-item-title">
-                        <span>{{ activity.category }}</span>
-                        <strong>{{ activity.name }}</strong>
+            <div class="activity-timeline">
+              @for (activity of activityTimelineEntries(); track activity.name + activity.city + (activity.date || '') + (activity.time || '')) {
+                <article class="activity-timeline-item">
+                  <div class="activity-timeline-item__rail" aria-hidden="true">
+                    <span class="activity-timeline-item__dot"></span>
+                    <span class="activity-timeline-item__line"></span>
+                  </div>
+
+                  <div class="activity-timeline-item__content">
+                    <div class="activity-timeline-item__header">
+                      <div>
+                        <span class="activity-timeline-item__category">{{ activity.category }}</span>
+                        <h4>{{ activity.name }}</h4>
                       </div>
-
-                      <dl class="detail-grid">
-                        <div>
-                          <dt>City</dt>
-                          <dd>{{ activity.city }}</dd>
-                        </div>
-                        @if (activity.date) {
-                          <div>
-                            <dt>Date</dt>
-                            <dd>{{ activity.date }}</dd>
-                          </div>
-                        }
-                        @if (activity.time) {
-                          <div>
-                            <dt>Time</dt>
-                            <dd>{{ activity.time }}</dd>
-                          </div>
-                        }
-                      </dl>
-
                       @if (activity.price) {
-                        <strong class="detail-item-price">
-                          {{ currencySymbol() }}{{ activityTotal(activity) | number:'1.0-0' }}
-                          <small>Total for {{ travelerLabel() }}</small>
-                        </strong>
+                        <strong>{{ currencySymbol() }}{{ activityTotal(activity) | number:'1.0-0' }}</strong>
                       }
-                    </section>
-                  }
-                </section>
+                    </div>
+
+                    <div class="activity-timeline-item__meta">
+                      <span>{{ activity.city }}</span>
+                      @if (activity.date) {
+                        <span>{{ formatDisplayDate(activity.date) }}</span>
+                      }
+                      @if (activity.time) {
+                        <span>{{ activity.time }}</span>
+                      }
+                    </div>
+                  </div>
+                </article>
               } @empty {
                 <p class="empty-detail">No activities selected.</p>
               }
@@ -269,7 +354,6 @@
           </div>
 
           <div class="budget-meta">
-            <span>{{ usedPercent() }}% used</span>
             <span>Budget: {{ currencySymbol() }}{{ budget() | number:'1.0-0' }}</span>
           </div>
 

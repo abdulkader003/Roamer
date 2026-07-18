@@ -18,4 +18,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findAllByTripIdInOrderByDateDesc(Collection<Long> tripIds);
 
     Optional<Expense> findByIdAndTripOwnerId(Long id, Long ownerId);
+
+    void deleteAllByTripId(Long tripId);
 }

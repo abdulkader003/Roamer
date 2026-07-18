@@ -4,6 +4,7 @@ import { EMPTY, of, throwError } from 'rxjs';
 
 import { FriendCommunityService } from '../../../services/friend-community.service';
 import { FriendNotificationService } from '../../../services/friend-notification.service';
+import { TripDestinationWeatherService } from '../../../services/trip-destination-weather.service';
 import { RealtimeWebSocketService } from '../../../services/realtime-websocket.service';
 import { TripPlanningService } from '../../../services/trip-planning.service';
 import { TripTempService } from '../create/trip-temp.service';
@@ -15,6 +16,7 @@ describe('TripComponent', () => {
   let tripTempService: jasmine.SpyObj<TripTempService>;
   let friendCommunityService: jasmine.SpyObj<FriendCommunityService>;
   let friendNotificationService: jasmine.SpyObj<FriendNotificationService>;
+  let tripDestinationWeatherService: jasmine.SpyObj<TripDestinationWeatherService>;
   let realtimeWebSocketService: jasmine.SpyObj<RealtimeWebSocketService>;
 
   const createPdfExporterSpy = () => ({
@@ -97,6 +99,16 @@ describe('TripComponent', () => {
     friendCommunityService = jasmine.createSpyObj<FriendCommunityService>('FriendCommunityService', ['listFriends']);
     friendCommunityService.listFriends.and.returnValue(of([]));
     friendNotificationService = jasmine.createSpyObj<FriendNotificationService>('FriendNotificationService', ['refresh']);
+    tripDestinationWeatherService = jasmine.createSpyObj<TripDestinationWeatherService>('TripDestinationWeatherService', ['loadDestinationWeather']);
+    tripDestinationWeatherService.loadDestinationWeather.and.returnValue(of({
+      city: 'Rome',
+      temperatureC: 23,
+      condition: 'Sunny',
+      icon: null,
+      humidity: 58,
+      windKph: 10,
+      error: null,
+    }));
     realtimeWebSocketService = jasmine.createSpyObj<RealtimeWebSocketService>('RealtimeWebSocketService', ['observe']);
     realtimeWebSocketService.observe.and.returnValue(EMPTY);
     tripTempService.getTripTemp.and.returnValue(emptyTripTemp());
@@ -113,6 +125,7 @@ describe('TripComponent', () => {
         { provide: TripTempService, useValue: tripTempService },
         { provide: FriendCommunityService, useValue: friendCommunityService },
         { provide: FriendNotificationService, useValue: friendNotificationService },
+        { provide: TripDestinationWeatherService, useValue: tripDestinationWeatherService },
         { provide: RealtimeWebSocketService, useValue: realtimeWebSocketService },
       ],
     }).compileComponents();
