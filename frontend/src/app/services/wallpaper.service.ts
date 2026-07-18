@@ -395,9 +395,8 @@ export class WallpaperService {
     if (path.startsWith('/trips/create/activities') || path.startsWith('/activities')) return 'activities';
     if (path.startsWith('/trips/create/budget') || path.startsWith('/budget-tracker')) return 'budget';
     if (path.startsWith('/trips')) return 'trips';
-    if (path.startsWith('/calendar')) return 'calendar';
     if (path.startsWith('/profile')) return 'profile';
-    if (path.startsWith('/settings')) return 'settings';
+    if (path.startsWith('/settings')) return null;
 
     return null;
   }

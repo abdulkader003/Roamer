@@ -1,4 +1,11 @@
-<div class="calendar-page page-wallpaper wallpaper-calendar">
+<div class="calendar-page">
+  <header class="calendar-header">
+    <div>
+      <h1 class="calendar-title">📅 Calendar</h1>
+      <p class="calendar-subtitle">Manage your flights, hotels, activities and travel events.</p>
+    </div>
+  </header>
+
   <div class="calendar-card">
     <div class="calendar-toolbar">
       <div class="month-navigation">
@@ -92,7 +99,7 @@
         </div>
 
         @for (week of monthWeeks; track week[0].date) {
-          <div class="month-week" [style.--hotel-lane-count]="getMonthHotelLaneCount(week)">
+          <div class="month-week">
             @for (cell of week; track cell.date) {
               <div
                 class="day month-day"
@@ -101,36 +108,17 @@
                 [class.today-day]="cell.isToday"
                 (click)="selectMonthCell(cell)">
                 <div class="day-number">{{ cell.day }}</div>
-                <div class="events-container month-events-container">
-                  @for (event of getMonthEventsForDate(cell.date); track event) {
+                <div class="events-container month-events-container" [attr.aria-label]="getEventsAreaLabel(cell.date)" tabindex="0">
+                  @for (event of getEventsForDate(cell.date); track event) {
                     <app-event-card
                       [event]="event"
                       [occurrenceDate]="cell.date"
+                      [attr.title]="getHotelEventTooltip(event, cell.date)"
                       (viewDetails)="openEventDetails($event)">
                     </app-event-card>
                   }
                 </div>
               </div>
-            }
-
-            @for (segment of getMonthHotelSegments(week); track segment.key) {
-              <button
-                type="button"
-                class="hotel-stay-bar"
-                [ngClass]="getHotelStaySegmentClass(segment)"
-                [style.left.%]="segment.leftPercent"
-                [style.top.px]="segment.top"
-                [style.width.%]="segment.widthPercent"
-                (click)="openEventDetails(segment.event); $event.stopPropagation()">
-                <span class="hotel-stay-bar__title">{{ segment.event.title }}</span>
-                <span class="hotel-stay-bar__meta">{{ getHotelStayBarLabel(segment.event) }}</span>
-                @if (segment.startsInWeek) {
-                  <span class="hotel-stay-bar__marker">Check-in</span>
-                }
-                @if (segment.endsInWeek) {
-                  <span class="hotel-stay-bar__marker hotel-stay-bar__marker--end">Check-out</span>
-                }
-              </button>
             }
           </div>
         }
@@ -148,7 +136,20 @@
               [class.selected-week-day]="date.getDate() === selectedDay"
               (click)="selectDay(date.getDate())">
               <div class="week-date-number">{{ date.getDate() }}</div>
-              <div class="events-container">
+              <div class="events-container" [attr.aria-label]="getEventsAreaLabel(getDateForDate(date))" [attr.title]="getHotelDecoratorsTooltip(getDateForDate(date), true)" tabindex="0">
+                @if (getHotelDecoratorForDate(getDateForDate(date), true); as rail) {
+                  <span
+                    class="hotel-stay-rail hotel-stay-rail--week"
+                    [class.hotel-stay-rail--badge]="rail.isBadge"
+                    [attr.title]="rail.tooltip"
+                    [attr.aria-label]="rail.tooltip"
+                    [style.bottom.px]="6">
+                    @if (rail.isBadge) {
+                      <span class="hotel-stay-rail__label">{{ rail.label }}</span>
+                    }
+                  </span>
+                }
+
                 @for (event of getEventsForDate(getDateForDate(date)); track event) {
                   <app-event-card
                     [event]="event"

@@ -1,15 +1,41 @@
-<button class="event-card" [ngClass]="[toneClass, durationClass]" type="button" (click)="openDetails($event)">
-  <span class="event-title">{{ event.title }}</span>
+<button class="event-card" [ngClass]="toneClass" type="button" (click)="openDetails($event)">
+  <span class="event-card__icon" aria-hidden="true">
+    @switch (iconType) {
+      @case ('flight') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 16l20-7-20-7 5 7-5 7z"></path>
+          <path d="M7 9l15 0"></path>
+        </svg>
+      }
+      @case ('hotel') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V21"></path>
+          <path d="M7 21v-5h10v5"></path>
+          <path d="M8 8h2"></path>
+          <path d="M14 8h2"></path>
+          <path d="M8 12h2"></path>
+          <path d="M14 12h2"></path>
+        </svg>
+      }
+      @case ('activity') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2"></path>
+          <path d="M4 16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2"></path>
+          <path d="M8 6v12"></path>
+          <path d="M16 6v12"></path>
+          <path d="M10 12h4"></path>
+        </svg>
+      }
+      @default {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21s6-4.6 6-10a6 6 0 0 0-12 0c0 5.4 6 10 6 10z"></path>
+          <circle cx="12" cy="11" r="2.2"></circle>
+        </svg>
+      }
+    }
+  </span>
 
-  @if (metaLabel) {
-    <span class="event-meta">
-      {{ metaLabel }}
-    </span>
-  }
-
-  @if (categoryLabel) {
-    <span class="event-category">
-      {{ categoryLabel }}
-    </span>
-  }
+  <span class="event-card__label">
+    {{ displayLabel }}
+  </span>
 </button>

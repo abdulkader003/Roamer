@@ -508,111 +508,106 @@ export class CalendarMonth {
       .sort((first, second) => this.compareEventsForDate(first, second, date));
   }
 
-  getMonthEventsForDate(date: string): CalendarEvent[] {
-    return this.getEventsForDate(date).filter((event) => !this.isMultiDayHotelEvent(event));
+  getHotelDecoratorForDate(date: string, isWeekView = false): {
+    key: string;
+    count: number;
+    label: string;
+    tooltip: string;
+    isBadge: boolean;
+  } | null {
+    const hotelEvents = this.events.filter((event) => this.isHotelStayMiddleDay(event, date));
+
+    if (!hotelEvents.length) {
+      return null;
+    }
+
+    const firstEvent = hotelEvents[0];
+    const totalNights = this.getHotelStayTotalNights(firstEvent);
+    const count = hotelEvents.length;
+    const currentNight = this.getHotelStayNightNumber(firstEvent, date);
+    const label = isWeekView
+      ? count > 1
+        ? `🏨 +${count - 1} more`
+        : `🏨 Night ${currentNight}/${totalNights}`
+      : count > 1
+        ? `🏨 +${count - 1}`
+        : `${currentNight}/${totalNights}`;
+
+    return {
+      key: `${date}-${count}-${firstEvent.id ?? firstEvent.title}`,
+      count,
+      label,
+      tooltip: [
+        this.getHotelStayTitle(firstEvent),
+        firstEvent.location ? `City: ${firstEvent.location}` : '',
+        `Check-in: ${this.formatDisplayDate(firstEvent.date)}`,
+        `Check-out: ${this.formatDisplayDate(firstEvent.endDate ?? firstEvent.date)}`,
+        `Total nights: ${totalNights}`
+      ]
+        .filter(Boolean)
+        .join(' • '),
+      isBadge: count > 1
+    };
   }
 
-  getMonthHotelSegments(week: MonthCell[]): MonthHotelSegment[] {
-    const weekStart = this.parseDateInput(week[0]?.date ?? '');
-    const weekEnd = this.parseDateInput(week[week.length - 1]?.date ?? '');
-
-    if (!weekStart || !weekEnd) {
-      return [];
-    }
-
-    const segments = this.events
-      .filter((event) => this.isMultiDayHotelEvent(event))
-      .map((event) => {
-        const start = this.parseDateInput(event.date);
-        const checkout = this.parseDateInput(event.endDate ?? event.date);
-
-        if (!start || !checkout || checkout <= start) {
-          return null;
-        }
-
-        if (checkout < weekStart || start > weekEnd) {
-          return null;
-        }
-
-        const segmentStart = start < weekStart ? weekStart : start;
-        const segmentEnd = checkout > weekEnd ? weekEnd : checkout;
-        const startIndex = week.findIndex((cell) => cell.date === this.formatDateForInput(segmentStart));
-        const endIndex = week.findIndex((cell) => cell.date === this.formatDateForInput(segmentEnd));
-
-        if (startIndex < 0 || endIndex < 0) {
-          return null;
-        }
-
-        return {
-          event,
-          startIndex,
-          endIndex,
-          startsInWeek: start >= weekStart,
-          endsInWeek: checkout <= weekEnd
-        };
-      })
-      .filter((segment): segment is {
-        event: CalendarEvent;
-        startIndex: number;
-        endIndex: number;
-        startsInWeek: boolean;
-        endsInWeek: boolean;
-      } => segment !== null)
-      .sort((first, second) => first.startIndex - second.startIndex || second.endIndex - first.endIndex);
-
-    const laneEndColumns: number[] = [];
-
-    return segments.map((segment) => {
-      let lane = laneEndColumns.findIndex((endColumn) => segment.startIndex > endColumn);
-
-      if (lane < 0) {
-        lane = laneEndColumns.length;
-      }
-
-      laneEndColumns[lane] = segment.endIndex;
-
-      return {
-        key: `${segment.event.id ?? segment.event.title}-${week[0].date}-${segment.startIndex}-${segment.endIndex}`,
-        event: segment.event,
-        startsInWeek: segment.startsInWeek,
-        endsInWeek: segment.endsInWeek,
-        leftPercent: (segment.startIndex / 7) * 100,
-        widthPercent: ((segment.endIndex - segment.startIndex + 1) / 7) * 100,
-        top: 40 + lane * 30,
-        lane
-      };
-    });
+  getHotelDecoratorsTooltip(date: string, isWeekView = false): string {
+    return this.getHotelDecoratorForDate(date, isWeekView)?.tooltip ?? '';
   }
 
-  getMonthHotelLaneCount(week: MonthCell[]): number {
-    const segments = this.getMonthHotelSegments(week);
-
-    if (!segments.length) {
-      return 0;
-    }
-
-    return Math.max(...segments.map((segment) => segment.lane)) + 1;
+  getRenderableEventsForDate(date: string): CalendarEvent[] {
+    return this.getEventsForDate(date).filter((event) => !this.isHotelStayMiddleDay(event, date));
   }
 
-  getHotelStayBarLabel(event: CalendarEvent): string {
-    const duration = this.getEventDurationLabel(event);
-    return duration ? `Hotel stay · ${duration}` : 'Hotel stay';
+  getEventsAreaLabel(date: string): string {
+    const label = this.formatDisplayDate(date);
+    return `Events for ${label}`;
   }
 
-  getHotelStaySegmentClass(segment: MonthHotelSegment): string {
-    if (segment.startsInWeek && segment.endsInWeek) {
-      return 'hotel-stay-bar--complete';
+  getHotelEventTooltip(event: CalendarEvent, date: string): string {
+    if ((event.category ?? '').trim().toLowerCase() !== 'hotel') {
+      return '';
     }
 
-    if (segment.startsInWeek) {
-      return 'hotel-stay-bar--start';
+    const hotelName = this.getHotelStayTitle(event);
+    const totalNights = this.getHotelStayTotalNights(event);
+
+    return [
+      hotelName,
+      event.location ? `City: ${event.location}` : '',
+      `Check-in: ${this.formatDisplayDate(event.date)}`,
+      `Check-out: ${this.formatDisplayDate(event.endDate ?? event.date)}`,
+      `Total nights: ${totalNights}`
+    ]
+      .filter(Boolean)
+      .join(' • ');
+  }
+
+  private getHotelStayTitle(event: CalendarEvent): string {
+    return event.title.replace(/^Hotel:\s*/i, '').trim();
+  }
+
+  private getHotelStayTotalNights(event: CalendarEvent): number {
+    const start = this.parseDateInput(event.date);
+    const end = this.parseDateInput(event.endDate ?? event.date);
+
+    if (!start || !end || end <= start) {
+      return 1;
     }
 
-    if (segment.endsInWeek) {
-      return 'hotel-stay-bar--end';
+    const nights = Math.round((end.getTime() - start.getTime()) / 86400000);
+    return Math.max(1, nights);
+  }
+
+  private getHotelStayNightNumber(event: CalendarEvent, date: string): number {
+    const start = this.parseDateInput(event.date);
+    const target = this.parseDateInput(date);
+
+    if (!start || !target) {
+      return 1;
     }
 
-    return 'hotel-stay-bar--middle';
+    const nightNumber = Math.round((target.getTime() - start.getTime()) / 86400000);
+    return Math.max(1, nightNumber);
   }
 
   isToday(day: number): boolean {
@@ -996,6 +991,26 @@ export class CalendarMonth {
 
   private isMultiDayHotelEvent(event: CalendarEvent): boolean {
     return this.isHotelEvent(event) && !!event.endDate && event.endDate !== event.date;
+  }
+
+  private isHotelStayMiddleDay(event: CalendarEvent, date: string): boolean {
+    if (!this.isMultiDayHotelEvent(event)) {
+      return false;
+    }
+
+    if (event.date === date || event.endDate === date) {
+      return false;
+    }
+
+    const start = this.parseDateInput(event.date);
+    const end = this.parseDateInput(event.endDate ?? '');
+    const target = this.parseDateInput(date);
+
+    if (!start || !end || !target) {
+      return false;
+    }
+
+    return target > start && target < end;
   }
 
   private formatDisplayDate(value: string): string {

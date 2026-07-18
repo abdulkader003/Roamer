@@ -27,47 +27,43 @@ export class EventCardComponent {
   @Input() occurrenceDate = '';
   @Output() viewDetails = new EventEmitter<CalendarEvent>();
 
+  get iconType(): 'flight' | 'hotel' | 'activity' | 'other' {
+    const category = (this.event.category ?? '').trim().toLowerCase();
+
+    if (category === 'flight') {
+      return 'flight';
+    }
+
+    if (category === 'hotel') {
+      return 'hotel';
+    }
+
+    if (category === 'activity') {
+      return 'activity';
+    }
+
+    return 'other';
+  }
+
   get isHotel(): boolean {
     return (this.event.category ?? '').trim().toLowerCase() === 'hotel';
   }
 
-  get isMultiDay(): boolean {
-    return !!this.event.endDate && this.event.endDate !== this.event.date;
-  }
-
-  get metaLabel(): string {
+  get displayLabel(): string {
     if (this.isHotel) {
-      const stayLabel = this.stayLabel;
-      const location = this.event.location?.trim();
-
-      return [stayLabel, location].filter(Boolean).join(' · ');
+      const label = this.getHotelLabel();
+      return label || this.event.title;
     }
 
-    return [this.event.startTime, this.event.location].filter(Boolean).join(' · ');
-  }
-
-  get categoryLabel(): string {
-    if (this.isHotel && this.isMultiDay) {
-      return 'Hotel stay';
+    if (this.iconType === 'flight') {
+      return [this.event.startTime || 'TBD', this.getFlightLabel()].filter(Boolean).join(' ');
     }
 
-    return this.event.category ?? '';
-  }
-
-  get stayLabel(): string {
-    if (!this.isHotel || !this.isMultiDay) {
-      return this.event.startTime || '';
+    if (this.iconType === 'activity') {
+      return [this.event.startTime || 'TBD', this.event.title].filter(Boolean).join(' ');
     }
 
-    if (this.occurrenceDate === this.event.date) {
-      return 'Check-in';
-    }
-
-    if (this.occurrenceDate === this.event.endDate) {
-      return 'Check-out';
-    }
-
-    return `${this.getStayNights()}-night stay`;
+    return this.event.title;
   }
 
   get toneClass(): string {
@@ -88,45 +84,40 @@ export class EventCardComponent {
     return 'event-card--custom';
   }
 
-  get durationClass(): string {
-    if (!this.isMultiDay) {
-      return '';
-    }
-
-    if (this.occurrenceDate === this.event.date) {
-      return 'event-card--range-start';
-    }
-
-    if (this.occurrenceDate === this.event.endDate) {
-      return 'event-card--range-end';
-    }
-
-    return 'event-card--range-middle';
-  }
-
   openDetails(clickEvent: MouseEvent): void {
     clickEvent.stopPropagation();
     this.viewDetails.emit(this.event);
   }
 
-  private getStayNights(): number {
-    const start = this.parseDate(this.event.date);
-    const end = this.parseDate(this.event.endDate ?? '');
+  private getFlightLabel(): string {
+    const title = this.event.title.replace(/^Flight:\s*/i, '').trim();
+    const airlineMatch =
+      title.match(/^(.*?)\s+(?:[A-Z]{1,3}\d{1,4}|\d{2,4})\b/i) ??
+      title.match(/^(.*?)\s+(?:to|from)\b/i);
 
-    if (!start || !end) {
-      return 1;
+    if (airlineMatch?.[1]) {
+      return airlineMatch[1].trim();
     }
 
-    return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+    return title;
   }
 
-  private parseDate(value: string): Date | null {
-    const [year, month, day] = value.split('-').map(Number);
+  private getHotelLabel(): string {
+    const normalized = this.event.title.replace(/^Hotel:\s*/i, '').trim();
+    const date = this.occurrenceDate || this.event.date;
 
-    if (!year || !month || !day) {
-      return null;
+    if (!this.event.endDate || this.event.endDate === this.event.date) {
+      return normalized;
     }
 
-    return new Date(year, month - 1, day);
+    if (date === this.event.date) {
+      return `Check-in · ${normalized}`;
+    }
+
+    if (date === this.event.endDate) {
+      return `Check-out · ${normalized}`;
+    }
+
+    return `Stay · ${normalized}`;
   }
 }
