@@ -238,7 +238,7 @@ export class BudgetTracker implements OnInit, OnDestroy {
     FLIGHTS: '#2E67C8',
     HOTELS: '#2EA44F',
     FOOD: '#F59E0B',
-    ACTIVITIES: '#EC4899',
+    ACTIVITIES: '#F97316',
     OTHERS: '#8B95A7'
   };
 

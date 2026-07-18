@@ -568,6 +568,132 @@
   }
 }
 
+:host-context([data-theme='dark']) .notification-panel {
+  background: color-mix(in srgb, var(--surface-primary) 92%, transparent);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.44);
+}
+
+:host-context([data-theme='dark']) .notification-header {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(201, 150, 42, 0.10), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-secondary) 96%, transparent), color-mix(in srgb, var(--surface-primary) 94%, transparent));
+  border-bottom-color: color-mix(in srgb, var(--border) 88%, transparent);
+}
+
+:host-context([data-theme='dark']) .notification-header__copy strong {
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .notification-header__copy small {
+  color: var(--text-muted);
+}
+
+:host-context([data-theme='dark']) .notification-header__action {
+  border-color: color-mix(in srgb, var(--gold) 34%, var(--border));
+  background: color-mix(in srgb, var(--gold-bg) 72%, var(--surface-primary));
+  color: var(--gold-light);
+
+  &:hover {
+    background: color-mix(in srgb, var(--gold-bg) 86%, var(--surface-primary));
+    border-color: color-mix(in srgb, var(--gold) 48%, var(--border));
+    color: var(--gold-light);
+  }
+}
+
+:host-context([data-theme='dark']) .notification-list {
+  background: color-mix(in srgb, var(--surface-secondary) 92%, transparent);
+  scrollbar-color: color-mix(in srgb, var(--gold) 40%, transparent) transparent;
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--gold) 40%, transparent);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--gold) 58%, transparent);
+  }
+}
+
+:host-context([data-theme='dark']) .notification-item {
+  background: color-mix(in srgb, var(--surface-primary) 92%, transparent);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
+
+  &:hover {
+    border-color: rgba(201, 150, 42, 0.30);
+    box-shadow: 0 12px 24px rgba(201, 150, 42, 0.08);
+  }
+}
+
+:host-context([data-theme='dark']) .notification-item:not(.notification-item--read) {
+  background:
+    radial-gradient(circle at 16% 10%, rgba(201, 150, 42, 0.08), transparent 28%),
+    color-mix(in srgb, var(--surface-primary) 90%, transparent);
+  border-color: rgba(201, 150, 42, 0.22);
+}
+
+:host-context([data-theme='dark']) .notification-item--fresh .notification-item__icon {
+  box-shadow: 0 0 0 4px rgba(201, 150, 42, 0.16);
+}
+
+:host-context([data-theme='dark']) .notification-item--read {
+  background: color-mix(in srgb, var(--surface-primary) 94%, transparent);
+}
+
+:host-context([data-theme='dark']) .notification-item__icon {
+  background: color-mix(in srgb, var(--surface-secondary) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .notification-item__copy strong {
+  color: #f3ead7;
+}
+
+:host-context([data-theme='dark']) .notification-item__copy span,
+:host-context([data-theme='dark']) .notification-item__copy small,
+:host-context([data-theme='dark']) .notification-item__timestamp,
+:host-context([data-theme='dark']) .notification-item__details {
+  color: var(--text-muted);
+}
+
+:host-context([data-theme='dark']) .notification-item__unread-dot {
+  background: var(--gold-light);
+  box-shadow: 0 0 0 3px rgba(201, 150, 42, 0.18);
+}
+
+:host-context([data-theme='dark']) .notification-item__dismiss {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: rgba(69, 10, 10, 0.72);
+  color: #fecaca;
+
+  &:hover {
+    background: rgba(127, 29, 29, 0.84);
+    border-color: rgba(248, 113, 113, 0.44);
+    color: #fee2e2;
+  }
+}
+
+:host-context([data-theme='dark']) .notification-empty {
+  color: var(--text-muted);
+}
+
+:host-context([data-theme='dark']) .notification-footer {
+  border-top-color: color-mix(in srgb, var(--border) 88%, transparent);
+}
+
+:host-context([data-theme='dark']) .notification-footer__link {
+  border-color: color-mix(in srgb, var(--gold) 34%, var(--border));
+  background: color-mix(in srgb, var(--gold-bg) 72%, var(--surface-primary));
+  color: var(--gold-light);
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--gold) 48%, var(--border));
+    background: color-mix(in srgb, var(--gold-bg) 86%, var(--surface-primary));
+    color: var(--gold-light);
+  }
+}
+
 @keyframes notif-panel-enter {
   from {
     opacity: 0;

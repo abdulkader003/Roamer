@@ -1355,6 +1355,21 @@
   padding: 22px;
 }
 
+:host-context([data-theme='dark']) .confirm-dialog {
+  border-color: var(--border);
+  background: var(--surface-primary);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
+}
+
+:host-context([data-theme='dark']) .confirm-dialog-eyebrow {
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .confirm-dialog h3,
+:host-context([data-theme='dark']) .confirm-dialog p {
+  color: var(--text-primary);
+}
+
 .category-budget-modal {
   width: min(440px, 100%);
 }

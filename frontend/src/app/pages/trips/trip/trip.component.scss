@@ -2105,6 +2105,137 @@
   background: rgba(255, 255, 255, 0.96);
 }
 
+:host-context([data-theme='dark']) .trip-hero {
+  background:
+    radial-gradient(circle at top right, rgba(201, 150, 42, 0.14), transparent 34%),
+    radial-gradient(circle at 12% 30%, rgba(26, 86, 219, 0.16), transparent 42%),
+    linear-gradient(135deg, #12161d, #0f1217 58%, #1a1a1a);
+  border-color: rgba(201, 150, 42, 0.26);
+  box-shadow: 0 28px 58px rgba(0, 0, 0, 0.42);
+  color: var(--text-primary);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-hero__eyebrow {
+  background: rgba(201, 150, 42, 0.12);
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-hero__status {
+  background: rgba(201, 150, 42, 0.16);
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-hero__lede {
+  color: color-mix(in srgb, var(--text-primary) 88%, #ffffff);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-hero__subtle {
+  color: var(--text-muted);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-badge {
+  background: rgba(201, 150, 42, 0.1);
+  border-color: rgba(201, 150, 42, 0.26);
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-route-stop__marker {
+  background: var(--gold-light);
+  box-shadow: 0 0 0 5px rgba(201, 150, 42, 0.12);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-route-stop__line {
+  background: rgba(201, 150, 42, 0.22);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-route-stop strong {
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .trip-hero .trip-route-stop span {
+  color: color-mix(in srgb, var(--text-primary) 84%, #ffffff);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero,
+:host-context([data-theme='dark']) .overview-summary-card,
+:host-context([data-theme='dark']) .overview-budget-card,
+:host-context([data-theme='dark']) .overview-support-card {
+  background: var(--surface-primary);
+  border-color: var(--border);
+  color: var(--text-primary);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-eyebrow,
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-updated,
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-note,
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-metric span,
+:host-context([data-theme='dark']) .overview-summary-card p,
+:host-context([data-theme='dark']) .overview-budget-card p,
+:host-context([data-theme='dark']) .overview-support-card p {
+  color: var(--text-muted);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-condition,
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-metric strong,
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero h3,
+:host-context([data-theme='dark']) .overview-summary-card h3,
+:host-context([data-theme='dark']) .overview-summary-card strong,
+:host-context([data-theme='dark']) .overview-budget-card h3,
+:host-context([data-theme='dark']) .overview-budget-card strong,
+:host-context([data-theme='dark']) .overview-support-card h3,
+:host-context([data-theme='dark']) .overview-support-card strong {
+  color: var(--text-primary);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-metric {
+  background: var(--surface-secondary);
+  border-color: var(--border);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-empty__icon {
+  background: var(--surface-secondary);
+  border-color: var(--border);
+  color: var(--gold-light);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-empty p {
+  color: var(--text-muted);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-empty strong {
+  color: var(--text-primary);
+}
+
+:host-context([data-theme='dark']) .trip-hero .destination-weather-card--hero .destination-weather-skeleton .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--surface-secondary) 78%, transparent) 25%,
+    color-mix(in srgb, var(--surface-secondary) 58%, var(--gold-bg)) 37%,
+    color-mix(in srgb, var(--surface-secondary) 78%, transparent) 63%
+  );
+}
+
+:host-context([data-theme='dark']) .overview-summary-card--flight {
+  border-inline-start-color: #2563eb;
+}
+
+:host-context([data-theme='dark']) .overview-summary-card--hotel {
+  border-inline-start-color: #16a34a;
+}
+
+:host-context([data-theme='dark']) .overview-summary-card--activity {
+  border-inline-start-color: #f97316;
+}
+
+:host-context([data-theme='dark']) .overview-budget-card {
+  border-inline-start-color: #0d9488;
+}
+
+:host-context([data-theme='dark']) .overview-support-card {
+  border-inline-start-color: #7c3aed;
+}
+
 .overview-summary-card--flight {
   border-inline-start: 3px solid #2563eb;
 }
