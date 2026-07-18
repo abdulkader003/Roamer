@@ -1,13 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { CalendarEvent } from '../../../hotels/models/hotel.model';
 import { CalendarService } from '../../../hotels/services/calendar.service';
 import { CreateTripRequest, TripOverviewResponse, TripPlanningService, TripStatus } from '../../../../services/trip-planning.service';
 import { TripTempActivity, TripTempHotelStay, TripTempService } from '../trip-temp.service';
 import type { TripSummaryPdfSource } from './trip-summary-pdf.exporter';
+import { TripDestinationWeatherService } from '../../../../services/trip-destination-weather.service';
+import { WeatherDto } from '../../../../services/weather.service';
+import { formatWeatherTemperature, formatWeatherUpdatedAt, weatherIconFor } from '../../../../services/weather-display.util';
 
 interface TripStep {
   number: number;
@@ -48,12 +51,14 @@ interface OverviewHotelStay {
   styleUrl: './overview-step.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
+export class OverviewStepComponent implements OnInit, OnDestroy, TripSummaryPdfSource {
   readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly tripPlanningService = inject(TripPlanningService);
   private readonly tripTempService = inject(TripTempService);
   private readonly calendarService = inject(CalendarService);
+  private readonly tripDestinationWeatherService = inject(TripDestinationWeatherService);
+  private destinationWeatherSubscription: Subscription | null = null;
 
   readonly steps: TripStep[] = [
     { number: 1, label: 'Budget', state: 'complete', route: '/trips/create/budget' },
@@ -72,10 +77,21 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
   readonly loadError = signal('');
   readonly saveError = signal('');
   readonly exportError = signal('');
+  readonly destinationWeather = signal<WeatherDto | null>(null);
+  readonly destinationWeatherLoading = signal(false);
+  readonly destinationWeatherError = signal('');
+  readonly destinationWeatherUpdatedAt = signal<Date | null>(null);
   readonly tripTemp = this.tripTempService.getTripTemp();
 
   ngOnInit(): void {
     this.loadOverview();
+    if (this.tripTemp.destination) {
+      this.loadDestinationWeather();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destinationWeatherSubscription?.unsubscribe();
   }
 
   loadOverview(): void {
@@ -90,14 +106,20 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
 
     this.isLoading.set(true);
     this.loadError.set('');
+    this.destinationWeather.set(null);
+    this.destinationWeatherUpdatedAt.set(null);
     this.tripPlanningService.getOverview(tripPlanningId).subscribe({
       next: (overview) => {
         this.overview.set(overview);
         this.isLoading.set(false);
+        this.loadDestinationWeather();
       },
       error: (error: unknown) => {
         this.loadError.set(this.overviewErrorMessage(error));
         this.isLoading.set(false);
+        if (this.hasFallbackSummary()) {
+          this.loadDestinationWeather();
+        }
       },
     });
   }
@@ -136,6 +158,14 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
     return this.destinationName();
   }
 
+  overviewRouteStops(): string[] {
+    return this.routeStopsFromText(this.tripRouteSummary(), [
+      this.cityOnly(this.tripTemp.origin),
+      this.destinationName(),
+      this.cityOnly(this.tripTemp.origin),
+    ]);
+  }
+
   dateRange(): string {
     if (!this.tripTemp.departureDate && !this.tripTemp.returnDate) {
       return 'Dates not selected';
@@ -147,6 +177,28 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
   travelerLabel(): string {
     const travelers = this.travelerCount();
     return `${travelers} traveler${travelers === 1 ? '' : 's'}`;
+  }
+
+  overviewCountdownLabel(): string {
+    const startDate = this.parseDateOnly(this.tripTemp.departureDate);
+
+    if (!startDate) {
+      return 'Dates to be confirmed';
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((startDate.getTime() - today.getTime()) / 86400000);
+
+    if (days < 0) {
+      return `Started ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`;
+    }
+
+    if (days === 0) {
+      return 'Starts today';
+    }
+
+    return `Starts in ${days} day${days === 1 ? '' : 's'}`;
   }
 
   nights(): number {
@@ -334,6 +386,10 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
     }));
   }
 
+  activityTimelineEntries(): TripTempActivity[] {
+    return [...this.selectedActivities()].sort((left, right) => this.compareActivityTimeline(left, right));
+  }
+
   totalUsed(): number {
     return this.flightTotal() + this.hotelTotal() + this.activitiesTotal();
   }
@@ -412,8 +468,175 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
     return value.replace(/\s*\([A-Z]{3}\)\s*$/, '').trim();
   }
 
+  destinationWeatherCity(): string {
+    return this.cityOnly(this.tripTemp.destination) || this.overview()?.selectedHotel?.hotelCity || '';
+  }
+
+  destinationWeatherLabel(): string {
+    const startInDays = this.tripDaysUntilStart();
+
+    if (startInDays !== null && startInDays > 7) {
+      return 'Current weather — trip forecast not available yet';
+    }
+
+    return 'Current destination weather';
+  }
+
+  destinationWeatherTitle(): string {
+    return this.destinationWeatherCity() || 'Destination weather';
+  }
+
+  destinationWeatherDescription(): string {
+    const weather = this.destinationWeather();
+    return weather?.error || weather?.condition || 'Current weather';
+  }
+
+  destinationWeatherTemperature(): string {
+    return formatWeatherTemperature(this.destinationWeather()?.temperatureC ?? null);
+  }
+
+  destinationWeatherIcon(): string {
+    return weatherIconFor(this.destinationWeather());
+  }
+
+  destinationWeatherUpdatedLabel(): string {
+    return formatWeatherUpdatedAt(this.destinationWeatherUpdatedAt());
+  }
+
+  destinationWeatherMetrics(): Array<{ label: string; value: string }> {
+    const weather = this.destinationWeather() ?? {
+      city: this.destinationWeatherCity(),
+      temperatureC: null,
+      condition: null,
+      icon: null,
+      humidity: null,
+      windKph: null,
+      error: null,
+    };
+
+    return [
+      { label: 'Humidity', value: weather.humidity === null ? '--' : `${weather.humidity}%` },
+      { label: 'Wind', value: weather.windKph === null ? '--' : `${Math.round(weather.windKph)} km/h` },
+      { label: 'Forecast', value: this.destinationWeatherLabel() },
+    ];
+  }
+
+  showDestinationWeather(): boolean {
+    return !this.isPastTripWeather();
+  }
+
   private loadPdfExporter(): Promise<typeof import('./trip-summary-pdf.exporter')> {
     return import('./trip-summary-pdf.exporter');
+  }
+
+  private loadDestinationWeather(): void {
+    const destination = this.destinationWeatherCity();
+
+    if (!destination) {
+      this.destinationWeatherSubscription?.unsubscribe();
+      this.destinationWeather.set(null);
+      this.destinationWeatherLoading.set(false);
+      this.destinationWeatherError.set('Destination could not be resolved.');
+      this.destinationWeatherUpdatedAt.set(null);
+      return;
+    }
+
+    if (this.isPastTripWeather()) {
+      this.destinationWeatherSubscription?.unsubscribe();
+      this.destinationWeather.set(null);
+      this.destinationWeatherLoading.set(false);
+      this.destinationWeatherError.set('');
+      this.destinationWeatherUpdatedAt.set(null);
+      return;
+    }
+
+    this.destinationWeatherLoading.set(true);
+    this.destinationWeatherError.set('');
+    this.destinationWeather.set(null);
+    this.destinationWeatherSubscription?.unsubscribe();
+    this.destinationWeatherSubscription = this.tripDestinationWeatherService.loadDestinationWeather(destination).subscribe({
+      next: (weather) => {
+        this.destinationWeather.set(weather);
+        this.destinationWeatherUpdatedAt.set(new Date());
+        this.destinationWeatherLoading.set(false);
+      },
+      error: () => {
+        this.destinationWeather.set(null);
+        this.destinationWeatherLoading.set(false);
+        this.destinationWeatherError.set('Weather unavailable right now.');
+        this.destinationWeatherUpdatedAt.set(null);
+      },
+    });
+  }
+
+  private isPastTripWeather(): boolean {
+    const tripEnd = this.parseDateOnly(this.tripTemp.returnDate || this.tripTemp.departureDate);
+
+    if (!tripEnd) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return tripEnd.getTime() < today.getTime();
+  }
+
+  private tripDaysUntilStart(): number | null {
+    const startDate = this.parseDateOnly(this.tripTemp.departureDate);
+
+    if (!startDate) {
+      return null;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((startDate.getTime() - today.getTime()) / 86400000);
+  }
+
+  private parseDateOnly(value: string | undefined | null): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private routeStopsFromText(routeText: string, fallback: string[]): string[] {
+    const stops = routeText
+      .split('→')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (stops.length > 1) {
+      return stops.filter((stop, index) => stop !== stops[index - 1]);
+    }
+
+    return fallback.filter(Boolean);
+  }
+
+  private compareActivityTimeline(left: TripTempActivity, right: TripTempActivity): number {
+    const leftDate = this.timelineDateTime(left.date, left.time);
+    const rightDate = this.timelineDateTime(right.date, right.time);
+
+    return leftDate.getTime() - rightDate.getTime();
+  }
+
+  private timelineDateTime(date: string | undefined | null, time: string | undefined | null): Date {
+    const parsedDate = this.parseDateOnly(date);
+
+    if (!parsedDate) {
+      return new Date(0);
+    }
+
+    if (time) {
+      const parsedDateTime = new Date(`${date}T${time}`);
+      if (!Number.isNaN(parsedDateTime.getTime())) {
+        return parsedDateTime;
+      }
+    }
+
+    return parsedDate;
   }
 
   tripTypeLabel(): string {
@@ -674,17 +897,6 @@ export class OverviewStepComponent implements OnInit, TripSummaryPdfSource {
 
     const nights = Math.round((endDate.getTime() - startDate.getTime()) / 86400000);
     return nights > 0 ? nights : null;
-  }
-
-  private parseDateOnly(value: string): Date | null {
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-    if (!match) {
-      return null;
-    }
-
-    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   private parseJsonArray<T>(value: string | null | undefined): T[] {

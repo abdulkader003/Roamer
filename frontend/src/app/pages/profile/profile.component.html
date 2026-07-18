@@ -33,7 +33,7 @@
             </div>
 
             <div class="avatar-actions">
-              <label class="picture-button picture-button--primary" [class.picture-button--busy]="isUploadingPicture">
+              <label #uploadPictureTriggerButton class="picture-button picture-button--primary" tabindex="0" [class.picture-button--busy]="isUploadingPicture">
                 <span class="picture-button__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 5v14" />
@@ -52,9 +52,10 @@
 
               @if (currentProfile.hasProfilePicture) {
                 <button
+                  #deletePictureTriggerButton
                   type="button"
                   class="picture-button picture-button--muted"
-                  (click)="deleteProfilePicture()"
+                  (click)="openDeletePictureDialog()"
                   [disabled]="isDeletingPicture">
                   <span class="picture-button__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -68,7 +69,7 @@
               }
             </div>
 
-            @if (pictureError) {
+            @if (pictureError && !isDeletePictureDialogOpen) {
               <p class="message message--error">{{ pictureError }}</p>
             }
           </div>
@@ -133,6 +134,28 @@
         }
 
       </section>
+
+      @if (isDeletePictureDialogOpen) {
+        <div class="dialog-backdrop" role="presentation" (click)="closeDeletePictureDialog()">
+          <section class="confirm-dialog confirm-dialog--picture" role="dialog" aria-modal="true" aria-labelledby="delete-picture-title" aria-describedby="delete-picture-description" (click)="$event.stopPropagation()">
+            <h2 id="delete-picture-title">Remove profile picture?</h2>
+            <p id="delete-picture-description">Are you sure you want to remove your profile picture? Your default avatar will be shown instead.</p>
+
+            @if (pictureError) {
+              <p class="message message--error">{{ pictureError }}</p>
+            }
+
+            <div class="dialog-actions">
+              <button type="button" class="secondary-button" (click)="closeDeletePictureDialog()" [disabled]="isDeletingPicture">
+                Cancel
+              </button>
+              <button #confirmDeletePictureButton type="button" class="danger-button" (click)="confirmDeleteProfilePicture()" [disabled]="isDeletingPicture">
+                {{ isDeletingPicture ? 'Removing...' : 'Remove picture' }}
+              </button>
+            </div>
+          </section>
+        </div>
+      }
 
       <section class="profile-panel" id="profile-details">
         <div class="panel-heading">

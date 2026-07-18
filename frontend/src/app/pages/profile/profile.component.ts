@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, DestroyRef, NgZone, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, HostListener, NgZone, OnInit, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -114,6 +114,7 @@ export class ProfileComponent implements OnInit {
   isSavingProfile = false;
   isUploadingPicture = false;
   isDeletingPicture = false;
+  isDeletePictureDialogOpen = false;
   isChangingPassword = false;
   isDeleteDialogOpen = false;
   isDeletingAccount = false;
@@ -183,6 +184,10 @@ export class ProfileComponent implements OnInit {
   readonly deleteAccountForm = this.fb.nonNullable.group({
     currentPassword: ['', [Validators.required]]
   });
+
+  @ViewChild('uploadPictureTriggerButton') private uploadPictureTriggerButton?: ElementRef<HTMLLabelElement>;
+  @ViewChild('deletePictureTriggerButton') private deletePictureTriggerButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('confirmDeletePictureButton') private confirmDeletePictureButton?: ElementRef<HTMLButtonElement>;
 
   ngOnInit(): void {
     this.setupAirportSearch();
@@ -428,21 +433,60 @@ export class ProfileComponent implements OnInit {
           this.pictureError = this.extractErrorMessage(error, 'Could not upload the profile picture.');
           this.isUploadingPicture = false;
           input.value = '';
-        })
+      })
       });
   }
 
-  deleteProfilePicture(): void {
+  openDeletePictureDialog(): void {
+    this.pictureError = '';
+    this.isDeletePictureDialogOpen = true;
+    this.refreshView();
+
+    window.setTimeout(() => this.confirmDeletePictureButton?.nativeElement.focus(), 0);
+  }
+
+  closeDeletePictureDialog(): void {
+    if (this.isDeletingPicture) {
+      return;
+    }
+
+    this.isDeletePictureDialogOpen = false;
+    this.pictureError = '';
+    this.refreshView();
+
+    window.setTimeout(() => this.deletePictureTriggerButton?.nativeElement.focus(), 0);
+  }
+
+  confirmDeleteProfilePicture(): void {
+    if (this.isDeletingPicture) {
+      return;
+    }
+
     this.pictureError = '';
     this.isDeletingPicture = true;
     this.refreshView();
 
+    this.deleteProfilePicture();
+  }
+
+  @HostListener('document:keydown.escape')
+  closeDeletePictureDialogFromEscape(): void {
+    if (this.isDeletePictureDialogOpen) {
+      this.closeDeletePictureDialog();
+    }
+  }
+
+  private deleteProfilePicture(): void {
     this.profileService.deleteProfilePicture()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (profile) => this.renderNow(() => {
           this.applyProfile(profile);
           this.isDeletingPicture = false;
+          this.isDeletePictureDialogOpen = false;
+          this.pictureError = '';
+          this.refreshView();
+          window.setTimeout(() => this.uploadPictureTriggerButton?.nativeElement.focus(), 0);
         }),
         error: (error) => this.renderNow(() => {
           this.pictureError = this.extractErrorMessage(error, 'Could not delete the profile picture.');

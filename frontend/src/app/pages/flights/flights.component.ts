@@ -457,6 +457,8 @@ export class FlightsComponent implements OnDestroy {
   toggleDatePicker(kind: 'departure' | 'return'): void {
     this.travelersPickerOpen.set(false);
     this.activeMultiCityDatePicker.set(null);
+    this.activeAirportPicker.set(null);
+    this.activeMultiCityAirportPicker.set(null);
     this.activeDatePicker.update(active => {
       if (active === kind) return null;
 
@@ -524,10 +526,8 @@ export class FlightsComponent implements OnDestroy {
         if (!departure || selected < this.startOfDay(departure)) {
           this.departureDate.set(selected);
           this.returnDate.set(null);
-          this.activeDatePicker.set('return');
         } else {
           this.returnDate.set(selected);
-          this.closeDatePicker();
         }
       } else {
         const returnDate = this.returnDate();
@@ -535,24 +535,22 @@ export class FlightsComponent implements OnDestroy {
         if (returnDate && selected > this.startOfDay(returnDate)) {
           this.returnDate.set(null);
         }
-        this.activeDatePicker.set('return');
       }
 
-      this.manualDateText.set(this.formatDateInput(this.activeDatePicker() === 'return' ? this.returnDate() : selected));
+      this.closeDatePicker();
+      this.manualDateText.set(this.formatDateInput(selected));
       this.manualDateError.set('');
       return;
     }
 
     if (this.activeDatePicker() === 'departure') {
       this.departureDate.set(selected);
-      if (this.tripType() === 'one-way') {
-        this.closeDatePicker();
-      }
     } else {
       this.returnDate.set(selected);
       this.tripType.set('round-trip');
     }
 
+    this.closeDatePicker();
     this.manualDateText.set(this.formatDateInput(selected));
     this.manualDateError.set('');
   }

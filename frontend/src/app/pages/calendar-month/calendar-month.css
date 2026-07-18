@@ -15,12 +15,35 @@
 
   min-height: calc(100vh - 64px);
   background: var(--calendar-page-bg);
-  padding: 32px 48px 48px;
+  padding: 24px 40px 40px;
   box-sizing: border-box;
   font-family: inherit;
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.calendar-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--calendar-text);
+  letter-spacing: -0.02em;
+}
+
+.calendar-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--calendar-text-muted);
+  line-height: 1.45;
 }
 
 .calendar-card {
@@ -274,13 +297,14 @@
   padding: 10px;
   box-sizing: border-box;
   overflow: hidden;
+  position: relative;
   border: 1px solid var(--calendar-border);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .month-day {
   grid-row: 1;
-  min-height: calc(118px + var(--hotel-lane-count) * 30px);
+  min-height: 118px;
 }
 
 .day:hover {
@@ -328,15 +352,16 @@
 .events-container {
   flex: 1;
   min-height: 0;
-  max-height: 240px;
   margin-top: 10px;
   padding-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   border-top: 1px solid var(--calendar-border);
   overflow-y: auto;
   scrollbar-width: thin;
+  position: relative;
+  z-index: 1;
 }
 
 .events-container app-event-card {
@@ -344,113 +369,80 @@
 }
 
 .month-events-container {
-  margin-top: calc(12px + var(--hotel-lane-count) * 30px);
+  margin-top: 8px;
 }
 
-.hotel-stay-bar {
+.hotel-stay-rail {
   position: absolute;
-  z-index: 3;
-  box-sizing: border-box;
-  min-width: 0;
-  height: 26px;
-  display: flex;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  border-radius: 999px;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid rgba(7, 130, 99, 0.36);
-  border-left: 5px solid #078263;
-  border-radius: 8px;
-  padding: 0 9px;
-  background: linear-gradient(135deg, rgba(223, 247, 239, 0.98), rgba(242, 255, 250, 0.98));
-  color: #064f3e;
-  box-shadow: 0 7px 16px color-mix(in srgb, #078263 14%, transparent);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+  background: linear-gradient(90deg, rgba(7, 130, 99, 0.12), rgba(7, 130, 99, 0.28), rgba(7, 130, 99, 0.12));
+  border: 0;
+  box-shadow: none;
+  color: #0e6b52;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
   overflow: hidden;
-  transform: translateX(3px);
-  max-width: calc(100% - 6px);
-  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
-.hotel-stay-bar:hover,
-.hotel-stay-bar:focus-visible {
-  border-color: #078263;
-  box-shadow: 0 10px 20px color-mix(in srgb, #078263 22%, transparent);
-  outline: none;
-  transform: translateX(3px) translateY(-1px);
+.hotel-stay-rail--week {
+  height: 4px;
+  left: 8px;
+  right: 8px;
+  background: linear-gradient(90deg, rgba(7, 130, 99, 0.16), rgba(7, 130, 99, 0.32), rgba(7, 130, 99, 0.16));
 }
 
-.hotel-stay-bar--start {
-  border-top-right-radius: 4px;
-  border-bottom-right-radius: 4px;
-}
-
-.hotel-stay-bar--middle {
-  border-left-width: 1px;
-  border-radius: 4px;
-}
-
-.hotel-stay-bar--end {
-  border-left-width: 1px;
-  border-top-left-radius: 4px;
-  border-bottom-left-radius: 4px;
-}
-
-.hotel-stay-bar--complete {
-  border-radius: 8px;
-}
-
-.hotel-stay-bar__title,
-.hotel-stay-bar__meta,
-.hotel-stay-bar__marker {
+.hotel-stay-rail__label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.hotel-stay-bar__title {
-  flex: 1 1 auto;
-  font-size: 12px;
+  font-size: 8px;
   font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  position: relative;
+  z-index: 1;
 }
 
-.hotel-stay-bar__meta {
-  flex: 0 1 auto;
-  color: #08745a;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.hotel-stay-bar__marker {
-  flex: 0 0 auto;
+.hotel-stay-rail--badge {
+  height: 18px;
+  padding: 0 7px;
   border-radius: 999px;
-  padding: 2px 6px;
-  background: rgba(7, 130, 99, 0.13);
-  color: #05624b;
-  font-size: 10px;
-  font-weight: 800;
+  background: linear-gradient(135deg, rgba(223, 247, 239, 0.98), rgba(240, 255, 248, 0.98));
+  border: 1px solid rgba(7, 130, 99, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(7, 130, 99, 0.06);
 }
 
-.hotel-stay-bar__marker--end {
-  margin-left: auto;
+.hotel-stay-rail--badge.hotel-stay-rail--week {
+  height: 20px;
 }
 
-:host-context([data-theme='dark']) .hotel-stay-bar {
-  border-color: rgba(94, 227, 176, 0.34);
-  border-left-color: #5ee3b0;
-  background: linear-gradient(135deg, rgba(12, 55, 42, 0.96), rgba(17, 24, 22, 0.98));
-  color: #e9fff7;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+:host-context([data-theme='dark']) .hotel-stay-rail {
+  background: linear-gradient(90deg, rgba(94, 227, 176, 0.12), rgba(94, 227, 176, 0.28), rgba(94, 227, 176, 0.12));
+  color: #c7f8e3;
 }
 
-:host-context([data-theme='dark']) .hotel-stay-bar__meta {
-  color: #92f0cc;
+:host-context([data-theme='dark']) .hotel-stay-rail--week {
+  background: linear-gradient(90deg, rgba(94, 227, 176, 0.16), rgba(94, 227, 176, 0.32), rgba(94, 227, 176, 0.16));
 }
 
-:host-context([data-theme='dark']) .hotel-stay-bar__marker {
-  background: rgba(94, 227, 176, 0.15);
-  color: #b7f7de;
+:host-context([data-theme='dark']) .hotel-stay-rail--badge {
+  background: linear-gradient(135deg, rgba(10, 58, 44, 0.96), rgba(13, 70, 52, 0.96));
+  border-color: rgba(94, 227, 176, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(94, 227, 176, 0.08);
+}
+
+:host-context([data-theme='dark']) .hotel-stay-rail__label {
+  color: #ddfff2;
 }
 
 .empty-day-message {
@@ -507,6 +499,7 @@
   padding: 10px;
   box-sizing: border-box;
   overflow: hidden;
+  position: relative;
   border: 1px solid var(--calendar-border);
 }
 
@@ -1000,33 +993,28 @@
   }
 
   .month-day {
-    min-height: calc(108px + var(--hotel-lane-count) * 28px);
+    min-height: 108px;
     padding: 8px;
   }
 
   .events-container {
-    max-height: 190px;
+    padding-top: 6px;
   }
 
   .month-events-container {
-    margin-top: calc(10px + var(--hotel-lane-count) * 28px);
-  }
-
-  .hotel-stay-bar {
-    height: 24px;
-    gap: 5px;
-    padding: 0 7px;
-  }
-
-  .hotel-stay-bar__meta,
-  .hotel-stay-bar__marker {
-    display: none;
+    margin-top: 8px;
   }
 }
 
 @media (max-width: 700px) {
   .calendar-page {
-    padding: 20px;
+    padding: 18px;
+  }
+
+  .calendar-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .calendar-card {
@@ -1083,11 +1071,11 @@
   }
 
   .month-day {
-    min-height: calc(100px + var(--hotel-lane-count) * 26px);
+    min-height: 100px;
   }
 
-  .month-events-container {
-    margin-top: calc(8px + var(--hotel-lane-count) * 26px);
+  .events-container {
+    padding-top: 6px;
   }
 
   .week-view {

@@ -78,14 +78,14 @@ describe('WallpaperService', () => {
   it('switches wallpapers automatically when the route changes', fakeAsync(() => {
     const service = TestBed.inject(WallpaperService);
 
-    router.url = '/settings';
-    events.next(new NavigationEnd(1, '/settings', '/settings'));
+    router.url = '/profile';
+    events.next(new NavigationEnd(1, '/profile', '/profile'));
     tick();
 
-    expect(service.currentPage()).toBe('settings');
-    expect(service.currentHero()).toEqual(service.heroes.settings);
+    expect(service.currentPage()).toBe('profile');
+    expect(service.currentHero()).toEqual(service.heroes.profile);
     expect(service.visibleLayers().length).toBe(1);
-    expect(service.visibleLayers()[0].url).toBe(service.wallpapers.settings[0].url);
+    expect(service.visibleLayers()[0].url).toBe(service.wallpapers.profile[0].url);
     expect(service.visibleLayers()[0].active).toBeTrue();
   }));
 
@@ -143,7 +143,7 @@ describe('WallpaperService', () => {
   it('clears wallpaper state when navigating to a route without wallpaper support', fakeAsync(() => {
     const service = TestBed.inject(WallpaperService);
 
-    events.next(new NavigationEnd(2, '/login', '/login'));
+    events.next(new NavigationEnd(2, '/calendar', '/calendar'));
     tick();
 
     expect(service.currentPage()).toBeNull();
@@ -161,6 +161,8 @@ describe('WallpaperService', () => {
     expect(resolvePage('/trips/create/activities')).toBe('activities');
     expect(resolvePage('/trips/create/budget')).toBe('budget');
     expect(resolvePage('/budget-tracker')).toBe('budget');
+    expect(resolvePage('/calendar')).toBeNull();
+    expect(resolvePage('/settings')).toBeNull();
     expect(resolvePage('/unknown')).toBeNull();
   });
 

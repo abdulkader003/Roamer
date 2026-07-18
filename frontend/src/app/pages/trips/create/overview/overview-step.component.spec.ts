@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { TripPlanningService } from '../../../../services/trip-planning.service';
+import { TripDestinationWeatherService } from '../../../../services/trip-destination-weather.service';
 import { CalendarService } from '../../../hotels/services/calendar.service';
 import { TripTempService } from '../trip-temp.service';
 import { OverviewStepComponent } from './overview-step.component';
@@ -10,6 +11,7 @@ describe('OverviewStepComponent', () => {
   let fixture: ComponentFixture<OverviewStepComponent>;
   let component: OverviewStepComponent;
   let tripPlanningService: jasmine.SpyObj<TripPlanningService>;
+  let tripDestinationWeatherService: jasmine.SpyObj<TripDestinationWeatherService>;
   let calendarService: jasmine.SpyObj<CalendarService>;
   let tripTempService: jasmine.SpyObj<TripTempService>;
   let router: Router;
@@ -71,6 +73,16 @@ describe('OverviewStepComponent', () => {
       budget: 2000,
       status: 'UPCOMING',
       createdAt: '2026-06-20T18:00:00Z',
+    }));
+    tripDestinationWeatherService = jasmine.createSpyObj<TripDestinationWeatherService>('TripDestinationWeatherService', ['loadDestinationWeather']);
+    tripDestinationWeatherService.loadDestinationWeather.and.returnValue(of({
+      city: 'Barcelona',
+      temperatureC: 24,
+      condition: 'Sunny',
+      icon: null,
+      humidity: 62,
+      windKph: 11,
+      error: null,
     }));
     calendarService = jasmine.createSpyObj<CalendarService>('CalendarService', ['addEvent', 'deleteEventsForTrip']);
     calendarService.addEvent.and.resolveTo({
@@ -139,6 +151,7 @@ describe('OverviewStepComponent', () => {
           useValue: tripTempService,
         },
         { provide: TripPlanningService, useValue: tripPlanningService },
+        { provide: TripDestinationWeatherService, useValue: tripDestinationWeatherService },
         { provide: CalendarService, useValue: calendarService },
       ],
     }).compileComponents();

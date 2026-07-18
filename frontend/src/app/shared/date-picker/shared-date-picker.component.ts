@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 
 export interface SharedDatePickerDay {
   date: Date;
@@ -126,4 +126,11 @@ export class SharedDatePickerComponent {
   @Output() previousMonth = new EventEmitter<void>();
   @Output() nextMonth = new EventEmitter<void>();
   @Output() daySelected = new EventEmitter<SharedDatePickerDay>();
+
+  @HostListener('document:keydown.escape')
+  handleEscape(): void {
+    if (this.open) {
+      this.closed.emit();
+    }
+  }
 }

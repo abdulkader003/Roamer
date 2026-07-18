@@ -22,7 +22,7 @@
       </svg>
     </div>
     <div class="logo-text-wrap">
-      <span class="logo-text">R<span class="logo-earth" aria-label="O">🌐</span>AMER</span>
+      <span class="logo-text">R<span class="logo-earth" aria-label="o">🌐</span>amer</span>
       <span class="logo-sub">Plan easier. Go further.</span>
     </div>
   </a>
@@ -33,18 +33,18 @@
       <a class="signup-link" routerLink="/signup">Sign up</a>
     }
 
-    <button class="theme-toggle" type="button" (click)="toggleTheme($event)" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+    <button class="theme-toggle" type="button" (click)="toggleTheme()" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
       @if (isDark()) {
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
       } @else {
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       }
     </button>
@@ -54,13 +54,14 @@
         <button
           type="button"
           class="notif-btn"
+          [class.notif-btn--pulse]="notificationPulseActive()"
           title="Notifications"
           aria-label="Notifications"
           [attr.aria-expanded]="isNotificationMenuOpen()"
           (click)="toggleNotifications($event)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
           @if (!isNotificationMenuOpen() && unreadNotificationCount() > 0) {
             <span class="notif-badge">{{ unreadNotificationCount() }}</span>
@@ -68,9 +69,9 @@
         </button>
 
         @if (isNotificationMenuOpen()) {
-          <div class="notification-menu" role="menu" aria-label="Notifications">
-            <div class="notification-menu-header">
-              <div>
+          <div class="notification-panel" role="menu" aria-label="Notifications">
+            <div class="notification-header">
+              <div class="notification-header__copy">
                 <strong>Notifications</strong>
                 <small>
                   @if (unreadNotificationCount() > 0) {
@@ -80,27 +81,92 @@
                   }
                 </small>
               </div>
+
+              @if (unreadNotificationCount() > 0) {
+                <button type="button" class="notification-header__action" (click)="markAllNotificationsAsRead($event)">
+                  Mark all as read
+                </button>
+              }
             </div>
 
             @if (notificationItems().length) {
               <div class="notification-list">
-                @for (notification of notificationItems(); track notification.type + '-' + notification.requestId) {
-                  <article class="notification-item" [class.notification-item--read]="notification.read">
+                @for (notification of notificationItems(); track notification.type + '-' + notification.requestId; let index = $index) {
+                  <article
+                    class="notification-item"
+                    [class.notification-item--read]="notification.read"
+                    [class.notification-item--fresh]="isFreshNotification(notification)"
+                    [class.notification-item--dismissing]="isNotificationDismissing(notification)"
+                    [style.--item-index]="index">
                     <div class="notification-item__icon" aria-hidden="true">
-                      @if (notification.type === 'FRIEND_REQUEST') {
-                        FR
-                      } @else {
-                        TR
+                      @switch (notification.type) {
+                        @case ('TRIP_UPDATE') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 14.5 21 3l-4.5 18-4.1-7.2L3 14.5Z"></path>
+                            <path d="m12.4 13.1 8.6-10.1"></path>
+                          </svg>
+                        }
+                        @case ('TRIP_BUDGET_UPDATE') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1v22"></path>
+                            <path d="M17 6.5c0-2.2-2.2-4-5-4s-5 1.8-5 4 2.2 3.4 5 4 5 1.8 5 4-2.2 4-5 4-5-1.8-5-4"></path>
+                          </svg>
+                        }
+                        @case ('TRIP_INVITATION') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="5" width="16" height="14" rx="3"></rect>
+                            <path d="M8 9h8"></path>
+                            <path d="M8 13h5"></path>
+                          </svg>
+                        }
+                        @case ('TRIP_INVITATION_RESPONSE') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18v12H3z"></path>
+                            <path d="m7 11 3 3 7-7"></path>
+                          </svg>
+                        }
+                        @case ('TRIP_PARTICIPANT_JOINED') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="3"></circle>
+                            <path d="M5 20a7 7 0 0 1 14 0"></path>
+                            <path d="M18 9v6"></path>
+                            <path d="M15 12h6"></path>
+                          </svg>
+                        }
+                        @case ('TRIP_PARTICIPANT_LEFT') {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="3"></circle>
+                            <path d="M5 20a7 7 0 0 1 14 0"></path>
+                            <path d="M18 12h6"></path>
+                            <path d="m21 9 3 3-3 3"></path>
+                          </svg>
+                        }
+                        @default {
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v3"></path>
+                            <path d="M12 18v3"></path>
+                            <path d="M5 12h3"></path>
+                            <path d="M16 12h3"></path>
+                            <circle cx="12" cy="12" r="7"></circle>
+                          </svg>
+                        }
                       }
                     </div>
+
                     <div class="notification-item__copy">
-                      <strong>{{ notification.title }}</strong>
-                      <span>{{ notification.description }}</span>
+                      <div class="notification-item__title-row">
+                        <strong>{{ notification.title }}</strong>
+                        @if (!notification.read) {
+                          <span class="notification-item__unread-dot" aria-hidden="true"></span>
+                        }
+                      </div>
+                      <span class="notification-item__description">{{ notification.description }}</span>
                       @if (notification.details) {
                         <small class="notification-item__details">{{ notification.details }}</small>
                       }
-                      <small>{{ notification.createdAt | date:'mediumDate' }}</small>
+                      <small class="notification-item__timestamp">{{ formatRelativeNotificationTime(notification.createdAt) }}</small>
                     </div>
+
                     <button
                       type="button"
                       class="notification-item__dismiss"
@@ -113,11 +179,11 @@
                 }
               </div>
 
-              <div class="notification-menu-footer-group">
+              <div class="notification-footer">
                 @if (hasTripNotifications()) {
                   <a
                     routerLink="/trips"
-                    class="notification-menu-footer"
+                    class="notification-footer__link"
                     role="menuitem"
                     (click)="closeNotificationMenu()">
                     Open trips
@@ -127,7 +193,7 @@
                   <a
                     routerLink="/profile"
                     fragment="friend-community"
-                    class="notification-menu-footer"
+                    class="notification-footer__link"
                     role="menuitem"
                     (click)="closeNotificationMenu()">
                     Open friend requests
@@ -164,7 +230,7 @@
             <small>{{ accountEmail() }}</small>
           </span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="chevron" [class.chevron--open]="isAccountMenuOpen()">
-            <polyline points="6 9 12 15 18 9"/>
+            <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
 

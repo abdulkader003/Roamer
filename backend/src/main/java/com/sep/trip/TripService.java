@@ -1,13 +1,16 @@
 package com.sep.trip;
 
 import com.sep.event.CalendarEventRepository;
+import com.sep.budget.ExpenseRepository;
 import com.sep.trip.dto.CreateTripRequest;
 import com.sep.auth.dto.MessageResponse;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -21,6 +24,7 @@ public class TripService {
     private final TripInvitationRepository tripInvitationRepository;
     private final AppUserRepository appUserRepository;
     private final CalendarEventRepository calendarEventRepository;
+    private final ExpenseRepository expenseRepository;
     private final TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher;
 
     public TripService(
@@ -28,12 +32,14 @@ public class TripService {
             TripInvitationRepository tripInvitationRepository,
             AppUserRepository appUserRepository,
             CalendarEventRepository calendarEventRepository,
+            ExpenseRepository expenseRepository,
             TripRealtimeWebSocketPublisher tripRealtimeWebSocketPublisher
     ) {
         this.tripRepository = tripRepository;
         this.tripInvitationRepository = tripInvitationRepository;
         this.appUserRepository = appUserRepository;
         this.calendarEventRepository = calendarEventRepository;
+        this.expenseRepository = expenseRepository;
         this.tripRealtimeWebSocketPublisher = tripRealtimeWebSocketPublisher;
     }
 
@@ -103,8 +109,14 @@ public class TripService {
     @Transactional
     public void deleteTrip(String userEmail, Long tripId) {
         AppUser owner = findOwner(userEmail);
-        Trip trip = findOwnedTrip(tripId, owner);
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new IllegalArgumentException("Trip was not found."));
 
+        if (!trip.getOwner().getId().equals(owner.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the trip owner can delete this trip.");
+        }
+
+        expenseRepository.deleteAllByTripId(trip.getId());
         calendarEventRepository.deleteByTripId(trip.getId());
         tripInvitationRepository.deleteAllByTripId(trip.getId());
         tripRepository.delete(trip);
@@ -149,11 +161,6 @@ public class TripService {
     private AppUser findOwner(String userEmail) {
         return appUserRepository.findByEmailIgnoreCase(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user was not found."));
-    }
-
-    private Trip findOwnedTrip(Long tripId, AppUser owner) {
-        return tripRepository.findByIdAndOwnerId(tripId, owner.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Trip was not found."));
     }
 
     private Trip findAccessibleTrip(Long tripId, AppUser user) {

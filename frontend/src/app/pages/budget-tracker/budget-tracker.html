@@ -47,6 +47,22 @@
 
   <!-- ═══ User Story #1 — Budget Summary ═══ -->
   <section class="section-card">
+    <div class="summary-toolbar">
+      <div class="time-range-toggle" role="group" aria-label="Budget time range">
+        @for (option of timeRangeOptions; track option.value) {
+          <button
+            type="button"
+            class="time-range-button"
+            [class.active]="timeRangeFilter === option.value"
+            [attr.aria-pressed]="timeRangeFilter === option.value"
+            [attr.title]="option.label"
+            (click)="selectTimeRangeFilter(option.value)">
+            {{ option.shortLabel }}
+          </button>
+        }
+      </div>
+    </div>
+
     <div class="summary-grid">
 
       <div class="stat-card">
@@ -136,40 +152,46 @@
         </div>
       </div>
 
-      <div class="chart-wrapper">
-        <div class="chart-svg-wrapper">
-          <svg [attr.viewBox]="chartViewBox" preserveAspectRatio="none" class="line-chart" role="img" aria-label="Spending overview trend">
-            @for (gridLine of chartGridLines; track gridLine.y) {
-              <line
-                [attr.x1]="chartAxisStartX"
-                [attr.y1]="gridLine.y"
-                [attr.x2]="chartAxisEndX"
-                [attr.y2]="gridLine.y"
-                class="chart-grid-line"
-                [class.chart-axis]="gridLine.isBaseline" />
+        <div class="chart-wrapper">
+        @if (filteredTrips.length) {
+          <div class="chart-svg-wrapper">
+            <svg [attr.viewBox]="chartViewBox" preserveAspectRatio="none" class="line-chart" role="img" aria-label="Spending overview trend">
+              @for (gridLine of chartGridLines; track gridLine.y) {
+                <line
+                  [attr.x1]="chartAxisStartX"
+                  [attr.y1]="gridLine.y"
+                  [attr.x2]="chartAxisEndX"
+                  [attr.y2]="gridLine.y"
+                  class="chart-grid-line"
+                  [class.chart-axis]="gridLine.isBaseline" />
+              }
+
+              <path [attr.d]="areaPathD" class="chart-area" />
+              <path [attr.d]="linePathD" class="chart-line" />
+
+              @for (point of chartPoints; track point.label; let i = $index) {
+                <circle
+                  [attr.cx]="point.x"
+                  [attr.cy]="point.y"
+                  r="3.9"
+                  class="chart-point"
+                  [style.animation-delay.ms]="900 + (i * 70)" />
+              }
+            </svg>
+          </div>
+
+          <div class="chart-labels" [class.chart-labels--monthly]="chartView === 'monthly'">
+            @for (point of chartPoints; track point.label) {
+              <span class="chart-label" [style.left.%]="point.labelLeftPercent">{{ point.label }}</span>
             }
-
-            <path [attr.d]="areaPathD" class="chart-area" />
-            <path [attr.d]="linePathD" class="chart-line" />
-
-            @for (point of chartPoints; track point.label; let i = $index) {
-              <circle
-                [attr.cx]="point.x"
-                [attr.cy]="point.y"
-                r="3.9"
-                class="chart-point"
-                [style.animation-delay.ms]="900 + (i * 70)" />
-            }
-          </svg>
+          </div>
+        } @else {
+          <div class="chart-empty-state">
+            No trips found for this period.
+          </div>
+        }
         </div>
-
-        <div class="chart-labels" [class.chart-labels--monthly]="chartView === 'monthly'">
-          @for (point of chartPoints; track point.label) {
-            <span class="chart-label" [style.left.%]="point.labelLeftPercent">{{ point.label }}</span>
-          }
-        </div>
-      </div>
-    </section>
+      </section>
 
     <!-- ═══ User Story #3 — Spending Distribution ═══ -->
     <section class="section-card chart-card distribution-card">
@@ -182,27 +204,33 @@
 
       <div class="donut-layout">
         <div class="donut-wrapper">
-          <svg viewBox="0 0 200 200" class="donut-chart" role="img" aria-label="Spending distribution by category">
-            <g transform="rotate(-90 100 100)">
-              <circle cx="100" cy="100" r="70" fill="none" class="donut-track" [attr.stroke-width]="donutStrokeWidth" />
-              @for (segment of donutSegments; track segment.name; let i = $index) {
-                <circle
-                  cx="100" cy="100" r="70" fill="none"
-                  [style.stroke]="segment.color"
-                  [attr.stroke-width]="donutStrokeWidth"
-                  [attr.stroke-dasharray]="segment.dasharray"
-                  [attr.stroke-dashoffset]="segment.dashoffset"
-                  class="donut-segment"
-                  [style.animation-delay.ms]="i * 120">
-                  <title>{{ segment.name }}: {{ segment.precisePercentage }}% - €{{ segment.amount | number:'1.0-0' }}</title>
-                </circle>
-              }
-            </g>
-          </svg>
-          <div class="donut-center">
-            <span class="donut-center-value">€{{ categoryTotal | number:'1.0-0' }}</span>
-            <span class="donut-center-label">Total Spent</span>
-          </div>
+          @if (filteredTrips.length) {
+            <svg viewBox="0 0 200 200" class="donut-chart" role="img" aria-label="Spending distribution by category">
+              <g transform="rotate(-90 100 100)">
+                <circle cx="100" cy="100" r="70" fill="none" class="donut-track" [attr.stroke-width]="donutStrokeWidth" />
+                @for (segment of donutSegments; track segment.name; let i = $index) {
+                  <circle
+                    cx="100" cy="100" r="70" fill="none"
+                    [style.stroke]="segment.color"
+                    [attr.stroke-width]="donutStrokeWidth"
+                    [attr.stroke-dasharray]="segment.dasharray"
+                    [attr.stroke-dashoffset]="segment.dashoffset"
+                    class="donut-segment"
+                    [style.animation-delay.ms]="i * 120">
+                    <title>{{ segment.name }}: {{ segment.precisePercentage }}% - €{{ segment.amount | number:'1.0-0' }}</title>
+                  </circle>
+                }
+              </g>
+            </svg>
+            <div class="donut-center">
+              <span class="donut-center-value">€{{ categoryTotal | number:'1.0-0' }}</span>
+              <span class="donut-center-label">Total Spent</span>
+            </div>
+          } @else {
+            <div class="donut-empty-state">
+              No trips found for this period.
+            </div>
+          }
         </div>
 
         <div class="donut-legend">
@@ -234,11 +262,14 @@
       </button>
     </div>
 
-    <div class="category-grid">
-      @for (cat of categoryBudgetRows; track cat.name) {
-        <div class="category-card">
-          <div class="category-card-header">
-            <span class="category-name">{{ cat.name }}</span>
+      <div class="category-grid">
+        @for (cat of categoryBudgetRows; track cat.name) {
+          <div class="category-card">
+            <div class="category-card-header">
+            <span class="category-name">
+              <span class="category-dot" [style.background]="cat.color" [style.color]="cat.color"></span>
+              {{ cat.name }}
+            </span>
             <span class="category-status-badge" [ngClass]="cat.statusClass">{{ cat.status }}</span>
           </div>
 
@@ -325,7 +356,13 @@
         }
       </div>
     } @else {
-      <div class="empty-state compact">No manual expenses yet.</div>
+      <div class="empty-state compact">
+        @if (timeRangeFilter === 'ALL') {
+          No manual expenses yet.
+        } @else {
+          No manual expenses for this period.
+        }
+      </div>
     }
   </section>
 
@@ -559,26 +596,32 @@
             <th>Prices</th>
           </tr>
         </thead>
-        <tbody>
-          @for (trip of filteredTripRows; track trip.name) {
+      <tbody>
+          @if (filteredTripRows.length) {
+            @for (trip of filteredTripRows; track trip.name) {
+              <tr>
+                <td class="trip-name-cell">{{ trip.name }}</td>
+                <td>{{ trip.destination }}</td>
+                <td>€{{ trip.budget | number:'1.0-0' }}</td>
+                <td>€{{ trip.spent | number:'1.0-0' }}</td>
+                <td>€{{ trip.remaining | number:'1.0-0' }}</td>
+                <td>
+                  <span
+                    class="trip-status-badge"
+                    [ngClass]="trip.statusClass">
+                    {{ trip.status }}
+                  </span>
+                </td>
+                <td>
+                  <button type="button" class="trip-price-button" (click)="openTripPrices(trip)">
+                    Check Prices
+                  </button>
+                </td>
+              </tr>
+            }
+          } @else {
             <tr>
-              <td class="trip-name-cell">{{ trip.name }}</td>
-              <td>{{ trip.destination }}</td>
-              <td>€{{ trip.budget | number:'1.0-0' }}</td>
-              <td>€{{ trip.spent | number:'1.0-0' }}</td>
-              <td>€{{ trip.remaining | number:'1.0-0' }}</td>
-              <td>
-                <span
-                  class="trip-status-badge"
-                  [ngClass]="trip.statusClass">
-                  {{ trip.status }}
-                </span>
-              </td>
-              <td>
-                <button type="button" class="trip-price-button" (click)="openTripPrices(trip)">
-                  Check Prices
-                </button>
-              </td>
+              <td class="trip-table-empty" colspan="7">No trips found for this period.</td>
             </tr>
           }
         </tbody>
