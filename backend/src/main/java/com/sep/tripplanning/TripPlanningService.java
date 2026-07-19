@@ -1,5 +1,6 @@
 package com.sep.tripplanning;
 
+import com.sep.budget.BudgetAlertNotificationService;
 import com.sep.trip.Trip;
 import com.sep.trip.TripRepository;
 import com.sep.tripplanning.dto.CreateTripBudgetRequest;
@@ -29,17 +30,20 @@ public class TripPlanningService {
     private final TripRepository tripRepository;
     private final AppUserRepository appUserRepository;
     private final HotelRepository hotelRepository;
+    private final BudgetAlertNotificationService budgetAlertNotificationService;
 
     public TripPlanningService(
             TripPlanningRepository tripPlanningRepository,
             TripRepository tripRepository,
             AppUserRepository appUserRepository,
-            HotelRepository hotelRepository
+            HotelRepository hotelRepository,
+            BudgetAlertNotificationService budgetAlertNotificationService
     ) {
         this.tripPlanningRepository = tripPlanningRepository;
         this.tripRepository = tripRepository;
         this.appUserRepository = appUserRepository;
         this.hotelRepository = hotelRepository;
+        this.budgetAlertNotificationService = budgetAlertNotificationService;
     }
 
     @Transactional
@@ -84,7 +88,9 @@ public class TripPlanningService {
         // Keeps multi-city hotel snapshots without changing the existing single-hotel contract.
         tripPlanning.setSelectedHotelStaysJson(cleanOptionalText(request.selectedHotelStaysJson()));
 
-        return toHotelResponse(tripPlanningRepository.save(tripPlanning));
+        TripPlanning saved = tripPlanningRepository.save(tripPlanning);
+        evaluateLinkedTripBudgetAlerts(saved);
+        return toHotelResponse(saved);
     }
 
     @Transactional
@@ -106,7 +112,9 @@ public class TripPlanningService {
                 .toList());
         tripPlanning.setSelectedActivities(activities);
 
-        return toActivitiesResponse(tripPlanningRepository.save(tripPlanning));
+        TripPlanning saved = tripPlanningRepository.save(tripPlanning);
+        evaluateLinkedTripBudgetAlerts(saved);
+        return toActivitiesResponse(saved);
     }
 
 
@@ -229,5 +237,14 @@ public class TripPlanningService {
         }
 
         return value.trim();
+    }
+
+    private void evaluateLinkedTripBudgetAlerts(TripPlanning tripPlanning) {
+        if (tripPlanning.getId() == null || tripPlanning.getUser() == null || tripPlanning.getUser().getId() == null) {
+            return;
+        }
+
+        tripRepository.findAccessibleByTripPlanningIdAndUserId(tripPlanning.getId(), tripPlanning.getUser().getId())
+                .ifPresent(budgetAlertNotificationService::evaluateForTripAudience);
     }
 }

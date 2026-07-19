@@ -412,12 +412,16 @@
               </div>
             }
           </div>
-          <button class="draft-button" type="button" [disabled]="isSaving()" (click)="saveLater()">
-            Save Later
-          </button>
-          <button class="confirm-button" type="button" [disabled]="isSaving()" (click)="confirmTrip()">
+          @if (!isEditingSavedTrip()) {
+            <button class="draft-button" type="button" [disabled]="isSaving()" (click)="saveLater()">
+              Save Later
+            </button>
+          }
+          <button class="confirm-button" type="button" [disabled]="isSaving()" (click)="primarySaveAction()">
             @if (isSaving()) {
               Saving...
+            } @else if (isEditingSavedTrip()) {
+              Save Changes
             } @else {
               Confirm Trip
             }

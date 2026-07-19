@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { CalendarEvent } from '../../../hotels/models/hotel.model';
 import { CalendarService } from '../../../hotels/services/calendar.service';
+import { FriendNotificationService } from '../../../../services/friend-notification.service';
 import { CreateTripRequest, TripOverviewResponse, TripPlanningService, TripStatus } from '../../../../services/trip-planning.service';
 import { TripTempActivity, TripTempHotelStay, TripTempService } from '../trip-temp.service';
 import type { TripSummaryPdfSource } from './trip-summary-pdf.exporter';
@@ -57,6 +58,7 @@ export class OverviewStepComponent implements OnInit, OnDestroy, TripSummaryPdfS
   private readonly tripPlanningService = inject(TripPlanningService);
   private readonly tripTempService = inject(TripTempService);
   private readonly calendarService = inject(CalendarService);
+  private readonly friendNotificationService = inject(FriendNotificationService);
   private readonly tripDestinationWeatherService = inject(TripDestinationWeatherService);
   private destinationWeatherSubscription: Subscription | null = null;
 
@@ -421,6 +423,45 @@ export class OverviewStepComponent implements OnInit, OnDestroy, TripSummaryPdfS
 
   async saveLater(): Promise<void> {
     await this.saveTrip('PLANNING', false);
+  }
+
+  isEditingSavedTrip(): boolean {
+    return Boolean(this.tripTemp.draftTripId);
+  }
+
+  async primarySaveAction(): Promise<void> {
+    if (this.isEditingSavedTrip()) {
+      await this.saveChanges();
+      return;
+    }
+
+    await this.confirmTrip();
+  }
+
+  async saveChanges(): Promise<void> {
+    const tripId = this.tripTemp.draftTripId;
+
+    if (!tripId || this.isSaving()) {
+      return;
+    }
+
+    this.isSaving.set(true);
+    this.saveError.set('');
+
+    try {
+      const savedTrip = await firstValueFrom(this.tripPlanningService.getTrip(tripId));
+      const updatedTrip = await firstValueFrom(this.tripPlanningService.updateTrip(
+        tripId,
+        this.buildCreateTripRequest(savedTrip.status),
+      ));
+      this.friendNotificationService.refresh();
+      this.tripTempService.updateTripTemp({ draftTripId: updatedTrip.id });
+      void this.router.navigate(['/trips']);
+    } catch (error: unknown) {
+      this.saveError.set(this.saveErrorMessage(error, false));
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   toggleExportMenu(): void {
@@ -931,6 +972,7 @@ export class OverviewStepComponent implements OnInit, OnDestroy, TripSummaryPdfS
       const savedTrip = await firstValueFrom(this.tripTemp.draftTripId
         ? this.tripPlanningService.updateTrip(this.tripTemp.draftTripId, request)
         : this.tripPlanningService.createTrip(request));
+      this.friendNotificationService.refresh();
       this.tripTemp.draftTripId = savedTrip.id;
       this.tripTempService.updateTripTemp({ draftTripId: savedTrip.id });
 

@@ -3,6 +3,7 @@ package com.sep.trip;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,8 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
             order by trip.startDate asc
             """)
     List<Trip> findAllAccessibleByUserIdOrderByStartDateAsc(Long userId);
+
+    List<Trip> findAllByStatusAndStartDate(TripStatus status, LocalDate startDate);
 
     @Query("""
             select trip

@@ -68,6 +68,34 @@
           }
         </button>
 
+        @if (!isNotificationMenuOpen() && budgetAlertToast(); as alert) {
+          <aside
+            class="budget-alert-popover"
+            role="alert"
+            aria-live="assertive"
+            (click)="$event.stopPropagation()">
+            <div class="budget-alert-popover__icon" aria-hidden="true">
+              @if (alert.type === 'BUDGET_ALERT') {
+                BG
+              } @else {
+                TR
+              }
+            </div>
+            <div class="budget-alert-popover__copy">
+              <strong>{{ alert.title }}</strong>
+              <span>{{ alert.details || alert.description }}</span>
+            </div>
+            <button
+              type="button"
+              class="budget-alert-popover__close"
+              aria-label="Dismiss budget alert popup"
+              title="Dismiss"
+              (click)="dismissBudgetAlertToast($event)">
+              ×
+            </button>
+          </aside>
+        }
+
         @if (isNotificationMenuOpen()) {
           <div class="notification-panel" role="menu" aria-label="Notifications">
             <div class="notification-header">
@@ -141,6 +169,13 @@
                             <path d="m21 9 3 3-3 3"></path>
                           </svg>
                         }
+                        @case ('BUDGET_ALERT') {
+                          BG
+                        }
+
+                        @case ('TRIP_REMINDER') {
+                          TR
+                        }
                         @default {
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 3v3"></path>
@@ -187,6 +222,15 @@
                     role="menuitem"
                     (click)="closeNotificationMenu()">
                     Open trips
+                  </a>
+                }
+                @if (hasBudgetNotifications()) {
+                  <a
+                    routerLink="/budget-tracker"
+                    class="notification-menu-footer"
+                    role="menuitem"
+                    (click)="closeNotificationMenu()">
+                    Open budget
                   </a>
                 }
                 @if (hasFriendNotifications()) {

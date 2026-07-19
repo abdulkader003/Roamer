@@ -8,5 +8,7 @@ public interface UserSettingsRepository extends JpaRepository<UserSettings, Long
 
     Optional<UserSettings> findByOwnerEmailIgnoreCase(String email);
 
+    Optional<UserSettings> findByOwnerId(Long ownerId);
+
     void deleteByOwnerId(Long ownerId);
 }

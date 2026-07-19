@@ -4,8 +4,17 @@ import com.sep.profile.dto.ChangePasswordRequest;
 import com.sep.profile.dto.DeleteAccountRequest;
 import com.sep.profile.dto.ProfileResponse;
 import com.sep.profile.dto.UpdateProfileRequest;
+import com.sep.budget.BudgetAlertNotificationRepository;
+import com.sep.budget.BudgetAlertNotificationService;
+import com.sep.budget.ExpenseRepository;
+import com.sep.event.CalendarEventRepository;
 import com.sep.settings.UserFeedbackRepository;
 import com.sep.settings.UserSettingsRepository;
+import com.sep.trip.Trip;
+import com.sep.trip.TripInvitation;
+import com.sep.trip.TripInvitationRepository;
+import com.sep.trip.TripReminderNotificationRepository;
+import com.sep.trip.TripUpdateNotificationRepository;
 import com.sep.trip.TripRepository;
 import com.sep.tripplanning.TripPlanningRepository;
 import com.sep.user.AppUser;
@@ -55,6 +64,27 @@ class ProfileServiceTest {
     @Mock
     private UserFeedbackRepository userFeedbackRepository;
 
+    @Mock
+    private TripReminderNotificationRepository tripReminderNotificationRepository;
+
+    @Mock
+    private TripUpdateNotificationRepository tripUpdateNotificationRepository;
+
+    @Mock
+    private BudgetAlertNotificationRepository budgetAlertNotificationRepository;
+
+    @Mock
+    private CalendarEventRepository calendarEventRepository;
+
+    @Mock
+    private ExpenseRepository expenseRepository;
+
+    @Mock
+    private TripInvitationRepository tripInvitationRepository;
+
+    @Mock
+    private BudgetAlertNotificationService budgetAlertNotificationService;
+
     private ProfileService profileService;
     private AppUser user;
 
@@ -66,7 +96,14 @@ class ProfileServiceTest {
                 tripRepository,
                 tripPlanningRepository,
                 userSettingsRepository,
-                userFeedbackRepository
+                userFeedbackRepository,
+                tripReminderNotificationRepository,
+                tripUpdateNotificationRepository,
+                budgetAlertNotificationRepository,
+                calendarEventRepository,
+                expenseRepository,
+                tripInvitationRepository,
+                budgetAlertNotificationService
         );
 
         user = new AppUser();
@@ -449,13 +486,34 @@ class ProfileServiceTest {
                 .hasMessage("Current password is incorrect.");
 
         when(passwordEncoder.matches("old-password", "old-hash")).thenReturn(true);
+        Trip ownedTrip = new Trip();
+        ownedTrip.setId(44L);
+        AppUser invitedUser = new AppUser();
+        invitedUser.setId(12L);
+        invitedUser.setEmail("friend@example.com");
+        TripInvitation invitation = new TripInvitation();
+        invitation.setInvitedUser(invitedUser);
+        when(tripRepository.findAllByOwnerIdOrderByStartDateAsc(7L)).thenReturn(List.of(ownedTrip));
+        when(tripInvitationRepository.findAllByInvitedByIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(invitation));
+
         profileService.deleteCurrentAccount("traveler@example.com", new DeleteAccountRequest("old-password"));
 
         verify(userFeedbackRepository).deleteAllByOwnerId(7L);
+        verify(tripReminderNotificationRepository).deleteAllByRecipientId(7L);
+        verify(tripReminderNotificationRepository).deleteAllByTripOwnerId(7L);
+        verify(tripUpdateNotificationRepository).deleteAllByRecipientId(7L);
+        verify(tripUpdateNotificationRepository).deleteAllByTripOwnerId(7L);
+        verify(budgetAlertNotificationRepository).deleteAllByRecipientId(7L);
+        verify(calendarEventRepository).deleteByTripIdIn(List.of(44L));
+        verify(expenseRepository).deleteAllByTripIdIn(List.of(44L));
+        verify(tripInvitationRepository).deleteAllByTripIdIn(List.of(44L));
+        verify(tripInvitationRepository).deleteAllByInvitedUserId(7L);
+        verify(tripInvitationRepository).deleteAllByInvitedById(7L);
         verify(userSettingsRepository).deleteByOwnerId(7L);
         verify(tripPlanningRepository).deleteAllByUserId(7L);
         verify(tripRepository).deleteAllByOwnerId(7L);
         verify(userRepository).delete(user);
         verify(userRepository).flush();
+        verify(budgetAlertNotificationService).evaluateForUser(invitedUser);
     }
 }

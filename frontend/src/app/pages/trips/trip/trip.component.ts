@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -18,6 +19,7 @@ import {
 import { RealtimeWebSocketService } from '../../../services/realtime-websocket.service';
 import { WeatherDto } from '../../../services/weather.service';
 import { formatWeatherTemperature, formatWeatherUpdatedAt, weatherIconFor } from '../../../services/weather-display.util';
+import { isTripCompleted, tripStatusKind, tripStatusLabel } from '../../../services/trip-status.util';
 import { TripTemp, TripTempActivity, TripTempFlightSegment, TripTempHotelStay, TripTempService } from '../create/trip-temp.service';
 import type { TripSummaryPdfSource } from '../create/overview/trip-summary-pdf.exporter';
 
@@ -292,7 +294,7 @@ export class TripComponent implements OnInit, OnDestroy {
   }
 
   statusFor(trip: TripResponse): string {
-    return trip.status === 'UPCOMING' ? 'Confirmed' : 'Draft';
+    return tripStatusLabel(trip);
   }
 
   durationLabel(trip: TripResponse): string {
@@ -736,11 +738,41 @@ export class TripComponent implements OnInit, OnDestroy {
         this.isActionSaving.set(false);
         this.closeTripModal();
       },
-      error: () => {
-        this.actionError.set('Could not delete this trip. Please try again.');
+      error: (error: unknown) => {
+        this.actionError.set(this.deleteTripErrorMessage(error));
         this.isActionSaving.set(false);
       },
     });
+  }
+
+  private deleteTripErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const message = this.backendErrorMessage(error);
+      if (message) {
+        return message;
+      }
+
+      return `Could not delete this trip. Server returned ${error.status || 'an unknown status'}.`;
+    }
+
+    return 'Could not delete this trip. Please try again.';
+  }
+
+  private backendErrorMessage(error: HttpErrorResponse): string {
+    if (!error.error) {
+      return '';
+    }
+
+    if (typeof error.error === 'string') {
+      try {
+        const parsed = JSON.parse(error.error);
+        return typeof parsed?.message === 'string' ? parsed.message : '';
+      } catch {
+        return '';
+      }
+    }
+
+    return typeof error.error.message === 'string' ? error.error.message : '';
   }
 
   formatDateRange(trip: { startDate: string; endDate: string }): string {
@@ -781,6 +813,10 @@ export class TripComponent implements OnInit, OnDestroy {
   }
 
   tripAccessHint(trip: TripResponse): string {
+    if (this.isTripCompleted(trip)) {
+      return 'Trip is done.';
+    }
+
     return trip.accessRole === 'PARTICIPANT'
       ? 'Shared trip. You can edit it or leave it.'
       : 'Owned trip. You can edit it, invite friends, or delete it.';
@@ -1113,6 +1149,7 @@ export class TripComponent implements OnInit, OnDestroy {
         this.selectedTrip.set(updatedTrip);
         this.editTripForm = this.toEditForm(updatedTrip);
         this.isEditing.set(false);
+        this.refreshTripNotifications();
         this.isActionSaving.set(false);
       },
       error: () => {
@@ -1129,6 +1166,10 @@ export class TripComponent implements OnInit, OnDestroy {
       return null;
     }
 
+    const durationNights = this.nightsBetweenDates(form.startDate, form.endDate);
+    const syncedFlightSegmentsJson = this.syncFlightSegmentsJson(trip, form.startDate, form.endDate);
+    const syncedHotelStaysJson = this.syncHotelStaysJson(trip, form.startDate, form.endDate);
+
     const request: CreateTripRequest = {
       name: form.name.trim(),
       destination: trip.destination,
@@ -1143,7 +1184,7 @@ export class TripComponent implements OnInit, OnDestroy {
     this.addIfPresent(request, 'origin', trip.origin);
     this.addIfPresent(request, 'destinationCities', trip.destinationCities);
     this.addIfPresent(request, 'currency', trip.currency);
-    this.addIfPresent(request, 'durationNights', trip.durationNights);
+    this.addIfPresent(request, 'durationNights', durationNights ?? trip.durationNights);
     this.addIfPresent(request, 'travelStyle', trip.travelStyle);
     this.addIfPresent(request, 'flightId', trip.flightId);
     this.addIfPresent(request, 'flightTitle', trip.flightTitle);
@@ -1155,13 +1196,13 @@ export class TripComponent implements OnInit, OnDestroy {
     this.addIfPresent(request, 'flightStops', trip.flightStops);
     this.addIfPresent(request, 'flightDetails', trip.flightDetails);
     this.addIfPresent(request, 'flightTotal', trip.flightTotal);
-    this.addIfPresent(request, 'flightSegmentsJson', trip.flightSegmentsJson);
+    this.addIfPresent(request, 'flightSegmentsJson', syncedFlightSegmentsJson ?? trip.flightSegmentsJson);
     this.addIfPresent(request, 'hotelName', trip.hotelName);
     this.addIfPresent(request, 'hotelCity', trip.hotelCity);
     this.addIfPresent(request, 'hotelStars', trip.hotelStars);
     this.addIfPresent(request, 'hotelDetails', trip.hotelDetails);
     this.addIfPresent(request, 'hotelTotal', trip.hotelTotal);
-    this.addIfPresent(request, 'hotelStaysJson', trip.hotelStaysJson);
+    this.addIfPresent(request, 'hotelStaysJson', syncedHotelStaysJson ?? trip.hotelStaysJson);
     this.addIfPresent(request, 'activitiesTitle', trip.activitiesTitle);
     this.addIfPresent(request, 'activitiesDetails', trip.activitiesDetails);
     this.addIfPresent(request, 'activitiesJson', trip.activitiesJson);
@@ -1187,6 +1228,14 @@ export class TripComponent implements OnInit, OnDestroy {
       endDate: trip.endDate,
       budget: trip.budget,
     };
+  }
+
+  isTripCompleted(trip: TripResponse): boolean {
+    return isTripCompleted(trip);
+  }
+
+  statusClassFor(trip: TripResponse): 'upcoming' | 'draft' | 'completed' {
+    return tripStatusKind(trip);
   }
 
   nightsFor(trip: TripResponse): number {
@@ -1431,6 +1480,71 @@ export class TripComponent implements OnInit, OnDestroy {
       stars: trip.hotelStars ?? tripTemp?.selectedHotelStars ?? null,
       price: Number(trip.hotelTotal ?? tripTemp?.selectedHotelTotal ?? 0),
     }];
+  }
+
+  private syncFlightSegmentsJson(trip: TripResponse, nextStartDate: string, nextEndDate: string): string | null {
+    const segments = this.parseJsonArray<TripTempFlightSegment>(trip.flightSegmentsJson);
+
+    if (!segments.length) {
+      return null;
+    }
+
+    const syncedSegments = segments.map((segment) => {
+      if (this.isReturnFlightSegment(segment) && segment.date === trip.endDate) {
+        return { ...segment, date: nextEndDate };
+      }
+
+      if (this.isOutboundFlightSegment(segment) && segment.date === trip.startDate) {
+        return { ...segment, date: nextStartDate };
+      }
+
+      return segment;
+    });
+
+    return JSON.stringify(syncedSegments);
+  }
+
+  private isOutboundFlightSegment(segment: TripTempFlightSegment): boolean {
+    const label = segment.label?.trim().toLowerCase() ?? '';
+    return label === 'outbound' || label === 'segment 1';
+  }
+
+  private isReturnFlightSegment(segment: TripTempFlightSegment): boolean {
+    const label = segment.label?.trim().toLowerCase() ?? '';
+    return label === 'return';
+  }
+
+  private syncHotelStaysJson(trip: TripResponse, nextStartDate: string, nextEndDate: string): string | null {
+    const stays = this.parseJsonArray<TripTempHotelStay>(trip.hotelStaysJson);
+
+    if (!stays.length) {
+      return null;
+    }
+
+    const syncedStays = stays.map((stay) => {
+      const checkIn = stay.checkIn === trip.startDate ? nextStartDate : stay.checkIn;
+      const checkOut = stay.checkOut === trip.endDate ? nextEndDate : stay.checkOut;
+
+      return {
+        ...stay,
+        checkIn,
+        checkOut,
+        nights: this.nightsBetweenDates(checkIn, checkOut) ?? stay.nights,
+      };
+    });
+
+    return JSON.stringify(syncedStays);
+  }
+
+  private nightsBetweenDates(startDate: string, endDate: string): number | null {
+    const start = this.parseDateInput(startDate);
+    const end = this.parseDateInput(endDate);
+
+    if (!start || !end) {
+      return null;
+    }
+
+    return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
   }
 
   private travelerCountFor(trip: TripResponse): number {

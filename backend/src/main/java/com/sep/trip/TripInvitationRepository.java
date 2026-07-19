@@ -24,4 +24,10 @@ public interface TripInvitationRepository extends JpaRepository<TripInvitation, 
     void deleteAllByTripIdAndInvitedUserIdAndStatus(Long tripId, Long invitedUserId, TripInvitationStatus status);
 
     void deleteAllByTripId(Long tripId);
+
+    void deleteAllByTripIdIn(List<Long> tripIds);
+
+    void deleteAllByInvitedUserId(Long invitedUserId);
+
+    void deleteAllByInvitedById(Long invitedById);
 }

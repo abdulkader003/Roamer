@@ -252,7 +252,9 @@
 
       <footer class="page-actions">
         <a class="back-button" routerLink="/trips/create/budget" [queryParams]="stepQueryParams()">← Back</a>
-        <button class="continue-button" type="submit">Continue - Search Flights →</button>
+        <div class="edit-actions">
+          <button class="continue-button" type="submit" [disabled]="isSaving">{{ primaryActionLabel }}</button>
+        </div>
       </footer>
     </form>
 

@@ -94,7 +94,9 @@
             class="trip-card"
             role="button"
             tabindex="0"
-            [class.trip-card--draft]="trip.status === 'PLANNING'"
+            [class.trip-card--draft]="statusClassFor(trip) === 'draft'"
+            [class.trip-card--completed]="statusClassFor(trip) === 'completed'"
+            [class.trip-card--selected]="selectedTrip()?.id === trip.id"
             (click)="openTrip(trip)"
             (keydown)="openTripFromKeyboard($event, trip)">
             <div class="trip-icon" aria-hidden="true">
@@ -113,7 +115,10 @@
 
             <div class="trip-meta">
               <strong>{{ formatBudget(trip) }}</strong>
-              <span [class.upcoming]="trip.status === 'UPCOMING'" [class.draft]="trip.status === 'PLANNING'">
+              <span
+                [class.upcoming]="statusClassFor(trip) === 'upcoming'"
+                [class.draft]="statusClassFor(trip) === 'draft'"
+                [class.completed]="statusClassFor(trip) === 'completed'">
                 {{ statusFor(trip) }}
               </span>
               <span class="trip-shared-badge">{{ tripAccessLabel(trip) }}</span>

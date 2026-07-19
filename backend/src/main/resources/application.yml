@@ -34,6 +34,11 @@ spring:
     init:
       mode: always
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+
 external:
   aerodatabox:
     rapidapi-key: f61b5b83b4mshd4c2d605c51d860p1d729fjsn48bf7c653f42
