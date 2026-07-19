@@ -26,3 +26,6 @@ USING category_budget_limits legacy
 WHERE target.category = 'TRANSPORT'
   AND legacy.category = 'OTHERS'
   AND legacy.owner_id = target.owner_id;
+
+ALTER TABLE IF EXISTS activities
+    ALTER COLUMN info TYPE TEXT;

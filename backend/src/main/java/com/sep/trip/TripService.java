@@ -6,8 +6,6 @@ import com.sep.budget.ExpenseRepository;
 import com.sep.trip.dto.CreateTripRequest;
 import com.sep.auth.dto.MessageResponse;
 import com.sep.budget.BudgetAlertNotificationService;
-import com.sep.budget.ExpenseRepository;
-import com.sep.trip.dto.CreateTripRequest;
 import com.sep.trip.dto.TripResponse;
 import com.sep.user.AppUser;
 import com.sep.user.AppUserRepository;
@@ -151,7 +149,6 @@ public class TripService {
         tripReminderNotificationRepository.deleteAllByTripId(trip.getId());
         tripUpdateNotificationRepository.deleteAllByTripId(trip.getId());
         tripInvitationRepository.deleteAllByTripId(trip.getId());
-        expenseRepository.deleteAllByTripId(trip.getId());
         tripRepository.delete(trip);
         tripRepository.flush();
         budgetAlertNotificationService.evaluateForUser(owner);

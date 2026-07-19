@@ -62,7 +62,7 @@ public class ActivityEntity {
     @Column(length = 3000)
     private String description;
 
-    @Column(length = 3000)
+    @Column(columnDefinition = "TEXT")
     private String info;
 
     @Column(length = 3000)

@@ -25,7 +25,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
@@ -136,6 +138,22 @@ public class ProfileController {
         return ResponseEntity.badRequest().body(Map.of("message", message));
     }
 
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<Map<String, String>> handleMissingServletRequestPart(MissingServletRequestPartException exception) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "message",
+                "No image file was included in the upload request."
+        ));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "message",
+                "The selected image is too large. Maximum allowed size is 2 MB."
+        ));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException exception) {
         String message = exception.getReason() != null ? exception.getReason() : "Request failed.";
@@ -156,7 +174,7 @@ public class ProfileController {
         LOGGER.error("Unexpected profile request failure.", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "message",
-                "Could not delete your account right now. Please try again."
+                "Could not process the profile request right now. Please try again."
         ));
     }
 }
