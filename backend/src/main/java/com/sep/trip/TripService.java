@@ -60,7 +60,7 @@ public class TripService {
         this.tripReminderService = tripReminderService;
         this.budgetAlertNotificationService = budgetAlertNotificationService;
         this.tripUpdateNotificationRepository = tripUpdateNotificationRepository;
-        }
+    }
 
     /**
      * Resolves the authenticated email to an owner id before querying trips.
